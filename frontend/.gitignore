@@ -45,6 +45,10 @@ app.*.map.json
 # Local environment files
 /android/local.properties
 
+# Gradle build cache (DO NOT COMMIT)
+android/.gradle/
+.gradle/
+
 # Generated files
 /lib/generated_bindings.dart
 *.g.dart
