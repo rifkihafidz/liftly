@@ -1,0 +1,33 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/build/
+android/key.properties
+**/*.jks
+**/*.keystore
+
+# Android native build cache
+android/.cxx/
+.cxx/
+
+# Windows (optional safety)
+windows/flutter/ephemeral/
+
+# iOS/macOS (kalau ada)
+ios/Pods/
+ios/.symlinks/
+macos/Pods/
+macos/.symlinks/
+
+# IDE
+.vscode/
+.idea/

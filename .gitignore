@@ -1,0 +1,21 @@
+# IDE
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Dependencies (if applicable)
+node_modules/
+venv/
+__pycache__/
