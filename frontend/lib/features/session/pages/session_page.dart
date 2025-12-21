@@ -17,10 +17,10 @@ class SessionPage extends StatefulWidget {
   final String? planId;
 
   const SessionPage({
-    Key? key,
+    super.key,
     required this.exerciseNames,
     this.planId,
-  }) : super(key: key);
+  });
 
   @override
   State<SessionPage> createState() => _SessionPageState();
@@ -54,11 +54,7 @@ class _SessionPageState extends State<SessionPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Workout saved successfully!')),
             );
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              '/workout-history-detail',
-              (route) => route.isFirst,
-              arguments: state.session.id,
-            );
+            Navigator.of(context).pop();
           }
           if (state is SessionError) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -97,7 +93,7 @@ class _SessionPageState extends State<SessionPage> {
                           index: index,
                           exercise: exercise,
                         );
-                      }).toList(),
+                      }),
                       const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,
@@ -241,14 +237,14 @@ class _ExerciseCard extends StatelessWidget {
                   set: set,
                   exercise: exercise,
                 );
-              }).toList(),
+              }),
             ] else ...[
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
@@ -446,7 +442,7 @@ class _SetCard extends StatelessWidget {
               segment: segment,
               canDelete: set.segments.length > 1,
             );
-          }).toList(),
+          }),
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,

@@ -7,7 +7,7 @@ import '../bloc/plan_state.dart';
 import 'create_plan_page.dart';
 
 class PlansPage extends StatefulWidget {
-  const PlansPage({Key? key}) : super(key: key);
+  const PlansPage({super.key});
 
   @override
   State<PlansPage> createState() => _PlansPageState();
@@ -73,7 +73,7 @@ class _PlansPageState extends State<PlansPage> {
                         Icon(
                           Icons.fitness_center,
                           size: 64,
-                          color: AppColors.accent.withOpacity(0.5),
+                          color: AppColors.accent.withValues(alpha: 0.5),
                         ),
                         const SizedBox(height: 24),
                         Text(

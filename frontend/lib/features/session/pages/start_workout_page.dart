@@ -7,7 +7,7 @@ import '../../plans/bloc/plan_state.dart';
 import 'session_page.dart';
 
 class StartWorkoutPage extends StatefulWidget {
-  const StartWorkoutPage({Key? key}) : super(key: key);
+  const StartWorkoutPage({super.key});
 
   @override
   State<StartWorkoutPage> createState() => _StartWorkoutPageState();
@@ -120,11 +120,11 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                   end: Alignment.bottomRight,
                                   colors: [
                                     isSelected
-                                        ? AppColors.accent.withOpacity(0.15)
-                                        : AppColors.accent.withOpacity(0.05),
+                                        ? AppColors.accent.withValues(alpha: 0.15)
+                                        : AppColors.accent.withValues(alpha: 0.05),
                                     isSelected
-                                        ? AppColors.accent.withOpacity(0.08)
-                                        : AppColors.accent.withOpacity(0.02),
+                                        ? AppColors.accent.withValues(alpha: 0.08)
+                                        : AppColors.accent.withValues(alpha: 0.02),
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(12),
@@ -166,7 +166,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                               ),
                             ),
                           );
-                        }).toList(),
+                        }),
                         const SizedBox(height: 24),
                       ],
                     );

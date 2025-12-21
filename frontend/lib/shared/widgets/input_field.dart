@@ -12,7 +12,7 @@ class InputField extends StatefulWidget {
   final int minLines;
 
   const InputField({
-    Key? key,
+    super.key,
     required this.label,
     this.hintText,
     this.keyboardType = TextInputType.text,
@@ -21,7 +21,7 @@ class InputField extends StatefulWidget {
     this.obscureText = false,
     this.maxLines = 1,
     this.minLines = 1,
-  }) : super(key: key);
+  });
 
   @override
   State<InputField> createState() => _InputFieldState();

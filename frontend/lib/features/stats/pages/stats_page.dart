@@ -3,7 +3,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
 
 class StatsPage extends StatefulWidget {
-  const StatsPage({Key? key}) : super(key: key);
+  const StatsPage({super.key});
 
   @override
   State<StatsPage> createState() => _StatsPageState();
@@ -237,7 +237,7 @@ class _StatsPageState extends State<StatsPage> {
                   exercise: exercise,
                   maxWeight: maxWeight,
                 );
-              }).toList(),
+              }),
 
               const SizedBox(height: 32),
 
@@ -257,7 +257,7 @@ class _StatsPageState extends State<StatsPage> {
                   volume: volume,
                   percentage: percentage,
                 );
-              }).toList(),
+              }),
             ],
           ),
         ),
@@ -355,13 +355,13 @@ class _SummaryCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            color.withOpacity(0.15),
-            color.withOpacity(0.08),
+            color.withValues(alpha: 0.15),
+            color.withValues(alpha: 0.08),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -370,7 +370,7 @@ class _SummaryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -451,10 +451,10 @@ class _PRCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.2),
+              color: AppColors.accent.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: AppColors.accent.withOpacity(0.4),
+                color: AppColors.accent.withValues(alpha: 0.4),
                 width: 1,
               ),
             ),
@@ -523,7 +523,7 @@ class _ExerciseVolumeCard extends StatelessWidget {
               minHeight: 6,
               backgroundColor: AppColors.inputBg,
               valueColor: AlwaysStoppedAnimation<Color>(
-                AppColors.success.withOpacity(0.7),
+                AppColors.success.withValues(alpha: 0.7),
               ),
             ),
           ),

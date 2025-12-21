@@ -9,7 +9,7 @@ import '../../plans/pages/plans_page.dart';
 import '../../stats/pages/stats_page.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -133,13 +133,13 @@ class _MenuCard extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.accent.withOpacity(0.08),
-              AppColors.accent.withOpacity(0.03),
+              AppColors.accent.withValues(alpha: 0.08),
+              AppColors.accent.withValues(alpha: 0.03),
             ],
           ),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: AppColors.accent.withOpacity(0.15),
+            color: AppColors.accent.withValues(alpha: 0.15),
             width: 1,
           ),
         ),
@@ -148,10 +148,10 @@ class _MenuCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.15),
+                color: AppColors.accent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: AppColors.accent.withOpacity(0.25),
+                  color: AppColors.accent.withValues(alpha: 0.25),
                   width: 0.5,
                 ),
               ),
@@ -185,7 +185,7 @@ class _MenuCard extends StatelessWidget {
             ),
             Icon(
               Icons.arrow_forward_ios,
-              color: AppColors.accent.withOpacity(0.5),
+              color: AppColors.accent.withValues(alpha: 0.5),
               size: 16,
             ),
           ],

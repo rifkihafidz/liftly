@@ -9,11 +9,11 @@ class WorkoutDetailPage extends StatefulWidget {
   final VoidCallback onSessionDeleted;
 
   const WorkoutDetailPage({
-    Key? key,
+    super.key,
     required this.session,
     required this.onSessionUpdated,
     required this.onSessionDeleted,
-  }) : super(key: key);
+  });
 
   @override
   State<WorkoutDetailPage> createState() => _WorkoutDetailPageState();
@@ -178,7 +178,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                     });
                   },
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 32),
               // Summary stats
               Container(
@@ -319,6 +319,7 @@ class _ExerciseDetailCard extends StatelessWidget {
               PopupMenuButton(
                 itemBuilder: (context) => [
                   PopupMenuItem(
+                    onTap: onDelete,
                     child: const Row(
                       children: [
                         Icon(Icons.delete, color: AppColors.error, size: 18),
@@ -326,7 +327,6 @@ class _ExerciseDetailCard extends StatelessWidget {
                         Text('Delete'),
                       ],
                     ),
-                    onTap: onDelete,
                   ),
                 ],
               ),
@@ -370,11 +370,11 @@ class _ExerciseDetailCard extends StatelessWidget {
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );

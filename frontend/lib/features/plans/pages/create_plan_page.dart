@@ -9,7 +9,7 @@ import '../bloc/plan_state.dart';
 class CreatePlanPage extends StatefulWidget {
   final WorkoutPlan? plan;
 
-  const CreatePlanPage({Key? key, this.plan}) : super(key: key);
+  const CreatePlanPage({super.key, this.plan});
 
   @override
   State<CreatePlanPage> createState() => _CreatePlanPageState();

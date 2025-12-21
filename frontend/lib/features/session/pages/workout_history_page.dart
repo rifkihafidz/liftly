@@ -5,7 +5,7 @@ import '../../../core/models/workout_session.dart';
 import 'workout_detail_page.dart';
 
 class WorkoutHistoryPage extends StatefulWidget {
-  const WorkoutHistoryPage({Key? key}) : super(key: key);
+  const WorkoutHistoryPage({super.key});
 
   @override
   State<WorkoutHistoryPage> createState() => _WorkoutHistoryPageState();
@@ -171,7 +171,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                     Icon(
                       Icons.history,
                       size: 64,
-                      color: AppColors.accent.withOpacity(0.5),
+                      color: AppColors.accent.withValues(alpha: 0.5),
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -225,13 +225,13 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            AppColors.accent.withOpacity(0.08),
-                            AppColors.accent.withOpacity(0.03),
+                            AppColors.accent.withValues(alpha: 0.08),
+                            AppColors.accent.withValues(alpha: 0.03),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: AppColors.accent.withOpacity(0.15),
+                          color: AppColors.accent.withValues(alpha: 0.15),
                           width: 1,
                         ),
                       ),
@@ -256,7 +256,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                                       child: Text(
                                         '${DateFormat('HH:mm').format(session.startedAt!)} - ${DateFormat('HH:mm').format(session.endedAt!)} • ${_formatDuration(session.duration!)}',
                                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: AppColors.accent.withOpacity(0.7),
+                                          color: AppColors.accent.withValues(alpha: 0.7),
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -265,7 +265,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                               ),
                               Icon(
                                 Icons.arrow_forward_ios,
-                                color: AppColors.accent.withOpacity(0.5),
+                                color: AppColors.accent.withValues(alpha: 0.5),
                                 size: 16,
                               ),
                             ],
@@ -279,10 +279,10 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.accent.withOpacity(0.15),
+                                  color: AppColors.accent.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: AppColors.accent.withOpacity(0.25),
+                                    color: AppColors.accent.withValues(alpha: 0.25),
                                     width: 0.5,
                                   ),
                                 ),
@@ -301,10 +301,10 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.success.withOpacity(0.15),
+                                  color: AppColors.success.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: AppColors.success.withOpacity(0.25),
+                                    color: AppColors.success.withValues(alpha: 0.25),
                                     width: 0.5,
                                   ),
                                 ),
