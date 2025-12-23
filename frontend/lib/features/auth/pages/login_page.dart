@@ -27,31 +27,20 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _loadSavedCredentials() async {
-    debugPrint('=== LOADING SAVED CREDENTIALS ===');
     try {
       final rememberMe = await PreferencesService.getRememberMe();
-      debugPrint('✅ Remember me status: $rememberMe');
       if (rememberMe) {
         final email = await PreferencesService.getSavedEmail();
         final password = await PreferencesService.getSavedPassword();
-        debugPrint(
-          '✅ Loaded credentials - Email: $email, Password length: ${password?.length ?? 0}',
-        );
         if (mounted) {
           setState(() {
             _rememberMe = true;
             _emailController.text = email ?? '';
             _passwordController.text = password ?? '';
           });
-          debugPrint('✅ UI updated with saved credentials');
-        } else {
-          debugPrint('⚠️ Widget not mounted, skipping UI update');
         }
-      } else {
-        debugPrint('ℹ️ Remember me is false, no credentials to load');
       }
     } catch (e) {
-      debugPrint('❌ Error loading saved credentials: $e');
       // Silently fail - user can still login normally
     }
   }
@@ -166,37 +155,30 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed: isLoading
                               ? null
                               : () async {
-                                  debugPrint(
-                                    'Login clicked - Remember me: $_rememberMe',
-                                  );
                                   try {
                                     if (_rememberMe) {
-                                      debugPrint('Saving credentials...');
                                       await PreferencesService.setRememberMe(
                                         true,
                                         email: _emailController.text,
                                         password: _passwordController.text,
                                       );
-                                      debugPrint('Credentials saved');
                                     } else {
-                                      debugPrint('Clearing credentials...');
                                       await PreferencesService.clearRememberMe();
-                                      debugPrint('Credentials cleared');
                                     }
                                   } catch (e) {
-                                    debugPrint('Error saving preferences: $e');
+                                    // Ignore
                                   }
 
                                   if (!mounted) return;
-                                  debugPrint(
-                                    'Adding login request: ${_emailController.text}',
-                                  );
-                                  BlocProvider.of<AuthBloc>(context).add(
-                                    AuthLoginRequested(
-                                      email: _emailController.text,
-                                      password: _passwordController.text,
-                                    ),
-                                  );
+                                  
+                                  if (mounted && context.mounted) {
+                                    BlocProvider.of<AuthBloc>(context).add(
+                                      AuthLoginRequested(
+                                        email: _emailController.text,
+                                        password: _passwordController.text,
+                                      ),
+                                    );
+                                  }
                                 },
                           child: isLoading
                               ? const SizedBox(

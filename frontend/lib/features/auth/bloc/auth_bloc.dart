@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/services/preferences_service.dart';
 import '../repositories/auth_repository.dart';
@@ -61,16 +60,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthLogoutRequested event,
     Emitter<AuthState> emit,
   ) async {
-    debugPrint('=== LOGOUT STARTED ===');
-    debugPrint('Current state type: ${state.runtimeType}');
-
     // Get userId BEFORE changing state
     String? userId;
     if (state is AuthAuthenticated) {
       userId = (state as AuthAuthenticated).user.id;
-      debugPrint('✅ Got userId: $userId');
-    } else {
-      debugPrint('❌ State is not AuthAuthenticated: ${state.runtimeType}');
     }
 
     emit(const AuthLoading());
@@ -78,34 +71,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Try to logout with userId
       if (userId != null) {
         try {
-          debugPrint('Calling logout API with userId: $userId');
           await _authRepository.logout(userId: userId);
-          debugPrint('✅ Logout successful from API');
         } catch (apiError) {
-          debugPrint('❌ API Logout error: $apiError');
           rethrow;
         }
-      } else {
-        debugPrint('⚠️ No userId available, skipping API call');
       }
       // Clear saved credentials on logout
       try {
         await PreferencesService.clearRememberMe();
-        debugPrint('✅ Preferences cleared');
       } catch (e) {
-        debugPrint('⚠️ Error clearing preferences: $e');
+        // Ignore
       }
-      debugPrint('✅ Emitting AuthUnauthenticated');
       emit(const AuthUnauthenticated());
     } catch (e) {
-      debugPrint('❌ LOGOUT ERROR: $e');
       // Even if logout fails on backend, clear local auth state
       try {
         await PreferencesService.clearRememberMe();
       } catch (prefError) {
         // Ignore preferences errors
       }
-      debugPrint('✅ Emitting AuthUnauthenticated (after error)');
       emit(const AuthUnauthenticated());
     }
   }
