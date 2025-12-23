@@ -1,5 +1,6 @@
 package com.liftly.api.controller;
 
+import com.liftly.api.dto.ApiResponse;
 import com.liftly.api.dto.CreatePlanRequest;
 import com.liftly.api.dto.PlanResponse;
 import com.liftly.api.service.PlanService;
@@ -18,41 +19,42 @@ public class PlanController {
     private final PlanService planService;
 
     @PostMapping
-    public ResponseEntity<PlanResponse> createPlan(
+    public ResponseEntity<ApiResponse<PlanResponse>> createPlan(
             @RequestParam Long userId,
             @Valid @RequestBody CreatePlanRequest request) {
         PlanResponse response = planService.createPlan(userId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response, "Plan created successfully", HttpStatus.CREATED.value()));
     }
 
     @GetMapping
-    public ResponseEntity<List<PlanResponse>> getPlans(@RequestParam Long userId) {
+    public ResponseEntity<ApiResponse<List<PlanResponse>>> getPlans(@RequestParam Long userId) {
         List<PlanResponse> plans = planService.getPlansByUserId(userId);
-        return ResponseEntity.ok(plans);
+        return ResponseEntity.ok(ApiResponse.success(plans, "Plans retrieved successfully", HttpStatus.OK.value()));
     }
 
     @GetMapping("/{planId}")
-    public ResponseEntity<PlanResponse> getPlan(
+    public ResponseEntity<ApiResponse<PlanResponse>> getPlan(
             @PathVariable Long planId,
             @RequestParam Long userId) {
         PlanResponse plan = planService.getPlanById(userId, planId);
-        return ResponseEntity.ok(plan);
+        return ResponseEntity.ok(ApiResponse.success(plan, "Plan retrieved successfully", HttpStatus.OK.value()));
     }
 
     @PutMapping("/{planId}")
-    public ResponseEntity<PlanResponse> updatePlan(
+    public ResponseEntity<ApiResponse<PlanResponse>> updatePlan(
             @PathVariable Long planId,
             @RequestParam Long userId,
             @Valid @RequestBody CreatePlanRequest request) {
         PlanResponse response = planService.updatePlan(userId, planId, request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response, "Plan updated successfully", HttpStatus.OK.value()));
     }
 
     @DeleteMapping("/{planId}")
-    public ResponseEntity<String> deletePlan(
+    public ResponseEntity<ApiResponse<?>> deletePlan(
             @PathVariable Long planId,
             @RequestParam Long userId) {
         planService.deletePlan(userId, planId);
-        return ResponseEntity.ok("Plan deleted successfully");
+        return ResponseEntity.ok(ApiResponse.success(null, "Plan deleted successfully", HttpStatus.OK.value()));
     }
 }

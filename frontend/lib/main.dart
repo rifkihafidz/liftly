@@ -37,7 +37,6 @@ class Liftly extends StatelessWidget {
         title: 'Liftly',
         theme: AppTheme.darkTheme,
         home: const AuthWrapper(),
-        debugShowCheckedModeBanner: false,
       ),
     );
   }

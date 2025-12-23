@@ -2,10 +2,40 @@
 
 ## Base URL
 ```
-http://192.168.1.4:8080/api
+http://192.168.1.5:8080/api
 ```
 
-> **Note**: Change IP `192.168.1.4` to your backend server's IP address
+> **Note**: Change IP `192.168.1.5` to your backend server's IP address
+
+---
+
+## Response Format
+
+All API responses follow a standardized format:
+
+### Success Response
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Operation successful",
+  "data": {
+    // Response data
+  }
+}
+```
+
+### Error Response
+```json
+{
+  "success": false,
+  "statusCode": 400,
+  "message": "Error message",
+  "errors": {
+    // Field validation errors (optional)
+  }
+}
+```
 
 ---
 
@@ -16,7 +46,7 @@ http://192.168.1.4:8080/api
 
 **Request**:
 ```bash
-curl -X POST http://192.168.1.4:8080/api/auth/register \
+curl -X POST http://192.168.1.5:8080/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -29,11 +59,15 @@ curl -X POST http://192.168.1.4:8080/api/auth/register \
 **Response** (Status: 201):
 ```json
 {
-  "id": 1,
-  "email": "user@example.com",
-  "firstName": "John",
-  "lastName": "Doe",
-  "message": "Registration successful"
+  "success": true,
+  "statusCode": 201,
+  "message": "Registration successful",
+  "data": {
+    "id": 1,
+    "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe"
+  }
 }
 ```
 
@@ -44,7 +78,7 @@ curl -X POST http://192.168.1.4:8080/api/auth/register \
 
 **Request**:
 ```bash
-curl -X POST http://192.168.1.4:8080/api/auth/login \
+curl -X POST http://192.168.1.5:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -55,11 +89,15 @@ curl -X POST http://192.168.1.4:8080/api/auth/login \
 **Response** (Status: 200):
 ```json
 {
-  "id": 1,
-  "email": "user@example.com",
-  "firstName": "John",
-  "lastName": "Doe",
-  "message": "Login successful"
+  "success": true,
+  "statusCode": 200,
+  "message": "Login successful",
+  "data": {
+    "id": 1,
+    "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe"
+  }
 }
 ```
 
@@ -70,102 +108,48 @@ curl -X POST http://192.168.1.4:8080/api/auth/login \
 
 **Request**:
 ```bash
-curl -X POST http://192.168.1.4:8080/api/auth/logout?userId=1 \
+curl -X POST "http://192.168.1.5:8080/api/auth/logout?userId=1" \
   -H "Content-Type: application/json"
 ```
 
 **Response** (Status: 200):
 ```json
-"Logout successful"
-```
-
----
-
-## Plans Endpoints
-
-### 1. Create Plan
-**Endpoint**: `POST /plans`
-
-**Request**:
-```bash
-curl -X POST http://192.168.1.4:8080/api/plans?userId=1 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Push/Pull/Legs",
-    "description": "3-day strength program",
-    "exercises": ["Bench Press", "Incline Dumbbell", "Cable Flyes", "Barbell Row", "Lat Pulldown"]
-  }'
-```
-
-**Parameters**:
-- `userId` (required): The ID of the user creating the plan
-
-**Request Body**:
-- `name` (required): Name of the plan
-- `description` (optional): Description of the plan
-- `exercises` (required): Array of exercise names
-
-**Response** (Status: 201):
-```json
 {
-  "id": 1,
-  "userId": 1,
-  "name": "Push/Pull/Legs",
-  "description": "3-day strength program",
-  "exercises": [
-    {
-      "id": 1,
-      "name": "Bench Press",
-      "order": 0
-    },
-    {
-      "id": 2,
-      "name": "Incline Dumbbell",
-      "order": 1
-    },
-    {
-      "id": 3,
-      "name": "Cable Flyes",
-      "order": 2
-    },
-    {
-      "id": 4,
-      "name": "Barbell Row",
-      "order": 3
-    },
-    {
-      "id": 5,
-      "name": "Lat Pulldown",
-      "order": 4
-    }
-  ],
-  "createdAt": "2025-12-23T10:30:45",
-  "updatedAt": "2025-12-23T10:30:45"
+  "success": true,
+  "statusCode": 200,
+  "message": "Logout successful"
 }
 ```
 
 ---
 
-### 2. Get List Plans
-**Endpoint**: `GET /plans`
+## Plan Endpoints
+
+### 1. Create Plan
+**Endpoint**: `POST /plans?userId={userId}`
 
 **Request**:
 ```bash
-curl -X GET http://192.168.1.4:8080/api/plans?userId=1 \
-  -H "Content-Type: application/json"
+curl -X POST "http://192.168.1.5:8080/api/plans?userId=1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Push/Pull/Legs",
+    "description": "3-day strength training program",
+    "exercises": ["Bench Press", "Incline Dumbbell", "Cable Flyes"]
+  }'
 ```
 
-**Parameters**:
-- `userId` (required): The ID of the user
-
-**Response** (Status: 200):
+**Response** (Status: 201):
 ```json
-[
-  {
+{
+  "success": true,
+  "statusCode": 201,
+  "message": "Plan created successfully",
+  "data": {
     "id": 1,
     "userId": 1,
     "name": "Push/Pull/Legs",
-    "description": "3-day strength program",
+    "description": "3-day strength training program",
     "exercises": [
       {
         "id": 1,
@@ -181,446 +165,286 @@ curl -X GET http://192.168.1.4:8080/api/plans?userId=1 \
         "id": 3,
         "name": "Cable Flyes",
         "order": 2
-      },
-      {
-        "id": 4,
-        "name": "Barbell Row",
-        "order": 3
-      },
-      {
-        "id": 5,
-        "name": "Lat Pulldown",
-        "order": 4
       }
     ],
-    "createdAt": "2025-12-23T10:30:45",
-    "updatedAt": "2025-12-23T10:30:45"
-  },
-  {
-    "id": 2,
-    "userId": 1,
-    "name": "Upper/Lower",
-    "description": "4-day split",
-    "exercises": [
-      {
-        "id": 6,
-        "name": "Squat",
-        "order": 0
-      },
-      {
-        "id": 7,
-        "name": "Deadlift",
-        "order": 1
-      }
-    ],
-    "createdAt": "2025-12-23T11:00:00",
-    "updatedAt": "2025-12-23T11:00:00"
+    "createdAt": "2025-12-23T10:30:00.000000",
+    "updatedAt": "2025-12-23T10:30:00.000000"
   }
-]
+}
 ```
 
 ---
 
-### 3. Get Plan by ID
-**Endpoint**: `GET /plans/{planId}`
+### 2. Get All Plans
+**Endpoint**: `GET /plans?userId={userId}`
 
 **Request**:
 ```bash
-curl -X GET http://192.168.1.4:8080/api/plans/1?userId=1 \
+curl -X GET "http://192.168.1.5:8080/api/plans?userId=1" \
   -H "Content-Type: application/json"
 ```
-
-**Parameters**:
-- `planId` (required): The ID of the plan
-- `userId` (required): The ID of the user
 
 **Response** (Status: 200):
 ```json
 {
-  "id": 1,
-  "userId": 1,
-  "name": "Push/Pull/Legs",
-  "description": "3-day strength program",
-  "exercises": [
+  "success": true,
+  "statusCode": 200,
+  "message": "Plans retrieved successfully",
+  "data": [
     {
       "id": 1,
-      "name": "Bench Press",
-      "order": 0
-    },
-    {
-      "id": 2,
-      "name": "Incline Dumbbell",
-      "order": 1
+      "userId": 1,
+      "name": "Push/Pull/Legs",
+      "description": "3-day strength training program",
+      "exercises": [
+        {
+          "id": 1,
+          "name": "Bench Press",
+          "order": 0
+        },
+        {
+          "id": 2,
+          "name": "Incline Dumbbell",
+          "order": 1
+        }
+      ],
+      "createdAt": "2025-12-23T10:30:00.000000",
+      "updatedAt": "2025-12-23T10:30:00.000000"
     }
-  ],
-  "createdAt": "2025-12-23T10:30:45",
-  "updatedAt": "2025-12-23T10:30:45"
+  ]
+}
+```
+
+---
+
+### 3. Get Single Plan
+**Endpoint**: `GET /plans/{planId}?userId={userId}`
+
+**Request**:
+```bash
+curl -X GET "http://192.168.1.5:8080/api/plans/1?userId=1" \
+  -H "Content-Type: application/json"
+```
+
+**Response** (Status: 200):
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Plan retrieved successfully",
+  "data": {
+    "id": 1,
+    "userId": 1,
+    "name": "Push/Pull/Legs",
+    "description": "3-day strength training program",
+    "exercises": [
+      {
+        "id": 1,
+        "name": "Bench Press",
+        "order": 0
+      },
+      {
+        "id": 2,
+        "name": "Incline Dumbbell",
+        "order": 1
+      }
+    ],
+    "createdAt": "2025-12-23T10:30:00.000000",
+    "updatedAt": "2025-12-23T10:30:00.000000"
+  }
 }
 ```
 
 ---
 
 ### 4. Update Plan
-**Endpoint**: `PUT /plans/{planId}`
+**Endpoint**: `PUT /plans/{planId}?userId={userId}`
 
 **Request**:
 ```bash
-curl -X PUT http://192.168.1.4:8080/api/plans/1?userId=1 \
+curl -X PUT "http://192.168.1.5:8080/api/plans/1?userId=1" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Push/Pull/Legs v2",
-    "description": "3-day strength program - updated",
-    "exercises": ["Bench Press", "Incline Press", "Dumbbell Flyes"]
+    "name": "Push/Pull/Legs - Updated",
+    "description": "Updated 3-day strength program",
+    "exercises": ["Bench Press", "Incline Dumbbell", "Squats"]
   }'
 ```
-
-**Parameters**:
-- `planId` (required): The ID of the plan to update
-- `userId` (required): The ID of the user
-
-**Request Body**:
-- `name` (required): Updated name
-- `description` (optional): Updated description
-- `exercises` (required): Updated exercise list
 
 **Response** (Status: 200):
 ```json
 {
-  "id": 1,
-  "userId": 1,
-  "name": "Push/Pull/Legs v2",
-  "description": "3-day strength program - updated",
-  "exercises": [
-    {
-      "id": 1,
-      "name": "Bench Press",
-      "order": 0
-    },
-    {
-      "id": 2,
-      "name": "Incline Press",
-      "order": 1
-    },
-    {
-      "id": 3,
-      "name": "Dumbbell Flyes",
-      "order": 2
-    }
-  ],
-  "createdAt": "2025-12-23T10:30:45",
-  "updatedAt": "2025-12-23T12:15:30"
+  "success": true,
+  "statusCode": 200,
+  "message": "Plan updated successfully",
+  "data": {
+    "id": 1,
+    "userId": 1,
+    "name": "Push/Pull/Legs - Updated",
+    "description": "Updated 3-day strength program",
+    "exercises": [
+      {
+        "id": 1,
+        "name": "Bench Press",
+        "order": 0
+      },
+      {
+        "id": 2,
+        "name": "Incline Dumbbell",
+        "order": 1
+      },
+      {
+        "id": 3,
+        "name": "Squats",
+        "order": 2
+      }
+    ],
+    "createdAt": "2025-12-23T10:30:00.000000",
+    "updatedAt": "2025-12-23T10:45:00.000000"
+  }
 }
 ```
 
 ---
 
 ### 5. Delete Plan
-**Endpoint**: `DELETE /plans/{planId}`
+**Endpoint**: `DELETE /plans/{planId}?userId={userId}`
 
 **Request**:
 ```bash
-curl -X DELETE http://192.168.1.4:8080/api/plans/1?userId=1 \
+curl -X DELETE "http://192.168.1.5:8080/api/plans/1?userId=1" \
   -H "Content-Type: application/json"
 ```
-
-**Parameters**:
-- `planId` (required): The ID of the plan to delete
-- `userId` (required): The ID of the user
 
 **Response** (Status: 200):
 ```json
-"Plan deleted successfully"
-```
-
----
-
-## Testing Workflow Example
-
-### Step 1: Register a new user
-```bash
-curl -X POST http://192.168.1.4:8080/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "password": "test123",
-    "firstName": "Test",
-    "lastName": "User"
-  }'
-# Save the returned user ID (e.g., 1)
-```
-
-### Step 2: Login
-```bash
-curl -X POST http://192.168.1.4:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "password": "test123"
-  }'
-```
-
-### Step 3: Create a plan
-```bash
-curl -X POST http://192.168.1.4:8080/api/plans?userId=1 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "My First Plan",
-    "description": "Getting started with fitness",
-    "exercises": ["Squats", "Bench Press", "Deadlifts"]
-  }'
-# Save the returned plan ID (e.g., 1)
-```
-
-### Step 4: Get all plans
-```bash
-curl -X GET http://192.168.1.4:8080/api/plans?userId=1 \
-  -H "Content-Type: application/json"
-```
-
-### Step 5: Update the plan
-```bash
-curl -X PUT http://192.168.1.4:8080/api/plans/1?userId=1 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "My Updated Plan",
-    "description": "Updated plan description",
-    "exercises": ["Squats", "Bench Press", "Deadlifts", "Pull-ups"]
-  }'
-```
-
-### Step 6: Delete the plan
-```bash
-curl -X DELETE http://192.168.1.4:8080/api/plans/1?userId=1 \
-  -H "Content-Type: application/json"
-```
-
-### Step 7: Logout
-```bash
-curl -X POST http://192.168.1.4:8080/api/auth/logout?userId=1 \
-  -H "Content-Type: application/json"
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Plan deleted successfully"
+}
 ```
 
 ---
 
 ## Error Responses
 
-### 400 - Bad Request
+### 1. Validation Error
+**Status**: 400
 ```json
 {
-  "message": "Request tidak valid. Cek kembali data Anda."
+  "success": false,
+  "statusCode": 400,
+  "message": "Validation failed",
+  "errors": {
+    "name": "Name cannot be blank",
+    "password": "Password is required"
+  }
 }
 ```
 
-### 401 - Unauthorized
+### 2. Not Found Error
+**Status**: 401
 ```json
 {
-  "message": "Akses ditolak. Login kembali diperlukan."
+  "success": false,
+  "statusCode": 401,
+  "message": "Plan not found"
 }
 ```
 
-### 404 - Not Found
+### 3. Conflict Error (e.g., Email already exists)
+**Status**: 409
 ```json
 {
-  "message": "Resource tidak ditemukan."
+  "success": false,
+  "statusCode": 409,
+  "message": "Email already registered"
 }
 ```
 
-### 409 - Conflict
+### 4. Server Error
+**Status**: 500
 ```json
 {
-  "message": "Data sudah ada atau terjadi konflik."
-}
-```
-
-### 500 - Server Error
-```json
-{
-  "message": "Server error. Coba lagi nanti."
+  "success": false,
+  "statusCode": 500,
+  "message": "An unexpected error occurred"
 }
 ```
 
 ---
 
-## Tips for Testing
+## Testing Workflow
 
-1. **Use a REST Client**: Tools like Postman, Insomnia, or VSCode REST Client extension make testing easier
-2. **Save IDs**: After creating a user or plan, save the IDs for use in subsequent requests
-3. **Check IP Address**: Make sure to use the correct IP address for your backend server
-4. **Content-Type**: Always include `Content-Type: application/json` header
-5. **Query Parameters**: User ID and Plan ID are required as query parameters in most endpoints
-
-**Request:**
+### 1. Register New User
 ```bash
-curl -X POST http://localhost:8080/api/auth/login \
+curl -X POST http://192.168.1.5:8080/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "user@example.com",
-    "password": "password123"
+    "email": "newuser@example.com",
+    "password": "password123",
+    "firstName": "Test",
+    "lastName": "User"
   }'
 ```
 
-**Response (200 OK):**
-```json
-{
-  "id": 1,
-  "email": "user@example.com",
-  "firstName": "John",
-  "lastName": "Doe",
-  "token": "166b83c8-151b-4519-b28e-e1dc20ee7af5",
-  "message": "Login successful"
-}
-```
-
-**Error Cases:**
-- Wrong password → 401 Unauthorized
-- User not found → 401 Unauthorized
-- User inactive → 401 Unauthorized
-
----
-
-### 3. Logout User
-**Endpoint:** `POST /api/auth/logout`  
-**Status Code:** 200 OK  
-**Authentication:** Required (Bearer token)
-
-**Request:**
+### 2. Login with the registered user
 ```bash
-curl -X POST "http://localhost:8080/api/auth/logout?userId=1" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+curl -X POST http://192.168.1.5:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "newuser@example.com",
+    "password": "password123"
+  }'
 ```
+> Note: Extract the user ID from the response to use in plan operations
 
-**Response (200 OK):**
-```
-Logout successful
-```
-
----
-
-## Database Verification
-
-### View All Users
+### 3. Create a plan (use userId from login response)
 ```bash
-docker exec liftly-postgres psql -U postgres -d liftly -c "SELECT * FROM users;"
+curl -X POST "http://192.168.1.5:8080/api/plans?userId=1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My First Plan",
+    "description": "My workout plan",
+    "exercises": ["Push-ups", "Squats", "Running"]
+  }'
 ```
 
-### PostgreSQL Connection Details
-- **Host:** localhost
-- **Port:** 5432
-- **Database:** liftly
-- **Username:** postgres
-- **Password:** postgres
-
----
-
-## Testing with Postman
-
-### Import Collection
-Create a new collection with these requests:
-
-**1. Register**
-- Method: POST
-- URL: `http://localhost:8080/api/auth/register`
-- Body (raw JSON):
-```json
-{
-  "email": "testuser@liftly.io",
-  "password": "TestPass123",
-  "firstName": "Test",
-  "lastName": "User"
-}
-```
-
-**2. Login**
-- Method: POST
-- URL: `http://localhost:8080/api/auth/login`
-- Body (raw JSON):
-```json
-{
-  "email": "testuser@liftly.io",
-  "password": "TestPass123"
-}
-```
-- Extract token from response and save to collection variable: `{{auth_token}}`
-
-**3. Logout**
-- Method: POST
-- URL: `http://localhost:8080/api/auth/logout?userId={{user_id}}`
-- Headers: `Authorization: Bearer {{auth_token}}`
-
----
-
-## Startup Commands
-
-### Start Backend (with hot reload)
+### 4. Get all plans
 ```bash
-cd /Users/hafidz/Documents/Projects/liftly/backend
-mvn spring-boot:run
+curl -X GET "http://192.168.1.5:8080/api/plans?userId=1"
 ```
 
-### Start PostgreSQL
+### 5. Update a plan
 ```bash
-cd /Users/hafidz/Documents/Projects/liftly
-docker-compose up -d
+curl -X PUT "http://192.168.1.5:8080/api/plans/1?userId=1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Plan",
+    "description": "Updated description",
+    "exercises": ["Pull-ups", "Squats"]
+  }'
 ```
 
-### Verify Services Running
+### 6. Delete a plan
 ```bash
-# Check backend
-curl http://localhost:8080/api/auth/login -X POST -H "Content-Type: application/json" -d '{}'
+curl -X DELETE "http://192.168.1.5:8080/api/plans/1?userId=1"
+```
 
-# Check database
-docker exec liftly-postgres pg_isready -U postgres
+### 7. Logout
+```bash
+curl -X POST "http://192.168.1.5:8080/api/auth/logout?userId=1"
 ```
 
 ---
 
-## Known Issues & Solutions
+## Notes
 
-### 401 Unauthorized on Register
-**Solution:** Spring Security is configured to allow register/login without authentication. If receiving 401:
-1. Ensure `SecurityConfig.java` has `@EnableWebSecurity` annotation
-2. Verify `requestMatchers("/api/auth/register", "/api/auth/login").permitAll()`
-3. Restart backend: `mvn spring-boot:run`
-
-### Database Connection Failed
-**Solution:**
-```bash
-# Check if PostgreSQL container is running
-docker ps | grep liftly-postgres
-
-# Restart if needed
-docker-compose down
-docker-compose up -d
-
-# Verify connection
-docker exec liftly-postgres psql -U postgres -d liftly -c "SELECT 1;"
-```
-
-### Port 8080 Already in Use
-**Solution:**
-```bash
-# Kill process using port 8080
-lsof -i :8080 | grep -v COMMAND | awk '{print $2}' | xargs kill -9
-
-# Restart backend
-mvn spring-boot:run
-```
-
----
-
-## Next Steps
-
-1. **JWT Implementation:** Replace UUID tokens with proper JWT implementation
-2. **Frontend Integration:** Connect Flutter frontend to these endpoints
-3. **Token Refresh:** Add refresh token mechanism
-4. **Email Verification:** Add email confirmation for registration
-5. **Password Reset:** Implement password recovery flow
-6. **API Documentation:** Generate Swagger/OpenAPI docs
-7. **Rate Limiting:** Add request throttling for security
-8. **Logging:** Enhanced audit trail for authentication events
-
----
-
-**Last Updated:** 2025-12-21  
-**Backend Version:** Spring Boot 3.3.0  
-**Database:** PostgreSQL 16 Alpine
+- All requests require `Content-Type: application/json` header
+- User ID is passed as a query parameter in all plan operations for authorization
+- Exercises are stored as a simple list of strings with automatic ordering
+- All timestamps are in ISO 8601 format
+- Success field always indicates whether the operation succeeded (true/false)
+- Error field contains validation errors only when applicable
+- HTTP status codes match the standard REST conventions (200, 201, 400, 401, 409, 500)

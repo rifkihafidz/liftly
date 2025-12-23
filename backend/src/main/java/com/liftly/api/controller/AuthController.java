@@ -1,5 +1,6 @@
 package com.liftly.api.controller;
 
+import com.liftly.api.dto.ApiResponse;
 import com.liftly.api.dto.LoginRequest;
 import com.liftly.api.dto.LoginResponse;
 import com.liftly.api.dto.RegisterRequest;
@@ -18,22 +19,23 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response, "Login successful", HttpStatus.OK.value()));
     }
 
     @PostMapping("/register")
-    public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> register(@Valid @RequestBody RegisterRequest request) {
         LoginResponse response = authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response, "Registration successful", HttpStatus.CREATED.value()));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(
+    public ResponseEntity<ApiResponse<?>> logout(
             @RequestParam Long userId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         authService.logout(userId);
-        return ResponseEntity.ok("Logout successful");
+        return ResponseEntity.ok(ApiResponse.success(null, "Logout successful", HttpStatus.OK.value()));
     }
 }
