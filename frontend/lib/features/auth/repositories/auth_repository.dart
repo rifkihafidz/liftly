@@ -46,53 +46,68 @@ class AuthRepository {
     }
   }
 
-  Future<void> logout({required String userId}) async {
+  Future<void> logout({required String userId, required String token}) async {
     try {
-      await ApiService.logout(userId: userId);
+      await ApiService.logout(userId: userId, token: token);
     } catch (e) {
       throw Exception(e.toString());
     }
   }
 
   String _parseErrorMessage(String error) {
-    // Normalisasi error message
-    final errorLower = error.toLowerCase();
-
-    // Check untuk "Invalid email or password" atau variasi lainnya
-    if (errorLower.contains('invalid email') ||
-        errorLower.contains('invalid password') ||
-        errorLower.contains('email or password') ||
-        errorLower.contains('wrong password') ||
-        errorLower.contains('user not found')) {
+    // Cek message dari backend
+    if (error.contains('Email atau password salah')) {
       return 'Email atau password salah. Coba lagi.';
+    }
+    if (error.contains('Akun Anda sudah dinonaktifkan')) {
+      return 'Akun Anda sudah dinonaktifkan. Hubungi admin.';
     }
 
     // Check untuk validation errors
     if (error.contains('must be a well-formed email address')) {
       return 'Format email tidak valid. Gunakan email yang benar.';
     }
-    if (error.contains('Password is required') || error.contains('password')) {
-      return 'Password wajib diisi.';
+    if (error.contains('Password is required') || 
+        (error.contains('password') && error.contains('required'))) {
+      return 'Password harus diisi.';
     }
-    if (error.contains('must not be blank') || error.contains('required')) {
-      return 'Semua field wajib diisi.';
+    if (error.contains('must not be blank') || 
+        (error.contains('field') && error.contains('required'))) {
+      return 'Semua field harus diisi.';
     }
 
     // Check untuk connection errors
     if (error.contains('SocketException') ||
-        error.contains('Connection refused')) {
-      return 'Tidak bisa terhubung ke server. Pastikan backend sedang berjalan.';
+        error.contains('Connection refused') ||
+        error.contains('Failed to connect')) {
+      return 'Tidak bisa terhubung ke server. Periksa koneksi internet Anda.';
     }
     if (error.contains('timeout')) {
-      return 'Koneksi timeout. Internet Anda mungkin lambat.';
+      return 'Koneksi timeout. Internet Anda mungkin lambat, coba lagi.';
     }
 
     // Check untuk already registered
-    if (error.contains('already registered') || error.contains('Email sudah')) {
-      return 'Email sudah terdaftar. Gunakan email lain atau login.';
+    if (error.contains('already registered') || 
+        error.contains('Email sudah') ||
+        error.contains('Email sudah terdaftar')) {
+      return 'Email sudah terdaftar. Gunakan email lain atau langsung login.';
     }
 
-    // Default fallback
-    return error.isEmpty ? 'Gagal login. Silakan coba lagi.' : error;
+    // Check untuk server errors
+    if (error.contains('Server error') || error.contains('500')) {
+      return 'Server error. Coba lagi dalam beberapa saat.';
+    }
+
+    // Check untuk unauthorized/forbidden
+    if (error.contains('401') || error.contains('Unauthorized')) {
+      return 'Akses ditolak. Silakan login kembali.';
+    }
+
+    // Default fallback - return error dari backend jika user-friendly
+    if (error.contains('Exception:')) {
+      return error.replaceAll('Exception: ', '').trim();
+    }
+    
+    return error.isEmpty ? 'Terjadi kesalahan. Silakan coba lagi.' : error;
   }
 }

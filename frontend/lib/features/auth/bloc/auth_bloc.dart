@@ -45,6 +45,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         firstName: event.firstName,
         lastName: event.lastName,
       );
+      // Clear saved password & remember me on successful registration
+      await PreferencesService.clearRememberMe();
+      // Save email for next login convenience
+      await PreferencesService.saveEmailOnly(user.email);
       // Show success message then authenticate
       emit(const AuthRegistrationSuccess());
       // Delay sebentar untuk user bisa lihat success message
@@ -60,18 +64,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthLogoutRequested event,
     Emitter<AuthState> emit,
   ) async {
-    // Get userId BEFORE changing state
+    // Get userId and token BEFORE changing state
     String? userId;
+    String? token;
     if (state is AuthAuthenticated) {
-      userId = (state as AuthAuthenticated).user.id;
+      final authState = state as AuthAuthenticated;
+      userId = authState.user.id;
+      token = authState.user.token;
     }
 
     emit(const AuthLoading());
     try {
-      // Try to logout with userId
-      if (userId != null) {
+      // Try to logout with userId and token
+      if (userId != null && token != null) {
         try {
-          await _authRepository.logout(userId: userId);
+          await _authRepository.logout(userId: userId, token: token);
         } catch (apiError) {
           rethrow;
         }

@@ -42,7 +42,7 @@ class AuthRegistrationSuccess extends AuthState {
   final String message;
 
   const AuthRegistrationSuccess({
-    this.message = 'Pendaftaran berhasil! Silahkan login dengan akun Anda.',
+    this.message = 'Akun berhasil dibuat! Anda akan masuk ke aplikasi.',
   });
 
   @override

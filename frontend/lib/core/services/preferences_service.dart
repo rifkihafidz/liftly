@@ -56,6 +56,17 @@ class PreferencesService {
     }
   }
 
+  // Save email only (for registration autofill on next login)
+  static Future<void> saveEmailOnly(String email) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_emailKey, email);
+      // Don't set remember me flag, just save email for convenience
+    } catch (e) {
+      // Silent fail
+    }
+  }
+
   static Future<void> clearRememberMe() async {
     try {
       final prefs = await SharedPreferences.getInstance();

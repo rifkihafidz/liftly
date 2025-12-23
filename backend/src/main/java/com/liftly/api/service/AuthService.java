@@ -10,27 +10,27 @@ import com.liftly.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new AuthenticationException("Invalid email or password"));
+                .orElseThrow(() -> new AuthenticationException("Email atau password salah"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new AuthenticationException("Invalid email or password");
+            throw new AuthenticationException("Email atau password salah");
         }
 
         if (!user.getActive()) {
-            throw new AuthenticationException("User account is inactive");
+            throw new AuthenticationException("Akun Anda sudah dinonaktifkan");
         }
 
-        String token = generateToken(user);
+        String token = jwtService.generateToken(user.getId(), user.getEmail());
 
         return new LoginResponse(
                 user.getId(),
@@ -56,7 +56,7 @@ public class AuthService {
 
         userRepository.save(user);
 
-        String token = generateToken(user);
+        String token = jwtService.generateToken(user.getId(), user.getEmail());
 
         return new LoginResponse(
                 user.getId(),
@@ -71,10 +71,5 @@ public class AuthService {
     public void logout(Long userId) {
         // Token invalidation dapat dilakukan di sisi client
         // atau menggunakan token blacklist di database
-    }
-
-    private String generateToken(User user) {
-        // Simple token generation - untuk production gunakan JWT
-        return UUID.randomUUID().toString();
     }
 }

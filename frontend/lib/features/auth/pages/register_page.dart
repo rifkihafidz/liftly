@@ -189,8 +189,8 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    if (password.length < 6) {
-      showErrorDialog(context, 'Password minimal 6 karakter.');
+    if (password.length < 8) {
+      showErrorDialog(context, 'Password minimal 8 karakter.');
       return;
     }
 
@@ -317,7 +317,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       Navigator.of(context).pop();
                       Navigator.of(context).pop();
                     },
-                    child: const Text('Lanjut ke Login'),
+                    child: const Text('Mulai'),
                   ),
                 ),
               ],
