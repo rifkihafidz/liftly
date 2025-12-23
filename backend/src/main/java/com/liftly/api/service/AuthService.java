@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
 
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
@@ -30,14 +29,11 @@ public class AuthService {
             throw new AuthenticationException("Akun Anda sudah dinonaktifkan");
         }
 
-        String token = jwtService.generateToken(user.getId(), user.getEmail());
-
         return new LoginResponse(
                 user.getId(),
                 user.getEmail(),
                 user.getFirstName(),
                 user.getLastName(),
-                token,
                 "Login successful"
         );
     }
@@ -56,14 +52,11 @@ public class AuthService {
 
         userRepository.save(user);
 
-        String token = jwtService.generateToken(user.getId(), user.getEmail());
-
         return new LoginResponse(
                 user.getId(),
                 user.getEmail(),
                 user.getFirstName(),
                 user.getLastName(),
-                token,
                 "Registration successful"
         );
     }

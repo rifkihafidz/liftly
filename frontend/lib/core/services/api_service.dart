@@ -2,19 +2,13 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.4:8080/api';
+  static const String baseUrl = 'http://192.168.1.5:8080/api';
   static const Duration timeout = Duration(seconds: 30);
 
-  // Helper method untuk membuat headers dengan token
-  static Map<String, String> _getHeaders({String? token}) {
-    final headers = {'Content-Type': 'application/json'};
-    if (token != null && token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-    return headers;
+  static Map<String, String> _getHeaders() {
+    return {'Content-Type': 'application/json'};
   }
 
-  // Helper method untuk handle response dan error
   static Future<Map<String, dynamic>> _handleResponse(
     Future<http.Response> request,
     String operation,
@@ -24,7 +18,6 @@ class ApiService {
         throw Exception('Koneksi timeout. Server tidak merespons dalam 30 detik.');
       });
 
-      // Success response
       if (response.statusCode == 201 || response.statusCode == 200) {
         try {
           return jsonDecode(response.body);
@@ -33,13 +26,11 @@ class ApiService {
         }
       }
 
-      // Error response dengan message
       try {
         final errorBody = jsonDecode(response.body);
         final errorMessage = errorBody['message'] ?? '$operation gagal';
         throw Exception(errorMessage);
       } on FormatException {
-        // Jika tidak bisa parse error response (response body tidak valid JSON)
         switch (response.statusCode) {
           case 400:
             throw Exception('Request tidak valid. Cek kembali data Anda.');
@@ -102,14 +93,11 @@ class ApiService {
   }
 
   // Logout
-  static Future<void> logout({
-    required String userId,
-    required String token,
-  }) async {
+  static Future<void> logout({required String userId}) async {
     await _handleResponse(
       http.post(
         Uri.parse('$baseUrl/auth/logout?userId=$userId'),
-        headers: _getHeaders(token: token),
+        headers: _getHeaders(),
       ),
       'Logout',
     );

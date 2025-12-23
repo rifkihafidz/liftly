@@ -64,21 +64,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthLogoutRequested event,
     Emitter<AuthState> emit,
   ) async {
-    // Get userId and token BEFORE changing state
+    // Get userId BEFORE changing state
     String? userId;
-    String? token;
     if (state is AuthAuthenticated) {
       final authState = state as AuthAuthenticated;
       userId = authState.user.id;
-      token = authState.user.token;
     }
 
     emit(const AuthLoading());
     try {
-      // Try to logout with userId and token
-      if (userId != null && token != null) {
+      // Try to logout with userId
+      if (userId != null) {
         try {
-          await _authRepository.logout(userId: userId, token: token);
+          await _authRepository.logout(userId: userId);
         } catch (apiError) {
           rethrow;
         }

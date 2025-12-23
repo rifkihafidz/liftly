@@ -227,15 +227,6 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: Text(
-                      'Demo: use any email & password',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),

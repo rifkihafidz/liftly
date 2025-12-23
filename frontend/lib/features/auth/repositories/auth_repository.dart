@@ -9,7 +9,6 @@ class AuthRepository {
       return User(
         id: response['id'].toString(),
         email: response['email'],
-        token: response['token'],
         firstName: response['firstName'],
         lastName: response['lastName'],
       );
@@ -36,7 +35,6 @@ class AuthRepository {
       return User(
         id: response['id'].toString(),
         email: response['email'],
-        token: response['token'],
         firstName: response['firstName'],
         lastName: response['lastName'],
       );
@@ -46,9 +44,9 @@ class AuthRepository {
     }
   }
 
-  Future<void> logout({required String userId, required String token}) async {
+  Future<void> logout({required String userId}) async {
     try {
-      await ApiService.logout(userId: userId, token: token);
+      await ApiService.logout(userId: userId);
     } catch (e) {
       throw Exception(e.toString());
     }
