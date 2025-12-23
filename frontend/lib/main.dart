@@ -8,6 +8,7 @@ import 'features/auth/repositories/auth_repository.dart';
 import 'features/home/pages/home_page.dart';
 import 'features/session/bloc/session_bloc.dart';
 import 'features/plans/bloc/plan_bloc.dart';
+import 'features/plans/repositories/plan_repository.dart';
 
 void main() {
   runApp(const Liftly());
@@ -26,7 +27,11 @@ class Liftly extends StatelessWidget {
           ),
         ),
         BlocProvider(create: (context) => SessionBloc()),
-        BlocProvider(create: (context) => PlanBloc()),
+        BlocProvider(
+          create: (context) => PlanBloc(
+            planRepository: PlanRepository(),
+          ),
+        ),
       ],
       child: MaterialApp(
         title: 'Liftly',
@@ -46,6 +51,8 @@ class AuthWrapper extends StatelessWidget {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         if (state is AuthAuthenticated) {
+          // Set user ID in PlanBloc
+          context.read<PlanBloc>().setCurrentUserId(state.user.id);
           return const HomePage();
         }
         return const LoginPage();

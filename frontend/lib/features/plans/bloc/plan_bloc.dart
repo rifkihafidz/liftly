@@ -1,16 +1,25 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/models/workout_plan.dart';
+import '../repositories/plan_repository.dart';
 import 'plan_event.dart';
 import 'plan_state.dart';
 
 class PlanBloc extends Bloc<PlanEvent, PlanState> {
+  final PlanRepository _planRepository;
   final List<WorkoutPlan> _plans = [];
+  String? _currentUserId;
 
-  PlanBloc() : super(const PlanInitial()) {
+  PlanBloc({required PlanRepository planRepository})
+      : _planRepository = planRepository,
+        super(const PlanInitial()) {
     on<PlansFetchRequested>(_onPlansFetchRequested);
     on<PlanCreated>(_onPlanCreated);
     on<PlanUpdated>(_onPlanUpdated);
     on<PlanDeleted>(_onPlanDeleted);
+  }
+
+  void setCurrentUserId(String userId) {
+    _currentUserId = userId;
   }
 
   Future<void> _onPlansFetchRequested(
@@ -19,11 +28,17 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
   ) async {
     emit(const PlanLoading());
     try {
-      // TODO: Call API to fetch plans
-      await Future.delayed(const Duration(milliseconds: 500));
+      if (_currentUserId == null) {
+        emit(PlansLoaded(plans: _plans));
+        return;
+      }
+
+      final plans = await _planRepository.getPlans(userId: _currentUserId!);
+      _plans.clear();
+      _plans.addAll(plans);
       emit(PlansLoaded(plans: _plans));
     } catch (e) {
-      emit(PlanError(message: 'Failed to load plans: $e'));
+      emit(PlanError(message: _parseErrorMessage(e.toString())));
     }
   }
 
@@ -31,35 +46,24 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
     PlanCreated event,
     Emitter<PlanState> emit,
   ) async {
+    emit(const PlanLoading());
     try {
-      // TODO: Call API to create plan
-      final exercises = event.exercises
-          .asMap()
-          .entries
-          .map(
-            (e) => PlanExercise(
-              id: 'ex_${DateTime.now().millisecondsSinceEpoch}_${e.key}',
-              name: e.value,
-              order: e.key,
-            ),
-          )
-          .toList();
+      if (_currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
 
-      final newPlan = WorkoutPlan(
-        id: 'plan_${DateTime.now().millisecondsSinceEpoch}',
-        userId: 'user_1', // TODO: Get from auth
+      final newPlan = await _planRepository.createPlan(
+        userId: _currentUserId!,
         name: event.name,
         description: event.description,
-        exercises: exercises,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        exercises: event.exercises,
       );
 
       _plans.add(newPlan);
       emit(const PlanSuccess(message: 'Plan created successfully'));
       emit(PlansLoaded(plans: _plans));
     } catch (e) {
-      emit(PlanError(message: 'Failed to create plan: $e'));
+      emit(PlanError(message: _parseErrorMessage(e.toString())));
     }
   }
 
@@ -67,38 +71,29 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
     PlanUpdated event,
     Emitter<PlanState> emit,
   ) async {
+    emit(const PlanLoading());
     try {
-      // TODO: Call API to update plan
+      if (_currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final updatedPlan = await _planRepository.updatePlan(
+        userId: _currentUserId!,
+        planId: event.planId,
+        name: event.name,
+        description: event.description,
+        exercises: event.exercises,
+      );
+
       final index = _plans.indexWhere((p) => p.id == event.planId);
       if (index != -1) {
-        final exercises = event.exercises
-            .asMap()
-            .entries
-            .map(
-              (e) => PlanExercise(
-                id: 'ex_${event.planId}_${e.key}',
-                name: e.value,
-                order: e.key,
-              ),
-            )
-            .toList();
-
-        final updatedPlan = WorkoutPlan(
-          id: event.planId,
-          userId: _plans[index].userId,
-          name: event.name,
-          description: event.description,
-          exercises: exercises,
-          createdAt: _plans[index].createdAt,
-          updatedAt: DateTime.now(),
-        );
-
         _plans[index] = updatedPlan;
-        emit(const PlanSuccess(message: 'Plan updated successfully'));
-        emit(PlansLoaded(plans: _plans));
       }
+
+      emit(const PlanSuccess(message: 'Plan updated successfully'));
+      emit(PlansLoaded(plans: _plans));
     } catch (e) {
-      emit(PlanError(message: 'Failed to update plan: $e'));
+      emit(PlanError(message: _parseErrorMessage(e.toString())));
     }
   }
 
@@ -106,13 +101,29 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
     PlanDeleted event,
     Emitter<PlanState> emit,
   ) async {
+    emit(const PlanLoading());
     try {
-      // TODO: Call API to delete plan
+      if (_currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      await _planRepository.deletePlan(
+        userId: _currentUserId!,
+        planId: event.planId,
+      );
+
       _plans.removeWhere((p) => p.id == event.planId);
       emit(const PlanSuccess(message: 'Plan deleted successfully'));
       emit(PlansLoaded(plans: _plans));
     } catch (e) {
-      emit(PlanError(message: 'Failed to delete plan: $e'));
+      emit(PlanError(message: _parseErrorMessage(e.toString())));
     }
+  }
+
+  String _parseErrorMessage(String error) {
+    if (error.contains('Exception: ')) {
+      return error.replaceAll('Exception: ', '');
+    }
+    return error;
   }
 }

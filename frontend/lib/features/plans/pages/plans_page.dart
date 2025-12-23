@@ -177,8 +177,33 @@ class _PlansPageState extends State<PlansPage> {
                                     PopupMenuItem(
                                       child: const Text('Delete'),
                                       onTap: () {
-                                        context.read<PlanBloc>().add(
-                                          PlanDeleted(planId: plan.id),
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: const Text('Delete Plan'),
+                                            content: Text(
+                                              'Are you sure you want to delete "${plan.name}"? This action cannot be undone.',
+                                            ),
+                                            backgroundColor: AppColors.cardBg,
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+                                                  context.read<PlanBloc>().add(
+                                                    PlanDeleted(planId: plan.id),
+                                                  );
+                                                },
+                                                child: const Text(
+                                                  'Delete',
+                                                  style: TextStyle(color: Colors.red),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         );
                                       },
                                     ),

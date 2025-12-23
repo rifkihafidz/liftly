@@ -71,19 +71,19 @@ public class PlanService {
         plan.setName(request.getName());
         plan.setDescription(request.getDescription());
 
-        // Clear and update exercises
+        // Clear existing exercises while keeping the list reference
         plan.getExercises().clear();
+        
+        // Add new exercises to the same list
         if (request.getExercises() != null && !request.getExercises().isEmpty()) {
-            List<PlanExercise> exercises = request.getExercises().stream()
-                    .map((exerciseName) -> {
-                        PlanExercise exercise = new PlanExercise();
-                        exercise.setName(exerciseName);
-                        exercise.setOrder(request.getExercises().indexOf(exerciseName));
-                        exercise.setPlan(plan);
-                        return exercise;
-                    })
-                    .collect(Collectors.toList());
-            plan.setExercises(exercises);
+            for (int i = 0; i < request.getExercises().size(); i++) {
+                String exerciseName = request.getExercises().get(i);
+                PlanExercise exercise = new PlanExercise();
+                exercise.setName(exerciseName);
+                exercise.setOrder(i);
+                exercise.setPlan(plan);
+                plan.getExercises().add(exercise);
+            }
         }
 
         Plan updatedPlan = planRepository.save(plan);
