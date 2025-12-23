@@ -1,65 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/services/preferences_service.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
-import 'register_page.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   bool _obscurePassword = true;
-  bool _rememberMe = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSavedCredentials();
-  }
-
-  void _loadSavedCredentials() async {
-    debugPrint('=== LOADING SAVED CREDENTIALS ===');
-    try {
-      final rememberMe = await PreferencesService.getRememberMe();
-      debugPrint('✅ Remember me status: $rememberMe');
-      if (rememberMe) {
-        final email = await PreferencesService.getSavedEmail();
-        final password = await PreferencesService.getSavedPassword();
-        debugPrint(
-          '✅ Loaded credentials - Email: $email, Password length: ${password?.length ?? 0}',
-        );
-        if (mounted) {
-          setState(() {
-            _rememberMe = true;
-            _emailController.text = email ?? '';
-            _passwordController.text = password ?? '';
-          });
-          debugPrint('✅ UI updated with saved credentials');
-        } else {
-          debugPrint('⚠️ Widget not mounted, skipping UI update');
-        }
-      } else {
-        debugPrint('ℹ️ Remember me is false, no credentials to load');
-      }
-    } catch (e) {
-      debugPrint('❌ Error loading saved credentials: $e');
-      // Silently fail - user can still login normally
-    }
-  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     super.dispose();
   }
 
@@ -70,7 +35,9 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is AuthError) {
+            if (state is AuthRegistrationSuccess) {
+              showSuccessDialog(context, state.message);
+            } else if (state is AuthError) {
               showErrorDialog(context, state.message);
             }
           },
@@ -82,30 +49,50 @@ class _LoginPageState extends State<LoginPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Liftly',
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                    'Buat Akun',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
                       color: AppColors.accent,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Log your workouts exactly as performed',
+                    'Daftar untuk mulai tracking workout Anda',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 32),
+                  Text(
+                    'Nama Depan',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _firstNameController,
+                    decoration: const InputDecoration(hintText: 'John'),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Nama Belakang',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _lastNameController,
+                    decoration: const InputDecoration(hintText: 'Doe'),
+                  ),
+                  const SizedBox(height: 16),
                   Text('Email', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
-                      hintText: 'Enter your email',
+                      hintText: 'your@email.com',
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   Text(
                     'Password',
                     style: Theme.of(context).textTheme.titleMedium,
@@ -115,7 +102,7 @@ class _LoginPageState extends State<LoginPage> {
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(
-                      hintText: 'Enter your password',
+                      hintText: 'Min. 8 karakter',
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
@@ -131,73 +118,14 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _rememberMe,
-                        onChanged: (value) {
-                          setState(() {
-                            _rememberMe = value ?? false;
-                          });
-                        },
-                        fillColor: WidgetStateProperty.resolveWith((states) {
-                          if (states.contains(WidgetState.selected)) {
-                            return AppColors.accent;
-                          }
-                          return Colors.transparent;
-                        }),
-                      ),
-                      Text(
-                        'Ingat saya',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 32),
                   BlocBuilder<AuthBloc, AuthState>(
                     builder: (context, state) {
                       final isLoading = state is AuthLoading;
                       return SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: isLoading
-                              ? null
-                              : () async {
-                                  debugPrint(
-                                    'Login clicked - Remember me: $_rememberMe',
-                                  );
-                                  try {
-                                    if (_rememberMe) {
-                                      debugPrint('Saving credentials...');
-                                      await PreferencesService.setRememberMe(
-                                        true,
-                                        email: _emailController.text,
-                                        password: _passwordController.text,
-                                      );
-                                      debugPrint('Credentials saved');
-                                    } else {
-                                      debugPrint('Clearing credentials...');
-                                      await PreferencesService.clearRememberMe();
-                                      debugPrint('Credentials cleared');
-                                    }
-                                  } catch (e) {
-                                    debugPrint('Error saving preferences: $e');
-                                  }
-
-                                  if (!mounted) return;
-                                  debugPrint(
-                                    'Adding login request: ${_emailController.text}',
-                                  );
-                                  BlocProvider.of<AuthBloc>(context).add(
-                                    AuthLoginRequested(
-                                      email: _emailController.text,
-                                      password: _passwordController.text,
-                                    ),
-                                  );
-                                },
+                          onPressed: isLoading ? null : _handleRegister,
                           child: isLoading
                               ? const SizedBox(
                                   height: 20,
@@ -209,32 +137,25 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                   ),
                                 )
-                              : const Text('Login'),
+                              : const Text('Daftar'),
                         ),
                       );
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'Belum punya akun? ',
+                          'Sudah punya akun? ',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(color: AppColors.textSecondary),
                         ),
                         GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const RegisterPage(),
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.pop(context),
                           child: Text(
-                            'Daftar',
+                            'Login',
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: AppColors.accent,
@@ -245,20 +166,40 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: Text(
-                      'Demo: use any email & password',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _handleRegister() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+
+    if (email.isEmpty ||
+        password.isEmpty ||
+        firstName.isEmpty ||
+        lastName.isEmpty) {
+      showErrorDialog(context, 'Semua field wajib diisi.');
+      return;
+    }
+
+    if (password.length < 6) {
+      showErrorDialog(context, 'Password minimal 6 karakter.');
+      return;
+    }
+
+    BlocProvider.of<AuthBloc>(context).add(
+      AuthRegisterRequested(
+        email: email,
+        password: password,
+        firstName: firstName,
+        lastName: lastName,
       ),
     );
   }
@@ -313,6 +254,70 @@ class _LoginPageState extends State<LoginPage> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Coba Lagi'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void showSuccessDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: AppColors.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_outline,
+                    color: Color(0xFF4CAF50),
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Berhasil!',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Lanjut ke Login'),
                   ),
                 ),
               ],

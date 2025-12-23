@@ -37,3 +37,14 @@ class AuthError extends AuthState {
   @override
   List<Object?> get props => [message];
 }
+
+class AuthRegistrationSuccess extends AuthState {
+  final String message;
+
+  const AuthRegistrationSuccess({
+    this.message = 'Pendaftaran berhasil! Silahkan login dengan akun Anda.',
+  });
+
+  @override
+  List<Object?> get props => [message];
+}

@@ -8,9 +8,14 @@ import '../../session/pages/workout_history_page.dart';
 import '../../plans/pages/plans_page.dart';
 import '../../stats/pages/stats_page.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -18,93 +23,176 @@ class HomePage extends StatelessWidget {
         title: const Text('Liftly'),
         actions: [
           IconButton(
-            onPressed: () {
-              context.read<AuthBloc>().add(const AuthLogoutRequested());
-            },
+            onPressed: () => _showLogoutConfirmation(context),
             icon: const Icon(Icons.logout),
           ),
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Welcome!',
-                style: Theme.of(context).textTheme.displaySmall,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'What would you like to do?',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome!',
+                  style: Theme.of(context).textTheme.displaySmall,
                 ),
-              ),
-              const SizedBox(height: 48),
-              _MenuCard(
-                title: 'Start Workout',
-                subtitle: 'Log a new workout session',
-                icon: Icons.fitness_center,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const StartWorkoutPage(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              _MenuCard(
-                title: 'Workout Plans',
-                subtitle: 'Create and manage your plans',
-                icon: Icons.book,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PlansPage(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              // History Card
-              _MenuCard(
-                title: 'Workout History',
-                subtitle: 'View and edit past sessions',
-                icon: Icons.history,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const WorkoutHistoryPage(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              // Stats Card
-              _MenuCard(
-                title: 'Statistics',
-                subtitle: 'View your progress and stats',
-                icon: Icons.trending_up,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const StatsPage(),
-                    ),
-                  );
-                },
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  'What would you like to do?',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 48),
+                _MenuCard(
+                  title: 'Start Workout',
+                  subtitle: 'Log a new workout session',
+                  icon: Icons.fitness_center,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const StartWorkoutPage(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                _MenuCard(
+                  title: 'Workout Plans',
+                  subtitle: 'Create and manage your plans',
+                  icon: Icons.book,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PlansPage(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                // History Card
+                _MenuCard(
+                  title: 'Workout History',
+                  subtitle: 'View and edit past sessions',
+                  icon: Icons.history,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WorkoutHistoryPage(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                // Stats Card
+                _MenuCard(
+                  title: 'Statistics',
+                  subtitle: 'View your progress and stats',
+                  icon: Icons.trending_up,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const StatsPage(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: AppColors.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF9800).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.logout,
+                    color: Color(0xFFFF9800),
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Logout?',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Apakah Anda yakin ingin logout dari aplikasi?',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.cardBg,
+                          side: const BorderSide(color: AppColors.accent),
+                        ),
+                        child: Text(
+                          'Batal',
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(color: AppColors.accent),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          BlocProvider.of<AuthBloc>(
+                            context,
+                          ).add(const AuthLogoutRequested());
+                        },
+                        child: const Text('Logout'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -155,11 +243,7 @@ class _MenuCard extends StatelessWidget {
                   width: 0.5,
                 ),
               ),
-              child: Icon(
-                icon,
-                color: AppColors.accent,
-                size: 28,
-              ),
+              child: Icon(icon, color: AppColors.accent, size: 28),
             ),
             const SizedBox(width: 18),
             Expanded(
