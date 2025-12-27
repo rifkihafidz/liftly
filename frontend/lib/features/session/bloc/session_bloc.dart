@@ -1,11 +1,13 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/models/workout_session.dart';
+import '../../../core/services/api_service.dart';
 import 'session_event.dart';
 import 'session_state.dart';
 
 class SessionBloc extends Bloc<SessionEvent, SessionState> {
   SessionBloc() : super(const SessionInitial()) {
     on<SessionStarted>(_onSessionStarted);
+    on<SessionRecovered>(_onSessionRecovered);
     on<SessionExerciseSkipped>(_onExerciseSkipped);
     on<SessionExerciseUnskipped>(_onExerciseUnskipped);
     on<SessionSetAdded>(_onSetAdded);
@@ -37,7 +39,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
 
       final session = WorkoutSession(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        userId: 'user_1', // TODO: Get from auth
+        userId: event.userId,
         planId: event.planId,
         workoutDate: DateTime.now(),
         startedAt: DateTime.now(),
@@ -49,6 +51,17 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       emit(SessionInProgress(session: session));
     } catch (e) {
       emit(SessionError(message: 'Failed to start session: $e'));
+    }
+  }
+
+  Future<void> _onSessionRecovered(
+    SessionRecovered event,
+    Emitter<SessionState> emit,
+  ) async {
+    try {
+      emit(SessionInProgress(session: event.session));
+    } catch (e) {
+      emit(SessionError(message: 'Failed to recover session: $e'));
     }
   }
 
@@ -209,7 +222,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
           updatedAt: DateTime.now(),
         );
 
-        emit(SessionInProgress(session: updatedSession));
+      emit(SessionInProgress(session: updatedSession));
       }
     }
   }
@@ -265,7 +278,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
           updatedAt: DateTime.now(),
         );
 
-        emit(SessionInProgress(session: updatedSession));
+      emit(SessionInProgress(session: updatedSession));
       }
     }
   }
@@ -317,7 +330,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
             updatedAt: DateTime.now(),
           );
 
-          emit(SessionInProgress(session: updatedSession));
+      emit(SessionInProgress(session: updatedSession));
         }
       }
     }
@@ -342,7 +355,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       updatedAt: DateTime.now(),
     );
 
-    emit(SessionInProgress(session: updatedSession));
+      emit(SessionInProgress(session: updatedSession));
   }
 
   Future<void> _onSessionSaved(
@@ -353,9 +366,48 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
 
     try {
       final currentState = state as SessionInProgress;
-      // TODO: Call API to save session
-      await Future.delayed(const Duration(seconds: 1));
-      emit(SessionSaved(session: currentState.session));
+      final session = currentState.session;
+
+      // Build workout data for API
+      final workoutData = {
+        'workoutDate': session.workoutDate.toIso8601String(),
+        'startedAt': session.startedAt?.toIso8601String(),
+        'endedAt': DateTime.now().toIso8601String(),
+        'planId': session.planId != null ? int.tryParse(session.planId!) : null,
+        'exercises': session.exercises.map((exercise) {
+          return {
+            'name': exercise.name,
+            'order': exercise.order,
+            'skipped': exercise.skipped,
+            'sets': exercise.sets.map((set) {
+              return {
+                'setNumber': set.setNumber,
+                'segments': set.segments.map((segment) {
+                  return {
+                    'weight': segment.weight,
+                    'repsFrom': segment.repsFrom,
+                    'repsTo': segment.repsTo,
+                    'segmentOrder': segment.segmentOrder,
+                    'notes': segment.notes,
+                  };
+                }).toList(),
+              };
+            }).toList(),
+          };
+        }).toList(),
+      };
+
+      // Call API to save workout
+      final response = await ApiService.createWorkout(
+        userId: session.userId,
+        workoutData: workoutData,
+      );
+
+      if (response.success && response.data != null) {
+        emit(SessionSaved(session: session));
+      } else {
+        emit(SessionError(message: response.message));
+      }
     } catch (e) {
       emit(SessionError(message: 'Failed to save session: $e'));
     }

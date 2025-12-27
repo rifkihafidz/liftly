@@ -1,80 +1,37 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'hive_service.dart';
 
 class PreferencesService {
-  static const String _rememberMeKey = 'remember_me';
-  static const String _emailKey = 'saved_email';
-  static const String _passwordKey = 'saved_password';
-
+  /// Set remember me preference with email/password
   static Future<void> setRememberMe(
     bool rememberMe, {
     required String email,
     required String password,
   }) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      await prefs.setBool(_rememberMeKey, rememberMe);
-
-      if (rememberMe) {
-        await prefs.setString(_emailKey, email);
-
-        await prefs.setString(_passwordKey, password);
-      } else {
-        await prefs.remove(_emailKey);
-
-        await prefs.remove(_passwordKey);
-      }
-    } catch (e) {
-      // Don't rethrow - just silently fail
-    }
+    return HiveService.setRememberMe(rememberMe, email: email, password: password);
   }
 
+  /// Get remember me preference
   static Future<bool> getRememberMe() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(_rememberMeKey) ?? false;
-    } catch (e) {
-      return false;
-    }
+    return HiveService.getRememberMe();
   }
 
+  /// Get saved email
   static Future<String?> getSavedEmail() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(_emailKey);
-    } catch (e) {
-      return null;
-    }
+    return HiveService.getSavedEmail();
   }
 
+  /// Get saved password
   static Future<String?> getSavedPassword() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(_passwordKey);
-    } catch (e) {
-      return null;
-    }
+    return HiveService.getSavedPassword();
   }
 
-  // Save email only (for registration autofill on next login)
+  /// Save email only (for registration autofill on next login)
   static Future<void> saveEmailOnly(String email) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_emailKey, email);
-      // Don't set remember me flag, just save email for convenience
-    } catch (e) {
-      // Silent fail
-    }
+    return HiveService.saveEmailOnly(email);
   }
 
+  /// Clear all remember me data
   static Future<void> clearRememberMe() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_rememberMeKey);
-      await prefs.remove(_emailKey);
-      await prefs.remove(_passwordKey);
-    } catch (e) {
-      // Don't rethrow - clearing is not critical
-    }
+    return HiveService.clearRememberMe();
   }
 }

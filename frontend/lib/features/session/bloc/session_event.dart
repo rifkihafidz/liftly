@@ -11,14 +11,16 @@ abstract class SessionEvent extends Equatable {
 class SessionStarted extends SessionEvent {
   final String? planId;
   final List<String> exerciseNames;
+  final String userId;
 
   const SessionStarted({
     this.planId,
     required this.exerciseNames,
+    required this.userId,
   });
 
   @override
-  List<Object?> get props => [planId, exerciseNames];
+  List<Object?> get props => [planId, exerciseNames, userId];
 }
 
 class SessionExerciseSkipped extends SessionEvent {
@@ -119,6 +121,15 @@ class SessionLoaded extends SessionEvent {
   final WorkoutSession session;
 
   const SessionLoaded({required this.session});
+
+  @override
+  List<Object?> get props => [session];
+}
+
+class SessionRecovered extends SessionEvent {
+  final WorkoutSession session;
+
+  const SessionRecovered({required this.session});
 
   @override
   List<Object?> get props => [session];

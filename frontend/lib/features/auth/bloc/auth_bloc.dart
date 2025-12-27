@@ -103,7 +103,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthCheckRequested event,
     Emitter<AuthState> emit,
   ) async {
-    // TODO: Check if user has valid token
     emit(const AuthUnauthenticated());
   }
 

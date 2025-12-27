@@ -3,8 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_event.dart';
+import '../../auth/bloc/auth_state.dart';
 import '../../session/pages/start_workout_page.dart';
-import '../../session/pages/workout_history_page.dart';
+import '../../workout_log/pages/workout_history_page.dart';
 import '../../plans/pages/plans_page.dart';
 import '../../stats/pages/stats_page.dart';
 
@@ -82,12 +83,17 @@ class _HomePageState extends State<HomePage> {
                   subtitle: 'View and edit past sessions',
                   icon: Icons.history,
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const WorkoutHistoryPage(),
-                      ),
-                    );
+                    final authState = context.read<AuthBloc>().state;
+                    if (authState is AuthAuthenticated) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => WorkoutHistoryPage(
+                            userId: authState.user.id,
+                          ),
+                        ),
+                      );
+                    }
                   },
                 ),
                 const SizedBox(height: 16),

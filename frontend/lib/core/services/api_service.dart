@@ -3,7 +3,8 @@ import 'package:liftly/core/models/api_response.dart';
 import 'dart:convert';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.5:8080/api';
+  static const String baseUrl = 'http://192.168.1.6:8080/api';
+  // static const String baseUrl = 'http://10.134.195.5:8080/api';
   static const Duration timeout = Duration(seconds: 30);
 
   static Map<String, String> _getHeaders() {
@@ -449,5 +450,75 @@ class ApiService {
       },
     );
   }
-}
 
+  // ============= Workout Logging =============
+
+  /// Create workout log with typed response
+  static Future<ApiResponse<Map<String, dynamic>>> createWorkout({
+    required String userId,
+    required Map<String, dynamic> workoutData,
+  }) async {
+    return _handleResponseTyped(
+      http.post(
+        Uri.parse('$baseUrl/workouts?userId=$userId'),
+        headers: _getHeaders(),
+        body: jsonEncode(workoutData),
+      ),
+      'Logging workout',
+      dataParser: (data) => data as Map<String, dynamic>,
+    );
+  }
+
+  /// Get workouts with typed response
+  static Future<ApiResponse<List<Map<String, dynamic>>>> getWorkoutsTyped({
+    required String userId,
+  }) async {
+    return _handleResponseTyped(
+      http.get(
+        Uri.parse('$baseUrl/workouts?userId=$userId'),
+        headers: _getHeaders(),
+      ),
+      'Mengambil workouts',
+      dataParser: (data) {
+        if (data is List) {
+          return List<Map<String, dynamic>>.from(data);
+        } else if (data is Map<String, dynamic>) {
+          return [data];
+        }
+        return [];
+      },
+    );
+  }
+
+  /// Update workout
+  static Future<ApiResponse<Map<String, dynamic>>> updateWorkout({
+    required String userId,
+    required String workoutId,
+    required Map<String, dynamic> workoutData,
+  }) async {
+    return _handleResponseTyped(
+      http.put(
+        Uri.parse('$baseUrl/workouts/$workoutId?userId=$userId'),
+        headers: _getHeaders(),
+        body: jsonEncode(workoutData),
+      ),
+      'Mengupdate workout',
+      dataParser: (data) => data as Map<String, dynamic>,
+    );
+  }
+
+  /// Delete workout
+  static Future<ApiResponse<void>> deleteWorkout({
+    required String userId,
+    required String workoutId,
+  }) async {
+    return _handleResponseTyped(
+      http.delete(
+        Uri.parse('$baseUrl/workouts/$workoutId?userId=$userId'),
+        headers: _getHeaders(),
+      ),
+      'Menghapus workout',
+      dataParser: (_) {},
+    );
+  }
+}
