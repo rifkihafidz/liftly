@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_plan.dart';
+import '../../../shared/widgets/app_dialogs.dart';
 import '../../plans/bloc/plan_bloc.dart';
 import '../../plans/bloc/plan_event.dart';
 import '../../plans/bloc/plan_state.dart';
@@ -425,8 +426,10 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                     allExercises.addAll(_customExercises);
 
                     if (allExercises.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Select a plan or add exercises')),
+                      AppDialogs.showErrorDialog(
+                        context: context,
+                        title: 'Exercises Required',
+                        message: 'Pilih plan atau tambahkan exercises terlebih dahulu.',
                       );
                       return;
                     }

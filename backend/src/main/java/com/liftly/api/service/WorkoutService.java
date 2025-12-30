@@ -260,7 +260,7 @@ public class WorkoutService {
         }
     }
 
-    private WorkoutResponse mapToWorkoutResponse(Workout workout) {
+    public WorkoutResponse mapToWorkoutResponse(Workout workout) {
         WorkoutResponse response = new WorkoutResponse();
         response.setId(workout.getId());
         response.setUserId(workout.getUser().getId());

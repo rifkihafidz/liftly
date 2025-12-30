@@ -5,8 +5,10 @@ import 'config/theme/app_theme.dart';
 import 'core/services/hive_service.dart';
 import 'features/auth/bloc/auth_bloc.dart';
 import 'features/auth/bloc/auth_state.dart';
+import 'features/auth/bloc/profile_bloc.dart';
 import 'features/auth/pages/login_page.dart';
 import 'features/auth/repositories/auth_repository.dart';
+import 'features/auth/repositories/user_repository.dart';
 import 'features/home/pages/home_page.dart';
 import 'features/session/bloc/session_bloc.dart';
 import 'features/plans/bloc/plan_bloc.dart';
@@ -33,6 +35,11 @@ class Liftly extends StatelessWidget {
         BlocProvider(
           create: (context) => AuthBloc(
             authRepository: AuthRepository(),
+          ),
+        ),
+        BlocProvider(
+          create: (context) => ProfileBloc(
+            userRepository: UserRepository(),
           ),
         ),
         BlocProvider(create: (context) => SessionBloc()),

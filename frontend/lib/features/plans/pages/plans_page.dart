@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
+import '../../../shared/widgets/app_dialogs.dart';
 import '../bloc/plan_bloc.dart';
 import '../bloc/plan_event.dart';
 import '../bloc/plan_state.dart';
@@ -42,16 +43,17 @@ class _PlansPageState extends State<PlansPage> {
       body: BlocListener<PlanBloc, PlanState>(
         listener: (context, state) {
           if (state is PlanError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: AppColors.error,
-              ),
+            AppDialogs.showErrorDialog(
+              context: context,
+              title: 'Terjadi Kesalahan',
+              message: state.message,
             );
           }
           if (state is PlanSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
+            AppDialogs.showSuccessDialog(
+              context: context,
+              title: 'Berhasil',
+              message: state.message,
             );
           }
         },

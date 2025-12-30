@@ -4,6 +4,8 @@ import com.liftly.api.dto.ApiResponse;
 import com.liftly.api.dto.LoginRequest;
 import com.liftly.api.dto.LoginResponse;
 import com.liftly.api.dto.RegisterRequest;
+import com.liftly.api.dto.UpdateUserRequest;
+import com.liftly.api.dto.UserResponse;
 import com.liftly.api.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -37,5 +39,25 @@ public class AuthController {
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         authService.logout(userId);
         return ResponseEntity.ok(ApiResponse.success(null, "Logout successful", HttpStatus.OK.value()));
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable Long userId) {
+        UserResponse response = authService.getUserById(userId);
+        return ResponseEntity.ok(ApiResponse.success(response, "User retrieved successfully", HttpStatus.OK.value()));
+    }
+
+    @PutMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<UserResponse>> updateUser(
+            @PathVariable Long userId,
+            @Valid @RequestBody UpdateUserRequest request) {
+        UserResponse response = authService.updateUser(userId, request);
+        return ResponseEntity.ok(ApiResponse.success(response, "User updated successfully", HttpStatus.OK.value()));
+    }
+
+    @DeleteMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<?>> deleteUser(@PathVariable Long userId) {
+        authService.deleteUser(userId);
+        return ResponseEntity.ok(ApiResponse.success(null, "User deleted successfully", HttpStatus.OK.value()));
     }
 }

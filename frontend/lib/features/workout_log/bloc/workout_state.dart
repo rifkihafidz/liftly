@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../core/models/workout_session.dart';
 
 abstract class WorkoutState extends Equatable {
   const WorkoutState();
@@ -51,7 +52,7 @@ class WorkoutError extends WorkoutState {
 }
 
 class WorkoutsLoaded extends WorkoutState {
-  final List<Map<String, dynamic>> workouts;
+  final List<WorkoutSession> workouts;
 
   const WorkoutsLoaded({required this.workouts});
 

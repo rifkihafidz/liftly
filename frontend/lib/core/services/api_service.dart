@@ -2,8 +2,13 @@ import 'package:http/http.dart' as http;
 import 'package:liftly/core/models/api_response.dart';
 import 'dart:convert';
 
+part 'models/auth_response.dart';
+part 'models/plan_response.dart';
+part 'models/workout_response.dart';
+part 'models/stats_response.dart';
+
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.6:8080/api';
+  static const String baseUrl = 'http://192.168.137.79:8080/api';
   // static const String baseUrl = 'http://10.134.195.5:8080/api';
   static const Duration timeout = Duration(seconds: 30);
 
@@ -93,67 +98,18 @@ class ApiService {
     }
   }
 
-  /// Legacy method - Handle response and return only data (for backward compatibility)
-  static Future<Map<String, dynamic>> _handleResponse(
-    Future<http.Response> request,
-    String operation,
-  ) async {
-    try {
-      final response = await request.timeout(timeout, onTimeout: () {
-        throw Exception('Koneksi timeout. Server tidak merespons dalam 30 detik.');
-      });
+  // ==========================================
+  // Auth Methods
+  // ==========================================
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        try {
-          final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-          // Extract data from the standardized response format
-          if (decoded['success'] == true && decoded['data'] != null) {
-            return decoded['data'] as Map<String, dynamic>;
-          }
-          // If no data field, return the decoded response
-          return decoded;
-        } catch (e) {
-          throw Exception('Response format tidak valid');
-        }
-      }
-
-      try {
-        final errorBody = jsonDecode(response.body);
-        final errorMessage = errorBody['message'] ?? '$operation gagal';
-        throw Exception(errorMessage);
-      } on FormatException {
-        switch (response.statusCode) {
-          case 400:
-            throw Exception('Request tidak valid. Cek kembali data Anda.');
-          case 401:
-            throw Exception('Akses ditolak. Login kembali diperlukan.');
-          case 403:
-            throw Exception('Anda tidak memiliki akses ke resource ini.');
-          case 404:
-            throw Exception('Resource tidak ditemukan.');
-          case 409:
-            throw Exception('Data sudah ada atau terjadi konflik.');
-          case 500:
-            throw Exception('Server error. Coba lagi nanti.');
-          case 503:
-            throw Exception('Server sedang maintenance. Coba lagi nanti.');
-          default:
-            throw Exception('$operation gagal (Error ${response.statusCode})');
-        }
-      }
-    } on Exception {
-      rethrow;
-    }
-  }
-
-  // Register
-  static Future<Map<String, dynamic>> register({
+  /// Register with typed response
+  static Future<ApiResponse<AuthResponse>> register({
     required String email,
     required String password,
     required String firstName,
     required String lastName,
   }) async {
-    return _handleResponse(
+    return _handleResponseTyped(
       http.post(
         Uri.parse('$baseUrl/auth/register'),
         headers: _getHeaders(),
@@ -165,251 +121,97 @@ class ApiService {
         }),
       ),
       'Registrasi',
+      dataParser: (data) => AuthResponse.fromJson(data as Map<String, dynamic>),
     );
   }
 
-  // Login
-  static Future<Map<String, dynamic>> login({
+  /// Login with typed response
+  static Future<ApiResponse<AuthResponse>> login({
     required String email,
     required String password,
   }) async {
-    return _handleResponse(
+    return _handleResponseTyped(
       http.post(
         Uri.parse('$baseUrl/auth/login'),
         headers: _getHeaders(),
         body: jsonEncode({'email': email, 'password': password}),
       ),
       'Login',
+      dataParser: (data) => AuthResponse.fromJson(data as Map<String, dynamic>),
     );
   }
 
-  // Logout
-  static Future<void> logout({required String userId}) async {
-    await _handleResponse(
+  /// Logout
+  static Future<ApiResponse<void>> logout({required String userId}) async {
+    return _handleResponseTyped(
       http.post(
         Uri.parse('$baseUrl/auth/logout?userId=$userId'),
         headers: _getHeaders(),
       ),
       'Logout',
+      dataParser: (_) {},
     );
   }
 
-  // Create Plan
-  static Future<Map<String, dynamic>> createPlan({
-    required String userId,
-    required String name,
-    String? description,
-    required List<String> exercises,
-  }) async {
-    return _handleResponse(
-      http.post(
-        Uri.parse('$baseUrl/plans?userId=$userId'),
-        headers: _getHeaders(),
-        body: jsonEncode({
-          'name': name,
-          'description': description,
-          'exercises': exercises,
-        }),
-      ),
-      'Membuat plan',
-    );
-  }
-
-  // Get Plans
-  static Future<List<Map<String, dynamic>>> getPlans({
+  /// Get user profile
+  static Future<ApiResponse<AuthResponse>> getUserProfile({
     required String userId,
   }) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/plans?userId=$userId'),
-        headers: _getHeaders(),
-      ).timeout(timeout, onTimeout: () {
-        throw Exception('Koneksi timeout. Server tidak merespons dalam 30 detik.');
-      });
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        try {
-          final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-          
-          // Extract data from standardized response format
-          if (decoded['success'] == true && decoded['data'] != null) {
-            final data = decoded['data'];
-            if (data is List) {
-              return List<Map<String, dynamic>>.from(data);
-            } else if (data is Map<String, dynamic>) {
-              return [data];
-            }
-          }
-          return [];
-        } catch (e) {
-          throw Exception('Response format tidak valid');
-        }
-      }
-
-      try {
-        final errorBody = jsonDecode(response.body);
-        final errorMessage = errorBody['message'] ?? 'Mengambil plans gagal';
-        throw Exception(errorMessage);
-      } on FormatException {
-        switch (response.statusCode) {
-          case 400:
-            throw Exception('Request tidak valid. Cek kembali data Anda.');
-          case 401:
-            throw Exception('Akses ditolak. Login kembali diperlukan.');
-          case 403:
-            throw Exception('Anda tidak memiliki akses ke resource ini.');
-          case 404:
-            throw Exception('Resource tidak ditemukan.');
-          case 409:
-            throw Exception('Data sudah ada atau terjadi konflik.');
-          case 500:
-            throw Exception('Server error. Coba lagi nanti.');
-          case 503:
-            throw Exception('Server sedang maintenance. Coba lagi nanti.');
-          default:
-            throw Exception('Mengambil plans gagal (Error ${response.statusCode})');
-        }
-      }
-    } on Exception {
-      rethrow;
-    }
-  }
-
-  // Get Plan by ID
-  static Future<Map<String, dynamic>> getPlan({
-    required String userId,
-    required String planId,
-  }) async {
-    return _handleResponse(
+    return _handleResponseTyped(
       http.get(
-        Uri.parse('$baseUrl/plans/$planId?userId=$userId'),
+        Uri.parse('$baseUrl/auth/user/$userId'),
         headers: _getHeaders(),
       ),
-      'Mengambil plan',
+      'Mengambil profil user',
+      dataParser: (data) => AuthResponse.fromJson(data as Map<String, dynamic>),
     );
   }
 
-  // Update Plan
-  static Future<Map<String, dynamic>> updatePlan({
+  /// Update user profile
+  static Future<ApiResponse<AuthResponse>> updateUserProfile({
     required String userId,
-    required String planId,
-    required String name,
-    String? description,
-    required List<String> exercises,
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? password,
   }) async {
-    return _handleResponse(
+    final body = <String, dynamic>{};
+    if (firstName != null) body['firstName'] = firstName;
+    if (lastName != null) body['lastName'] = lastName;
+    if (email != null) body['email'] = email;
+    if (password != null) body['password'] = password;
+
+    return _handleResponseTyped(
       http.put(
-        Uri.parse('$baseUrl/plans/$planId?userId=$userId'),
+        Uri.parse('$baseUrl/auth/user/$userId'),
         headers: _getHeaders(),
-        body: jsonEncode({
-          'name': name,
-          'description': description,
-          'exercises': exercises,
-        }),
+        body: jsonEncode(body),
       ),
-      'Mengupdate plan',
+      'Update profil user',
+      dataParser: (data) => AuthResponse.fromJson(data as Map<String, dynamic>),
     );
   }
 
-  // Delete Plan
-  static Future<void> deletePlan({
+  /// Delete user account
+  static Future<ApiResponse<void>> deleteUserAccount({
     required String userId,
-    required String planId,
-  }) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/plans/$planId?userId=$userId'),
-        headers: _getHeaders(),
-      ).timeout(timeout, onTimeout: () {
-        throw Exception('Koneksi timeout. Server tidak merespons dalam 30 detik.');
-      });
-
-      if (response.statusCode == 200) {
-        // Success - standardized response format
-        try {
-          final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-          if (decoded['success'] == true) {
-            return;
-          }
-        } catch (e) {
-          // If parsing fails but status is 200, still consider it success
-          return;
-        }
-      }
-
-      // Error response
-      try {
-        final errorBody = jsonDecode(response.body);
-        final errorMessage = errorBody['message'] ?? 'Menghapus plan gagal';
-        throw Exception(errorMessage);
-      } on FormatException {
-        switch (response.statusCode) {
-          case 400:
-            throw Exception('Request tidak valid. Cek kembali data Anda.');
-          case 401:
-            throw Exception('Akses ditolak. Login kembali diperlukan.');
-          case 403:
-            throw Exception('Anda tidak memiliki akses ke resource ini.');
-          case 404:
-            throw Exception('Plan tidak ditemukan.');
-          case 500:
-            throw Exception('Server error. Coba lagi nanti.');
-          case 503:
-            throw Exception('Server sedang maintenance. Coba lagi nanti.');
-          default:
-            throw Exception('Menghapus plan gagal (Error ${response.statusCode})');
-        }
-      }
-    } on Exception {
-      rethrow;
-    }
-  }
-
-  // ==========================================
-  // NEW METHODS - Using ApiResponse<T> model
-  // ==========================================
-
-  /// Register with typed response
-  static Future<ApiResponse<Map<String, dynamic>>> registerTyped({
-    required String email,
-    required String password,
-    required String firstName,
-    required String lastName,
   }) async {
     return _handleResponseTyped(
-      http.post(
-        Uri.parse('$baseUrl/auth/register'),
+      http.delete(
+        Uri.parse('$baseUrl/auth/user/$userId'),
         headers: _getHeaders(),
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-          'firstName': firstName,
-          'lastName': lastName,
-        }),
       ),
-      'Registrasi',
-      dataParser: (data) => data as Map<String, dynamic>,
+      'Menghapus akun',
+      dataParser: (_) {},
     );
   }
 
-  /// Login with typed response
-  static Future<ApiResponse<Map<String, dynamic>>> loginTyped({
-    required String email,
-    required String password,
-  }) async {
-    return _handleResponseTyped(
-      http.post(
-        Uri.parse('$baseUrl/auth/login'),
-        headers: _getHeaders(),
-        body: jsonEncode({'email': email, 'password': password}),
-      ),
-      'Login',
-      dataParser: (data) => data as Map<String, dynamic>,
-    );
-  }
+  // ==========================================
+  // Plan Methods
+  // ==========================================
 
   /// Create Plan with typed response
-  static Future<ApiResponse<Map<String, dynamic>>> createPlanTyped({
+  static Future<ApiResponse<PlanResponse>> createPlan({
     required String userId,
     required String name,
     String? description,
@@ -426,12 +228,12 @@ class ApiService {
         }),
       ),
       'Membuat plan',
-      dataParser: (data) => data as Map<String, dynamic>,
+      dataParser: (data) => PlanResponse.fromJson(data as Map<String, dynamic>),
     );
   }
 
   /// Get Plans with typed response
-  static Future<ApiResponse<List<Map<String, dynamic>>>> getPlansTyped({
+  static Future<ApiResponse<List<PlanResponse>>> getPlans({
     required String userId,
   }) async {
     return _handleResponseTyped(
@@ -442,19 +244,74 @@ class ApiService {
       'Mengambil plans',
       dataParser: (data) {
         if (data is List) {
-          return List<Map<String, dynamic>>.from(data);
+          return data
+              .map((e) => PlanResponse.fromJson(e as Map<String, dynamic>))
+              .toList();
         } else if (data is Map<String, dynamic>) {
-          return [data];
+          return [PlanResponse.fromJson(data)];
         }
         return [];
       },
     );
   }
 
+  /// Get Plan by ID with typed response
+  static Future<ApiResponse<PlanResponse>> getPlan({
+    required String userId,
+    required String planId,
+  }) async {
+    return _handleResponseTyped(
+      http.get(
+        Uri.parse('$baseUrl/plans/$planId?userId=$userId'),
+        headers: _getHeaders(),
+      ),
+      'Mengambil plan',
+      dataParser: (data) => PlanResponse.fromJson(data as Map<String, dynamic>),
+    );
+  }
+
+  /// Update Plan with typed response
+  static Future<ApiResponse<PlanResponse>> updatePlan({
+    required String userId,
+    required String planId,
+    required String name,
+    String? description,
+    required List<String> exercises,
+  }) async {
+    return _handleResponseTyped(
+      http.put(
+        Uri.parse('$baseUrl/plans/$planId?userId=$userId'),
+        headers: _getHeaders(),
+        body: jsonEncode({
+          'name': name,
+          'description': description,
+          'exercises': exercises,
+        }),
+      ),
+      'Mengupdate plan',
+      dataParser: (data) => PlanResponse.fromJson(data as Map<String, dynamic>),
+    );
+  }
+
+  /// Delete Plan with typed response
+  static Future<ApiResponse<void>> deletePlan({
+    required String userId,
+    required String planId,
+  }) async {
+    return _handleResponseTyped(
+      http.delete(
+        Uri.parse('$baseUrl/plans/$planId?userId=$userId'),
+        headers: _getHeaders(),
+      ),
+      'Menghapus plan',
+      dataParser: (_) {},
+    );
+  }
+
   // ============= Workout Logging =============
 
-  /// Create workout log with typed response
-  static Future<ApiResponse<Map<String, dynamic>>> createWorkout({
+  /// Create workout with typed response
+  static Future<ApiResponse<WorkoutResponse>> createWorkout({
     required String userId,
     required Map<String, dynamic> workoutData,
   }) async {
@@ -465,12 +322,12 @@ class ApiService {
         body: jsonEncode(workoutData),
       ),
       'Logging workout',
-      dataParser: (data) => data as Map<String, dynamic>,
+      dataParser: (data) => WorkoutResponse.fromJson(data as Map<String, dynamic>),
     );
   }
 
   /// Get workouts with typed response
-  static Future<ApiResponse<List<Map<String, dynamic>>>> getWorkoutsTyped({
+  static Future<ApiResponse<List<WorkoutResponse>>> getWorkouts({
     required String userId,
   }) async {
     return _handleResponseTyped(
@@ -481,17 +338,19 @@ class ApiService {
       'Mengambil workouts',
       dataParser: (data) {
         if (data is List) {
-          return List<Map<String, dynamic>>.from(data);
+          return data
+              .map((e) => WorkoutResponse.fromJson(e as Map<String, dynamic>))
+              .toList();
         } else if (data is Map<String, dynamic>) {
-          return [data];
+          return [WorkoutResponse.fromJson(data)];
         }
         return [];
       },
     );
   }
 
-  /// Update workout
-  static Future<ApiResponse<Map<String, dynamic>>> updateWorkout({
+  /// Update workout with typed response
+  static Future<ApiResponse<WorkoutResponse>> updateWorkout({
     required String userId,
     required String workoutId,
     required Map<String, dynamic> workoutData,
@@ -503,11 +362,11 @@ class ApiService {
         body: jsonEncode(workoutData),
       ),
       'Mengupdate workout',
-      dataParser: (data) => data as Map<String, dynamic>,
+      dataParser: (data) => WorkoutResponse.fromJson(data as Map<String, dynamic>),
     );
   }
 
-  /// Delete workout
+  /// Delete workout with typed response
   static Future<ApiResponse<void>> deleteWorkout({
     required String userId,
     required String workoutId,
@@ -519,6 +378,44 @@ class ApiService {
       ),
       'Menghapus workout',
       dataParser: (_) {},
+    );
+  }
+
+  // ============= Stats =============
+
+  /// Get comprehensive stats summary for a user within a date range
+  /// Single API call that returns all needed data (workouts, PR, top exercises, counts, etc)
+  static Future<ApiResponse<StatsResponse>> getStatsSummary({
+    required int userId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    return _handleResponseTyped(
+      http.post(
+        Uri.parse('$baseUrl/stats/summary'),
+        headers: _getHeaders(),
+        body: jsonEncode({
+          'userId': userId,
+          'startDate': startDate.toIso8601String().split('T')[0],
+          'endDate': endDate.toIso8601String().split('T')[0],
+        }),
+      ),
+      'Mengambil stats summary',
+      dataParser: (data) {
+        if (data == null) {
+          return StatsResponse(
+            workouts: [],
+            workoutCount: 0,
+            totalVolume: 0.0,
+            averageDurationMinutes: 0,
+            personalRecords: {},
+            topExercisesByVolume: {},
+            periodStart: '',
+            periodEnd: '',
+          );
+        }
+        return StatsResponse.fromJson(data as Map<String, dynamic>);
+      },
     );
   }
 }

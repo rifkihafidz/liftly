@@ -59,7 +59,7 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is AuthError) {
+            if (state is AuthError && state.source == 'login' && state.message.isNotEmpty) {
               showErrorDialog(context, state.message);
             }
           },

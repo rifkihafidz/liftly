@@ -16,7 +16,11 @@ class PlanRepository {
         exercises: exercises,
       );
 
-      return _mapToWorkoutPlan(response);
+      if (!response.success || response.data == null) {
+        throw Exception(response.message);
+      }
+
+      return _mapPlanResponseToWorkoutPlan(response.data!);
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
@@ -26,7 +30,11 @@ class PlanRepository {
     try {
       final response = await ApiService.getPlans(userId: userId);
 
-      return response.map((plan) => _mapToWorkoutPlan(plan)).toList();
+      if (!response.success || response.data == null) {
+        throw Exception(response.message);
+      }
+
+      return response.data!.map((plan) => _mapPlanResponseToWorkoutPlan(plan)).toList();
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
@@ -38,7 +46,12 @@ class PlanRepository {
   }) async {
     try {
       final response = await ApiService.getPlan(userId: userId, planId: planId);
-      return _mapToWorkoutPlan(response);
+
+      if (!response.success || response.data == null) {
+        throw Exception(response.message);
+      }
+
+      return _mapPlanResponseToWorkoutPlan(response.data!);
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
@@ -60,7 +73,11 @@ class PlanRepository {
         exercises: exercises,
       );
 
-      return _mapToWorkoutPlan(response);
+      if (!response.success || response.data == null) {
+        throw Exception(response.message);
+      }
+
+      return _mapPlanResponseToWorkoutPlan(response.data!);
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
@@ -71,34 +88,32 @@ class PlanRepository {
     required String planId,
   }) async {
     try {
-      await ApiService.deletePlan(userId: userId, planId: planId);
+      final response = await ApiService.deletePlan(userId: userId, planId: planId);
+      if (!response.success) {
+        throw Exception(response.message);
+      }
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
   }
 
-  WorkoutPlan _mapToWorkoutPlan(Map<String, dynamic> data) {
-    final exercisesData = data['exercises'] as List<dynamic>? ?? [];
-    final exercises = exercisesData
+  WorkoutPlan _mapPlanResponseToWorkoutPlan(PlanResponse planResponse) {
+    final exercises = planResponse.exercises
         .map((ex) => PlanExercise(
-              id: ex['id'].toString(),
-              name: ex['name'],
-              order: ex['order'] as int? ?? 0,
+              id: ex.id,
+              name: ex.name,
+              order: ex.order,
             ))
         .toList();
 
     return WorkoutPlan(
-      id: data['id'].toString(),
-      userId: data['userId'].toString(),
-      name: data['name'],
-      description: data['description'],
+      id: planResponse.id,
+      userId: planResponse.userId,
+      name: planResponse.name,
+      description: planResponse.description,
       exercises: exercises,
-      createdAt: data['createdAt'] != null
-          ? DateTime.parse(data['createdAt'])
-          : DateTime.now(),
-      updatedAt: data['updatedAt'] != null
-          ? DateTime.parse(data['updatedAt'])
-          : DateTime.now(),
+      createdAt: planResponse.createdAt,
+      updatedAt: planResponse.updatedAt,
     );
   }
 

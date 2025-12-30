@@ -18,6 +18,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   bool _obscurePassword = true;
+  AuthState? _previousState;
+  late BuildContext _pageContext;
 
   @override
   void dispose() {
@@ -30,16 +32,25 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    _pageContext = context; // Store context for use in dialogs
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is AuthRegistrationSuccess) {
+            // Only respond to state changes, not repeat states
+            final stateChanged = _previousState.runtimeType != state.runtimeType;
+            _previousState = state;
+
+            // Show success dialog on state change to AuthRegistrationSuccess
+            if (state is AuthRegistrationSuccess && stateChanged) {
               showSuccessDialog(context, state.message);
-            } else if (state is AuthError) {
+            } 
+            // Show error dialog only on state change to AuthError from register
+            else if (state is AuthError && stateChanged && state.source == 'register' && state.message.isNotEmpty) {
               showErrorDialog(context, state.message);
-            }
+            } 
+            // DON'T auto-pop here - let the dialog button handle it
           },
           child: SingleChildScrollView(
             child: Padding(
@@ -207,6 +218,7 @@ class _RegisterPageState extends State<RegisterPage> {
   void showErrorDialog(BuildContext context, String message) {
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: AppColors.cardBg,
@@ -252,7 +264,9 @@ class _RegisterPageState extends State<RegisterPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
                     child: const Text('Coba Lagi'),
                   ),
                 ),
@@ -261,13 +275,14 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
         );
       },
-    );
+    ).then((_) {
+    });
   }
 
   void showSuccessDialog(BuildContext context, String message) {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: AppColors.cardBg,
@@ -314,8 +329,14 @@ class _RegisterPageState extends State<RegisterPage> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
+                      // Close dialog first
                       Navigator.of(context).pop();
-                      Navigator.of(context).pop();
+                      // Then close RegisterPage after dialog animation finishes
+                      Future.delayed(const Duration(milliseconds: 300), () {
+                        if (mounted && Navigator.of(_pageContext).canPop()) {
+                          Navigator.of(_pageContext).pop();
+                        }
+                      });
                     },
                     child: const Text('Mulai'),
                   ),

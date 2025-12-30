@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_plan.dart';
+import '../../../shared/widgets/app_dialogs.dart';
 import '../bloc/plan_bloc.dart';
 import '../bloc/plan_event.dart';
 import '../bloc/plan_state.dart';
@@ -54,14 +55,23 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
       body: BlocListener<PlanBloc, PlanState>(
         listener: (context, state) {
           if (state is PlanSuccess) {
-            Navigator.pop(context);
+            AppDialogs.showSuccessDialog(
+              context: context,
+              title: 'Berhasil',
+              message: state.message,
+              onConfirm: () {
+                // Close dialog
+                Navigator.pop(context);
+                // Pop create page to go back to plans list
+                Navigator.pop(context);
+              },
+            );
           }
           if (state is PlanError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: AppColors.error,
-              ),
+            AppDialogs.showErrorDialog(
+              context: context,
+              title: 'Terjadi Kesalahan',
+              message: state.message,
             );
           }
         },
@@ -153,6 +163,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                                     ),
                                   ),
                                 ),
+                                if (_exerciseControllers.length > 1)
                                 const SizedBox(width: 8),
                                 if (_exerciseControllers.length > 1)
                                   IconButton(
@@ -210,15 +221,19 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
 
   void _savePlan() {
     if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Plan name is required')),
+      AppDialogs.showErrorDialog(
+        context: context,
+        title: 'Plan Name Required',
+        message: 'Masukkan nama plan terlebih dahulu.',
       );
       return;
     }
 
     if (_exerciseControllers.every((c) => c.text.isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one exercise')),
+      AppDialogs.showErrorDialog(
+        context: context,
+        title: 'Exercises Required',
+        message: 'Tambahkan minimal satu exercise.',
       );
       return;
     }

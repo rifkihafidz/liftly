@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/models/workout_session.dart';
+import '../../auth/bloc/auth_bloc.dart';
+import '../../auth/bloc/auth_state.dart';
+import '../../workout_log/bloc/workout_bloc.dart';
+import '../../workout_log/bloc/workout_event.dart';
+import '../../workout_log/bloc/workout_state.dart';
 import 'workout_detail_page.dart';
 
 class WorkoutHistoryPage extends StatefulWidget {
@@ -12,146 +17,18 @@ class WorkoutHistoryPage extends StatefulWidget {
 }
 
 class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
-  // Mock data - nanti dari API
-  late List<WorkoutSession> _sessions;
-
   @override
   void initState() {
     super.initState();
-    _sessions = _generateMockSessions();
+    // Load workouts from API
+    _loadWorkouts();
   }
 
-  List<WorkoutSession> _generateMockSessions() {
-    return [
-      WorkoutSession(
-        id: 'session_1',
-        userId: 'user_1',
-        workoutDate: DateTime.now().subtract(const Duration(days: 1)),
-        startedAt: DateTime.now().subtract(const Duration(days: 1, hours: 1)),
-        endedAt: DateTime.now().subtract(const Duration(days: 1, minutes: 45)),
-        exercises: [
-          SessionExercise(
-            id: 'ex_1',
-            name: 'Bench Press',
-            order: 0,
-            sets: [
-              ExerciseSet(
-                id: 'set_1',
-                setNumber: 1,
-                segments: [
-                  SetSegment(
-                    id: 'seg_1',
-                    weight: 80,
-                    repsFrom: 6,
-                    repsTo: 8,
-                    segmentOrder: 0,
-                  ),
-                ],
-              ),
-              ExerciseSet(
-                id: 'set_2',
-                setNumber: 2,
-                segments: [
-                  SetSegment(
-                    id: 'seg_2',
-                    weight: 80,
-                    repsFrom: 6,
-                    repsTo: 8,
-                    segmentOrder: 0,
-                  ),
-                ],
-              ),
-            ],
-          ),
-          SessionExercise(
-            id: 'ex_2',
-            name: 'Barbell Rows',
-            order: 1,
-            sets: [
-              ExerciseSet(
-                id: 'set_3',
-                setNumber: 1,
-                segments: [
-                  SetSegment(
-                    id: 'seg_3',
-                    weight: 100,
-                    repsFrom: 6,
-                    repsTo: 8,
-                    segmentOrder: 0,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        updatedAt: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-      WorkoutSession(
-        id: 'session_2',
-        userId: 'user_1',
-        workoutDate: DateTime.now().subtract(const Duration(days: 3)),
-        startedAt: DateTime.now().subtract(const Duration(days: 3, hours: 1, minutes: 15)),
-        endedAt: DateTime.now().subtract(const Duration(days: 3, minutes: 50)),
-        exercises: [
-          SessionExercise(
-            id: 'ex_3',
-            name: 'Squats',
-            order: 0,
-            sets: [
-              ExerciseSet(
-                id: 'set_4',
-                setNumber: 1,
-                segments: [
-                  SetSegment(
-                    id: 'seg_4',
-                    weight: 120,
-                    repsFrom: 8,
-                    repsTo: 10,
-                    segmentOrder: 0,
-                  ),
-                ],
-              ),
-              ExerciseSet(
-                id: 'set_5',
-                setNumber: 2,
-                segments: [
-                  SetSegment(
-                    id: 'seg_5',
-                    weight: 120,
-                    repsFrom: 8,
-                    repsTo: 10,
-                    segmentOrder: 0,
-                  ),
-                ],
-              ),
-              ExerciseSet(
-                id: 'set_6',
-                setNumber: 3,
-                segments: [
-                  SetSegment(
-                    id: 'seg_6',
-                    weight: 100,
-                    repsFrom: 10,
-                    repsTo: 12,
-                    segmentOrder: 0,
-                  ),
-                  SetSegment(
-                    id: 'seg_7',
-                    weight: 80,
-                    repsFrom: 12,
-                    repsTo: 15,
-                    segmentOrder: 1,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-        createdAt: DateTime.now().subtract(const Duration(days: 3)),
-        updatedAt: DateTime.now().subtract(const Duration(days: 3)),
-      ),
-    ];
+  void _loadWorkouts() {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) {
+      context.read<WorkoutBloc>().add(WorkoutsFetched(userId: authState.user.id));
+    }
   }
 
   @override
@@ -160,41 +37,87 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
       appBar: AppBar(
         title: const Text('Workout History'),
       ),
-      body: _sessions.isEmpty
-          ? SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.history,
-                      size: 64,
-                      color: AppColors.accent.withValues(alpha: 0.5),
+      body: BlocBuilder<WorkoutBloc, WorkoutState>(
+        builder: (context, state) {
+          if (state is WorkoutLoading) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          if (state is WorkoutError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Error loading workouts',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    state.message,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
                     ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'No workouts yet',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Start logging your workouts to build your history',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: _loadWorkouts,
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
-            )
-          : SafeArea(
+            );
+          }
+
+          if (state is WorkoutsLoaded) {
+            final workouts = state.workouts;
+            
+            if (workouts.isEmpty) {
+              return SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.history,
+                        size: 64,
+                        color: AppColors.accent.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'No workouts yet',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Start logging your workouts to build your history',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return SafeArea(
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: _sessions.length,
+                itemCount: workouts.length,
                 itemBuilder: (context, index) {
-                  final session = _sessions[index];
+                  final session = workouts[index];
                   return GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -203,14 +126,10 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                           builder: (context) => WorkoutDetailPage(
                             session: session,
                             onSessionUpdated: (updatedSession) {
-                              setState(() {
-                                _sessions[index] = updatedSession;
-                              });
+                              _loadWorkouts();
                             },
                             onSessionDeleted: () {
-                              setState(() {
-                                _sessions.removeAt(index);
-                              });
+                              _loadWorkouts();
                               Navigator.pop(context);
                             },
                           ),
@@ -254,7 +173,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                                     Padding(
                                       padding: const EdgeInsets.only(top: 4),
                                       child: Text(
-                                        '${DateFormat('HH:mm').format(session.startedAt!)} - ${DateFormat('HH:mm').format(session.endedAt!)} • ${_formatDuration(session.duration!)}',
+                                        '${DateFormat('HH:mm').format(session.startedAt!)} - ${DateFormat('HH:mm').format(session.endedAt!)} • ${session.formattedDuration}',
                                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                           color: AppColors.accent.withValues(alpha: 0.7),
                                           fontWeight: FontWeight.w500,
@@ -324,17 +243,13 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                   );
                 },
               ),
-            ),
+            );
+          }
+
+          return const Center(child: Text('Unknown state'));
+        },
+      ),
     );
   }
-
-  String _formatDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    
-    if (hours > 0) {
-      return '${hours}h ${minutes}m';
-    }
-    return '${minutes}m';
-  }
 }
+

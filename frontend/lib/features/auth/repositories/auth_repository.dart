@@ -6,11 +6,16 @@ class AuthRepository {
     try {
       final response = await ApiService.login(email: email, password: password);
 
+      if (!response.success || response.data == null) {
+        throw Exception(response.message);
+      }
+
+      final authData = response.data!;
       return User(
-        id: response['id'].toString(),
-        email: response['email'],
-        firstName: response['firstName'],
-        lastName: response['lastName'],
+        id: authData.id,
+        email: authData.email,
+        firstName: authData.firstName,
+        lastName: authData.lastName,
       );
     } catch (e) {
       final errorMessage = _parseErrorMessage(e.toString());
@@ -32,11 +37,16 @@ class AuthRepository {
         lastName: lastName,
       );
 
+      if (!response.success || response.data == null) {
+        throw Exception(response.message);
+      }
+
+      final authData = response.data!;
       return User(
-        id: response['id'].toString(),
-        email: response['email'],
-        firstName: response['firstName'],
-        lastName: response['lastName'],
+        id: authData.id,
+        email: authData.email,
+        firstName: authData.firstName,
+        lastName: authData.lastName,
       );
     } catch (e) {
       final errorMessage = _parseErrorMessage(e.toString());
@@ -46,7 +56,10 @@ class AuthRepository {
 
   Future<void> logout({required String userId}) async {
     try {
-      await ApiService.logout(userId: userId);
+      final response = await ApiService.logout(userId: userId);
+      if (!response.success) {
+        throw Exception(response.message);
+      }
     } catch (e) {
       throw Exception(e.toString());
     }

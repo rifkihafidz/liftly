@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/models/workout_session.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
@@ -134,7 +135,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
 }
 
 class _WorkoutCard extends StatelessWidget {
-  final Map<String, dynamic> workout;
+  final WorkoutSession workout;
   final int index;
 
   const _WorkoutCard({
@@ -144,22 +145,17 @@ class _WorkoutCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final workoutDate = DateTime.parse(workout['workoutDate'] as String);
-    final startedAt = workout['startedAt'] != null
-        ? DateTime.parse(workout['startedAt'] as String)
-        : null;
-    final endedAt = workout['endedAt'] != null
-        ? DateTime.parse(workout['endedAt'] as String)
-        : null;
+    final workoutDate = workout.workoutDate;
+    final startedAt = workout.startedAt;
+    final endedAt = workout.endedAt;
 
     Duration? duration;
     if (startedAt != null && endedAt != null) {
       duration = endedAt.difference(startedAt);
     }
 
-    final exercises = (workout['exercises'] as List<dynamic>?) ?? [];
-    final skippedCount =
-        exercises.where((ex) => ex['skipped'] == true).length;
+    final exercises = workout.exercises;
+    final skippedCount = exercises.where((ex) => ex.skipped == true).length;
     final completedCount = exercises.length - skippedCount;
     final totalVolume = _calculateTotalVolume(exercises);
 
@@ -168,7 +164,10 @@ class _WorkoutCard extends StatelessWidget {
         final refreshNeeded = await Navigator.push<bool>(
           context,
           MaterialPageRoute(
-            builder: (_) => WorkoutDetailPage(workout: workout),
+            builder: (_) => WorkoutDetailPage(
+              workout: workout,
+              fromSession: false,
+            ),
           ),
         );
         // Refresh list if coming back from detail page
@@ -316,17 +315,15 @@ class _WorkoutCard extends StatelessWidget {
     return '${hours}h ${remainingMinutes}m';
   }
 
-  double _calculateTotalVolume(List<dynamic> exercises) {
+  double _calculateTotalVolume(List<SessionExercise> exercises) {
     double totalVolume = 0;
     for (final exercise in exercises) {
-      if (exercise['skipped'] == true) continue;
-      final sets = (exercise['sets'] as List<dynamic>?) ?? [];
-      for (final set in sets) {
-        final segments = (set['segments'] as List<dynamic>?) ?? [];
-        for (final segment in segments) {
-          final weight = (segment['weight'] as num?)?.toDouble() ?? 0;
-          final repsFrom = (segment['repsFrom'] as num?)?.toInt() ?? 0;
-          final repsTo = (segment['repsTo'] as num?)?.toInt() ?? 0;
+      if (exercise.skipped == true) continue;
+      for (final set in exercise.sets) {
+        for (final segment in set.segments) {
+          final weight = segment.weight;
+          final repsFrom = segment.repsFrom;
+          final repsTo = segment.repsTo;
           final reps = repsTo - repsFrom + 1;
           totalVolume += weight * reps;
         }

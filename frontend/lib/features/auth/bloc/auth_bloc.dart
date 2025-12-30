@@ -29,7 +29,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthAuthenticated(user: user));
     } catch (e) {
       final errorMessage = _parseErrorMessage(e.toString());
-      emit(AuthError(message: errorMessage));
+      emit(AuthError(message: errorMessage, source: 'login'));
     }
   }
 
@@ -56,7 +56,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthAuthenticated(user: user));
     } catch (e) {
       final errorMessage = _parseErrorMessage(e.toString());
-      emit(AuthError(message: errorMessage));
+      emit(AuthError(message: errorMessage, source: 'register'));
     }
   }
 

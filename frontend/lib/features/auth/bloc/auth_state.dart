@@ -31,11 +31,15 @@ class AuthUnauthenticated extends AuthState {
 
 class AuthError extends AuthState {
   final String message;
+  final String source; // 'login' or 'register'
 
-  const AuthError({required this.message});
+  const AuthError({
+    required this.message,
+    this.source = 'login',
+  });
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, source];
 }
 
 class AuthRegistrationSuccess extends AuthState {

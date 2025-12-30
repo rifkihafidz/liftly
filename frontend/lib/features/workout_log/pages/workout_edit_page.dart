@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
+import '../../../shared/widgets/app_dialogs.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
@@ -169,19 +170,21 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
       body: BlocListener<WorkoutBloc, WorkoutState>(
         listener: (context, state) {
           if (state is WorkoutUpdatedSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Workout updated successfully'),
-                backgroundColor: AppColors.accent,
-              ),
+            AppDialogs.showSuccessDialog(
+              context: context,
+              title: 'Berhasil',
+              message: 'Workout berhasil diupdate.',
+              onConfirm: () {
+                // Dialog sudah di-close oleh button di AppDialogs
+                // Tinggal pop edit page kembali ke detail
+                Navigator.pop(context, true);
+              },
             );
-            Navigator.pop(context, true);
           } else if (state is WorkoutError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error: ${state.message}'),
-                backgroundColor: Colors.red,
-              ),
+            AppDialogs.showErrorDialog(
+              context: context,
+              title: 'Terjadi Kesalahan',
+              message: state.message,
             );
           }
         },

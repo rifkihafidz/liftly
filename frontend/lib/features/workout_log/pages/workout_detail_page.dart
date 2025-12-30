@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/models/workout_session.dart';
+import '../../../shared/widgets/app_dialogs.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
 import '../bloc/workout_bloc.dart';
@@ -10,7 +12,7 @@ import '../bloc/workout_state.dart';
 import 'workout_edit_page.dart';
 
 class WorkoutDetailPage extends StatefulWidget {
-  final Map<String, dynamic> workout;
+  final dynamic workout; // Accept both WorkoutSession and Map<String, dynamic> for now
   final bool fromSession;
 
   const WorkoutDetailPage({
@@ -24,12 +26,56 @@ class WorkoutDetailPage extends StatefulWidget {
 }
 
 class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
-  late Map<String, dynamic> _currentWorkout;
+  late dynamic _currentWorkout;
+  bool _isDeleting = false;
 
   @override
   void initState() {
     super.initState();
-    _currentWorkout = widget.workout;
+    // Handle both WorkoutSession and Map types
+    if (widget.workout is WorkoutSession) {
+      final session = widget.workout as WorkoutSession;
+      _currentWorkout = _convertSessionToMap(session);
+    } else {
+      _currentWorkout = widget.workout;
+    }
+  }
+
+  Map<String, dynamic> _convertSessionToMap(WorkoutSession session) {
+    return {
+      'id': session.id,
+      'userId': session.userId,
+      'planId': session.planId,
+      'workoutDate': session.workoutDate.toIso8601String(),
+      'startedAt': session.startedAt?.toIso8601String(),
+      'endedAt': session.endedAt?.toIso8601String(),
+      'exercises': session.exercises
+          .map((ex) => {
+                'id': ex.id,
+                'name': ex.name,
+                'order': ex.order,
+                'skipped': ex.skipped,
+                'sets': ex.sets
+                    .map((set) => {
+                          'id': set.id,
+                          'setNumber': set.setNumber,
+                          'segments': set.segments
+                              .map((seg) => {
+                                    'id': seg.id,
+                                    'weight': seg.weight,
+                                    'repsFrom': seg.repsFrom,
+                                    'repsTo': seg.repsTo,
+                                    'segmentOrder': seg.segmentOrder,
+                                    'notes': seg.notes,
+                                  })
+                              .toList(),
+                        })
+                    .toList(),
+              })
+          .toList(),
+      'createdAt': session.createdAt.toIso8601String(),
+      'updatedAt': session.updatedAt.toIso8601String(),
+    };
   }
 
   @override
@@ -114,38 +160,13 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                 ),
               );
               if (updated == true && context.mounted) {
-                // Show loading while fetching updated data
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (ctx) => const AlertDialog(
-                    content: Row(
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(width: 16),
-                        Text('Refreshing...'),
-                      ],
-                    ),
-                  ),
-                );
-
-                // Fetch updated workout - need to get full data from server
-                // Update endpoint doesn't include exercises due to cascade issues
+                // Reload workout data from server
                 final authState = context.read<AuthBloc>().state;
                 if (authState is AuthAuthenticated) {
-                  // In a real app, you'd have a method to fetch single workout
-                  // For now, fetch all workouts and find this one
-                  Future.delayed(const Duration(milliseconds: 800), () {
-                    if (context.mounted) {
-                      Navigator.pop(context); // Close loading dialog
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Workout updated successfully'),
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
-                    }
-                  });
+                  // Fetch latest workouts to get updated data
+                  context.read<WorkoutBloc>().add(
+                    WorkoutsFetched(userId: authState.user.id),
+                  );
                 }
               }
             },
@@ -160,23 +181,49 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       ),
       body: BlocListener<WorkoutBloc, WorkoutState>(
         listener: (context, state) {
+          // Handle WorkoutsLoaded for both delete and refresh after edit
           if (state is WorkoutsLoaded) {
-            // Successfully deleted and fetched new list
-            Navigator.pop(context); // Close loading dialog
-            Navigator.pop(context); // Close detail page and return to history
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Workout berhasil dihapus'),
-                backgroundColor: AppColors.accent,
-              ),
-            );
+            if (_isDeleting) {
+              // Successfully deleted and fetched new list
+              // Pop 2 times: first close loading dialog, then close detail page
+              Navigator.popUntil(context, (route) {
+                // Count pops, return true when we're done (2 pops)
+                if (route.isFirst) {
+                  return true; // Stop at home/history
+                }
+                // Pop until we reach the history page
+                return false;
+              });
+              
+              AppDialogs.showSuccessDialog(
+                context: context,
+                title: 'Berhasil',
+                message: 'Workout berhasil dihapus.',
+              );
+            } else {
+              // Refresh after update - find current workout in list and update
+              final workoutId = _currentWorkout['id'].toString();
+              try {
+                final updatedWorkout = state.workouts.firstWhere(
+                  (w) => w.id == workoutId,
+                );
+                
+                if (context.mounted) {
+                  setState(() {
+                    // Update current workout with latest data from WorkoutSession
+                    _currentWorkout = _convertSessionToMap(updatedWorkout);
+                  });
+                }
+              } catch (e) {
+                // Workout not found in list, keep current data
+              }
+            }
           } else if (state is WorkoutError) {
             Navigator.pop(context); // Close loading dialog if still open
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
+            AppDialogs.showErrorDialog(
+              context: context,
+              title: 'Terjadi Kesalahan',
+              message: state.message,
             );
           }
         },
@@ -336,6 +383,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       return;
     }
 
+    _isDeleting = true; // Set flag
     final userId = authState.user.id;
     final workoutId = _currentWorkout['id'].toString();
     final bloc = context.read<WorkoutBloc>();

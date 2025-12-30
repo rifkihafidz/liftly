@@ -4,6 +4,7 @@ import '../../../core/constants/colors.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_event.dart';
 import '../../auth/bloc/auth_state.dart';
+import '../../auth/pages/profile_page.dart';
 import '../../session/pages/start_workout_page.dart';
 import '../../workout_log/pages/workout_history_page.dart';
 import '../../plans/pages/plans_page.dart';
@@ -23,6 +24,22 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('Liftly'),
         actions: [
+          IconButton(
+            onPressed: () {
+              final authState = context.read<AuthBloc>().state;
+              if (authState is AuthAuthenticated) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProfilePage(
+                      userId: authState.user.id,
+                    ),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.person),
+          ),
           IconButton(
             onPressed: () => _showLogoutConfirmation(context),
             icon: const Icon(Icons.logout),

@@ -9,7 +9,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "workouts")
+@Table(name = "workouts", indexes = {
+    @Index(name = "idx_user_id", columnList = "user_id"),
+    @Index(name = "idx_user_workout_date", columnList = "user_id, workout_date DESC"),
+    @Index(name = "idx_workout_date", columnList = "workout_date")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,11 +22,11 @@ public class Workout {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id")
     private Plan plan;
 
@@ -35,7 +39,7 @@ public class Workout {
     @Column(name = "ended_at")
     private LocalDateTime endedAt;
 
-    @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @OrderBy("exercise_order ASC")
     private List<WorkoutExercise> exercises = new ArrayList<>();
 

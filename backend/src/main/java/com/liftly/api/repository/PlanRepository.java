@@ -10,4 +10,5 @@ import java.util.List;
 public interface PlanRepository extends JpaRepository<Plan, Long> {
     List<Plan> findByUserId(Long userId);
     Plan findByIdAndUserId(Long id, Long userId);
+    void deleteByUserId(Long userId);
 }

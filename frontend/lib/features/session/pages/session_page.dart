@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
+import '../../../shared/widgets/app_dialogs.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
 import '../bloc/session_bloc.dart';
@@ -37,15 +38,13 @@ class _SessionPageState extends State<SessionPage> {
     initializeDateFormatting('id_ID');
     // Get userId from auth
     final authState = context.read<AuthBloc>().state;
-    final userId = (authState is AuthAuthenticated) ? authState.user.id.toString() : '1';
-    
+    final userId = (authState is AuthAuthenticated)
+        ? authState.user.id.toString()
+        : '1';
+
     // Reset bloc state first by emitting Loading, then trigger SessionStarted
     final bloc = context.read<SessionBloc>();
-    bloc.add(SessionStarted(
-      planId: null,
-      exerciseNames: [],
-      userId: userId,
-    ));
+    bloc.add(SessionStarted(planId: null, exerciseNames: [], userId: userId));
     // Force create new session by triggering SessionStarted with actual exercises
     Future.delayed(const Duration(milliseconds: 100), () {
       bloc.add(
@@ -99,9 +98,9 @@ class _SessionPageState extends State<SessionPage> {
                       'repsTo': 12,
                       'notes': '',
                       'segmentOrder': 0,
-                    }
+                    },
                   ],
-                }
+                },
               ];
         return {
           'name': ex.name,
@@ -163,7 +162,8 @@ class _SessionPageState extends State<SessionPage> {
 
             if (state is SessionInProgress) {
               // Update _editedSession only if number of exercises changed
-              final currentCount = (_editedSession['exercises'] as List<dynamic>? ?? []).length;
+              final currentCount =
+                  (_editedSession['exercises'] as List<dynamic>? ?? []).length;
               if (currentCount != state.session.exercises.length) {
                 _editedSession = _deepCopySession(state.session);
               }
@@ -439,34 +439,35 @@ class _SessionPageState extends State<SessionPage> {
                                                     ),
                                                   ),
                                                 const Spacer(),
-                                                IconButton(
-                                                  onPressed: () {
-                                                    setState(() {
-                                                      if (sets.length == 1) {
-                                                        // If only 1 set, skip the exercise
-                                                        exercise['skipped'] = true;
-                                                      } else {
-                                                        // Remove the set
+                                                if (setIndex > 0) ...[
+                                                  IconButton(
+                                                    onPressed: () {
+                                                      setState(() {
                                                         sets.removeAt(setIndex);
-                                                        // Update set numbers
-                                                        for (int i = 0; i < sets.length; i++) {
-                                                          sets[i]['setNumber'] = i + 1;
+                                                        for (
+                                                          int i = 0;
+                                                          i < sets.length;
+                                                          i++
+                                                        ) {
+                                                          sets[i]['setNumber'] =
+                                                              i + 1;
                                                         }
-                                                      }
-                                                    });
-                                                  },
-                                                  icon: Icon(
-                                                    sets.length == 1 ? Icons.not_interested : Icons.delete_outline,
-                                                    size: 20,
+                                                      });
+                                                    },
+                                                    icon: Icon(
+                                                      Icons.delete_outline,
+                                                      size: 20,
+                                                    ),
+                                                    color: AppColors.error,
+                                                    tooltip: 'Remove Set',
+                                                    constraints:
+                                                        const BoxConstraints.tightFor(
+                                                          width: 32,
+                                                          height: 32,
+                                                        ),
+                                                    padding: EdgeInsets.zero,
                                                   ),
-                                                  color: sets.length == 1 ? AppColors.textSecondary : AppColors.error,
-                                                  tooltip: sets.length == 1 ? 'Skip Exercise' : 'Remove Set',
-                                                  constraints: const BoxConstraints.tightFor(
-                                                    width: 32,
-                                                    height: 32,
-                                                  ),
-                                                  padding: EdgeInsets.zero,
-                                                ),
+                                                ],
                                               ],
                                             ),
                                             const SizedBox(height: 12),
@@ -520,8 +521,7 @@ class _SessionPageState extends State<SessionPage> {
                                                         initialValue:
                                                             segment['repsTo']
                                                                 .toString(),
-                                                        onChanged: (v) =>
-                                                            setState(
+                                                        onChanged: (v) => setState(
                                                           () =>
                                                               segment['repsTo'] =
                                                                   int.tryParse(
@@ -531,29 +531,30 @@ class _SessionPageState extends State<SessionPage> {
                                                         ),
                                                         onDeleteTap:
                                                             segments.length >
-                                                                        1 &&
-                                                                    segIndex > 0
-                                                                ? () {
-                                                                    setState(() {
-                                                                      segments
-                                                                          .removeAt(
-                                                                              segIndex);
-                                                                      // Update
-                                                                      // segment
-                                                                      // order
-                                                                      for (int i =
-                                                                              0;
-                                                                          i <
-                                                                              segments
-                                                                                  .length;
-                                                                          i++) {
-                                                                        segments[i][
-                                                                            'segmentOrder'] =
-                                                                            i;
-                                                                      }
-                                                                    });
+                                                                    1 &&
+                                                                segIndex > 0
+                                                            ? () {
+                                                                setState(() {
+                                                                  segments
+                                                                      .removeAt(
+                                                                        segIndex,
+                                                                      );
+                                                                  // Update
+                                                                  // segment
+                                                                  // order
+                                                                  for (
+                                                                    int i = 0;
+                                                                    i <
+                                                                        segments
+                                                                            .length;
+                                                                    i++
+                                                                  ) {
+                                                                    segments[i]['segmentOrder'] =
+                                                                        i;
                                                                   }
-                                                                : null,
+                                                                });
+                                                              }
+                                                            : null,
                                                       ),
                                                     ),
                                                   ],
@@ -631,8 +632,9 @@ class _SessionPageState extends State<SessionPage> {
                                                                   segments
                                                                       .length,
                                                             };
-                                                            segments
-                                                                .add(newSegment);
+                                                            segments.add(
+                                                              newSegment,
+                                                            );
                                                           }
                                                         });
                                                       },
@@ -666,27 +668,40 @@ class _SessionPageState extends State<SessionPage> {
                         child: ElevatedButton(
                           onPressed: () {
                             // Convert _editedSession back to WorkoutSession and update bloc state
-                            final exercises = (_editedSession['exercises'] as List<dynamic>? ?? []);
+                            final exercises =
+                                (_editedSession['exercises']
+                                    as List<dynamic>? ??
+                                []);
                             final sessionExercises = exercises.map((ex) {
                               final isSkipped = ex['skipped'] as bool? ?? false;
-                              final sets = isSkipped ? [] : (ex['sets'] as List<dynamic>? ?? []);
+                              final sets = isSkipped
+                                  ? []
+                                  : (ex['sets'] as List<dynamic>? ?? []);
                               return SessionExercise(
-                                id: (ex['id'] as String?) ?? 'ex_${DateTime.now().millisecondsSinceEpoch}',
+                                id:
+                                    (ex['id'] as String?) ??
+                                    'ex_${DateTime.now().millisecondsSinceEpoch}',
                                 name: ex['name'] as String? ?? '',
                                 order: ex['order'] as int? ?? 0,
                                 skipped: isSkipped,
                                 sets: sets.map((set) {
-                                  final segments = (set['segments'] as List<dynamic>? ?? []);
+                                  final segments =
+                                      (set['segments'] as List<dynamic>? ?? []);
                                   return ExerciseSet(
-                                    id: (set['id'] as String?) ?? 'set_${DateTime.now().millisecondsSinceEpoch}',
+                                    id:
+                                        (set['id'] as String?) ??
+                                        'set_${DateTime.now().millisecondsSinceEpoch}',
                                     setNumber: set['setNumber'] as int? ?? 0,
                                     segments: segments.map((seg) {
                                       return SetSegment(
-                                        id: (seg['id'] as String?) ?? 'seg_${DateTime.now().millisecondsSinceEpoch}',
+                                        id:
+                                            (seg['id'] as String?) ??
+                                            'seg_${DateTime.now().millisecondsSinceEpoch}',
                                         weight: seg['weight'] as double? ?? 0.0,
                                         repsFrom: seg['repsFrom'] as int? ?? 0,
                                         repsTo: seg['repsTo'] as int? ?? 0,
-                                        segmentOrder: seg['segmentOrder'] as int? ?? 0,
+                                        segmentOrder:
+                                            seg['segmentOrder'] as int? ?? 0,
                                         notes: seg['notes'] as String? ?? '',
                                       );
                                     }).toList(),
@@ -696,10 +711,16 @@ class _SessionPageState extends State<SessionPage> {
                             }).toList();
 
                             final updatedSession = WorkoutSession(
-                              id: widget.planId ?? 'session_${DateTime.now().millisecondsSinceEpoch}',
-                              userId: 'user_1',
+                              id:
+                                  widget.planId ??
+                                  'session_${DateTime.now().millisecondsSinceEpoch}',
+                              userId: (state)
+                                  .session
+                                  .userId, // Get from current session state
                               planId: _editedSession['planId'] as String?,
-                              workoutDate: _editedSession['workoutDate'] as DateTime? ?? DateTime.now(),
+                              workoutDate:
+                                  _editedSession['workoutDate'] as DateTime? ??
+                                  DateTime.now(),
                               startedAt: (state).session.startedAt,
                               endedAt: _editedSession['endedAt'] as DateTime?,
                               exercises: sessionExercises,
@@ -711,16 +732,19 @@ class _SessionPageState extends State<SessionPage> {
                             context.read<SessionBloc>().add(
                               SessionRecovered(session: updatedSession),
                             );
-                            
+
                             // Give bloc time to update state, then save
                             if (mounted) {
-                              Future.delayed(const Duration(milliseconds: 100), () {
-                                if (mounted && context.mounted) {
-                                  context.read<SessionBloc>().add(
-                                    const SessionSaveRequested(),
-                                  );
-                                }
-                              });
+                              Future.delayed(
+                                const Duration(milliseconds: 100),
+                                () {
+                                  if (mounted && context.mounted) {
+                                    context.read<SessionBloc>().add(
+                                      const SessionSaveRequested(),
+                                    );
+                                  }
+                                },
+                              );
                             }
                           },
                           child: const Text('Finish Workout'),
@@ -734,33 +758,26 @@ class _SessionPageState extends State<SessionPage> {
 
             if (state is SessionSaved) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Workout saved successfully!'),
-                    duration: Duration(seconds: 2),
-                  ),
+                AppDialogs.showSuccessDialog(
+                  context: context,
+                  title: 'Berhasil',
+                  message: 'Workout berhasil disimpan.',
+                  onConfirm: () => Navigator.pop(context),
                 );
-                Navigator.pop(context);
               });
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
+              return const Center(child: CircularProgressIndicator());
             }
 
             if (state is SessionError) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.message),
-                    backgroundColor: AppColors.error,
-                    duration: const Duration(seconds: 3),
-                  ),
+                AppDialogs.showErrorDialog(
+                  context: context,
+                  title: 'Terjadi Kesalahan',
+                  message: state.message,
                 );
               });
               // Return to the InProgress state view
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
+              return const Center(child: CircularProgressIndicator());
             }
 
             return const Center(child: Text('No session'));
@@ -1030,20 +1047,14 @@ class _ToFieldState extends State<_ToField> {
               'To',
               style: Theme.of(
                 context,
-              ).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
             if (widget.onDeleteTap != null)
               GestureDetector(
                 onTap: widget.onDeleteTap,
                 child: Padding(
                   padding: const EdgeInsets.only(right: 0),
-                  child: Icon(
-                    Icons.close,
-                    size: 14,
-                    color: AppColors.error,
-                  ),
+                  child: Icon(Icons.close, size: 14, color: AppColors.error),
                 ),
               ),
           ],
