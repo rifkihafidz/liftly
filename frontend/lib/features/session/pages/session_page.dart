@@ -7,6 +7,7 @@ import '../../../core/models/workout_session.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
+import '../../workout_log/pages/workout_detail_page.dart';
 import '../bloc/session_bloc.dart';
 import '../bloc/session_event.dart';
 import '../bloc/session_state.dart';
@@ -154,11 +155,45 @@ class _SessionPageState extends State<SessionPage> {
             },
           ),
         ),
-        body: BlocBuilder<SessionBloc, SessionState>(
-          builder: (context, state) {
-            if (state is SessionLoading) {
-              return const Center(child: CircularProgressIndicator());
+        body: BlocListener<SessionBloc, SessionState>(
+          listenWhen: (previous, current) => current is SessionSaved,
+          listener: (context, state) {
+            if (state is SessionSaved) {
+              AppDialogs.showSuccessDialog(
+                context: context,
+                title: 'Berhasil',
+                message: 'Workout berhasil disimpan.',
+                onConfirm: () {
+                  // Pop to StartWorkoutPage
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                  // Then navigate to WorkoutDetailPage
+                  if (mounted) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => WorkoutDetailPage(
+                          workout: state.session,
+                          fromSession: true,
+                        ),
+                      ),
+                    );
+                  }
+                },
+              );
             }
+          },
+          child: BlocBuilder<SessionBloc, SessionState>(
+            builder: (context, state) {
+              if (state is SessionLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (state is SessionSaved) {
+                // Don't show anything for SessionSaved - listener handles dialog
+                return const SizedBox.shrink();
+              }
 
             if (state is SessionInProgress) {
               // Update _editedSession only if number of exercises changed
@@ -197,33 +232,37 @@ class _SessionPageState extends State<SessionPage> {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: _TimeInput(
+                                    child: _DateTimeInput(
                                       label: 'Started At',
-                                      time: _editedSession['startedAt'] != null
-                                          ? TimeOfDay.fromDateTime(
-                                              _editedSession['startedAt']
-                                                  as DateTime,
-                                            )
-                                          : null,
+                                      dateTime: _editedSession['startedAt']
+                                          as DateTime?,
                                       onTap: () async {
-                                        final picked = await showTimePicker(
+                                        final result = await showDialog<
+                                            Map<String, DateTime?>>(
                                           context: context,
-                                          initialTime: TimeOfDay.now(),
-                                        );
-                                        if (picked != null) {
-                                          setState(() {
-                                            final now =
-                                                _editedSession['startedAt']
+                                          builder: (context) =>
+                                              _WorkoutDateTimeDialog(
+                                            initialWorkoutDate:
+                                                _editedSession['workoutDate']
                                                     as DateTime? ??
-                                                DateTime.now();
+                                                DateTime.now(),
+                                            initialStartedAt:
+                                                _editedSession['startedAt']
+                                                    as DateTime?,
+                                            initialEndedAt:
+                                                _editedSession['endedAt']
+                                                    as DateTime?,
+                                          ),
+                                        );
+                                        if (result != null) {
+                                          setState(() {
+                                            _editedSession['workoutDate'] =
+                                                result['workoutDate'] ??
+                                                _editedSession['workoutDate'];
                                             _editedSession['startedAt'] =
-                                                DateTime(
-                                                  now.year,
-                                                  now.month,
-                                                  now.day,
-                                                  picked.hour,
-                                                  picked.minute,
-                                                );
+                                                result['startedAt'];
+                                            _editedSession['endedAt'] =
+                                                result['endedAt'];
                                           });
                                         }
                                       },
@@ -231,33 +270,38 @@ class _SessionPageState extends State<SessionPage> {
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
-                                    child: _TimeInput(
+                                    child: _DateTimeInput(
                                       label: 'Ended At',
-                                      time: _editedSession['endedAt'] != null
-                                          ? TimeOfDay.fromDateTime(
-                                              _editedSession['endedAt']
-                                                  as DateTime,
-                                            )
-                                          : null,
+                                      dateTime:
+                                          _editedSession['endedAt']
+                                          as DateTime?,
                                       onTap: () async {
-                                        final picked = await showTimePicker(
+                                        final result = await showDialog<
+                                            Map<String, DateTime?>>(
                                           context: context,
-                                          initialTime: TimeOfDay.now(),
-                                        );
-                                        if (picked != null) {
-                                          setState(() {
-                                            final now =
-                                                _editedSession['endedAt']
+                                          builder: (context) =>
+                                              _WorkoutDateTimeDialog(
+                                            initialWorkoutDate:
+                                                _editedSession['workoutDate']
                                                     as DateTime? ??
-                                                DateTime.now();
+                                                DateTime.now(),
+                                            initialStartedAt:
+                                                _editedSession['startedAt']
+                                                    as DateTime?,
+                                            initialEndedAt:
+                                                _editedSession['endedAt']
+                                                    as DateTime?,
+                                          ),
+                                        );
+                                        if (result != null) {
+                                          setState(() {
+                                            _editedSession['workoutDate'] =
+                                                result['workoutDate'] ??
+                                                _editedSession['workoutDate'];
+                                            _editedSession['startedAt'] =
+                                                result['startedAt'];
                                             _editedSession['endedAt'] =
-                                                DateTime(
-                                                  now.year,
-                                                  now.month,
-                                                  now.day,
-                                                  picked.hour,
-                                                  picked.minute,
-                                                );
+                                                result['endedAt'];
                                           });
                                         }
                                       },
@@ -662,7 +706,7 @@ class _SessionPageState extends State<SessionPage> {
                           ),
                         );
                       }),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 4),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -721,7 +765,7 @@ class _SessionPageState extends State<SessionPage> {
                               workoutDate:
                                   _editedSession['workoutDate'] as DateTime? ??
                                   DateTime.now(),
-                              startedAt: (state).session.startedAt,
+                              startedAt: _editedSession['startedAt'] as DateTime?,
                               endedAt: _editedSession['endedAt'] as DateTime?,
                               exercises: sessionExercises,
                               createdAt: DateTime.now(),
@@ -757,15 +801,8 @@ class _SessionPageState extends State<SessionPage> {
             }
 
             if (state is SessionSaved) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                AppDialogs.showSuccessDialog(
-                  context: context,
-                  title: 'Berhasil',
-                  message: 'Workout berhasil disimpan.',
-                  onConfirm: () => Navigator.pop(context),
-                );
-              });
-              return const Center(child: CircularProgressIndicator());
+              // Handled by BlocListener above, don't show anything here
+              return const SizedBox.shrink();
             }
 
             if (state is SessionError) {
@@ -781,21 +818,22 @@ class _SessionPageState extends State<SessionPage> {
             }
 
             return const Center(child: Text('No session'));
-          },
+            },
+          ),
         ),
       ),
     );
   }
 }
 
-class _TimeInput extends StatelessWidget {
+class _DateTimeInput extends StatelessWidget {
   final String label;
-  final TimeOfDay? time;
+  final DateTime? dateTime;
   final VoidCallback onTap;
 
-  const _TimeInput({
+  const _DateTimeInput({
     required this.label,
-    required this.time,
+    required this.dateTime,
     required this.onTap,
   });
 
@@ -821,9 +859,11 @@ class _TimeInput extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              time?.format(context) ?? 'Not set',
+              dateTime != null
+                  ? DateFormat('d MMM y, HH:mm', 'id_ID').format(dateTime!)
+                  : 'Not set',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: time == null
+                color: dateTime == null
                     ? AppColors.textSecondary
                     : AppColors.textPrimary,
               ),
@@ -1074,6 +1114,259 @@ class _ToFieldState extends State<_ToField> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _WorkoutDateTimeDialog extends StatefulWidget {
+  final DateTime initialWorkoutDate;
+  final DateTime? initialStartedAt;
+  final DateTime? initialEndedAt;
+
+  const _WorkoutDateTimeDialog({
+    required this.initialWorkoutDate,
+    required this.initialStartedAt,
+    required this.initialEndedAt,
+  });
+
+  @override
+  State<_WorkoutDateTimeDialog> createState() => _WorkoutDateTimeDialogState();
+}
+
+class _WorkoutDateTimeDialogState extends State<_WorkoutDateTimeDialog> {
+  late DateTime selectedDate;
+  late TimeOfDay startTime;
+  late TimeOfDay endTime;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedDate = widget.initialWorkoutDate;
+    startTime = widget.initialStartedAt != null
+        ? TimeOfDay.fromDateTime(widget.initialStartedAt!)
+        : TimeOfDay.now();
+    // endTime is +1 hour from startTime
+    final endDateTime = DateTime.now().add(const Duration(hours: 1));
+    endTime = widget.initialEndedAt != null
+        ? TimeOfDay.fromDateTime(widget.initialEndedAt!)
+        : TimeOfDay.fromDateTime(endDateTime);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppColors.cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Set Workout Time',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 20),
+            // Date Picker
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.inputBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.borderDark),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Workout Date',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          selectedDate = picked;
+                        });
+                      }
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          DateFormat('d MMMM y', 'id_ID').format(selectedDate),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w500),
+                        ),
+                        Icon(Icons.calendar_today,
+                            size: 20, color: AppColors.accent),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Start Time Picker
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.inputBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.borderDark),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Started At',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showTimePicker(
+                        context: context,
+                        initialTime: startTime,
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          startTime = picked;
+                        });
+                      }
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          startTime.format(context),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
+                        ),
+                        Icon(Icons.access_time,
+                            size: 20, color: AppColors.accent),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // End Time Picker
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.inputBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.borderDark),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Ended At',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showTimePicker(
+                        context: context,
+                        initialTime: endTime,
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          endTime = picked;
+                        });
+                      }
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          endTime.format(context),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
+                        ),
+                        Icon(Icons.access_time,
+                            size: 20, color: AppColors.accent),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final result = {
+                        'workoutDate': selectedDate,
+                        'startedAt': DateTime(
+                          selectedDate.year,
+                          selectedDate.month,
+                          selectedDate.day,
+                          startTime.hour,
+                          startTime.minute,
+                        ),
+                        'endedAt': DateTime(
+                          selectedDate.year,
+                          selectedDate.month,
+                          selectedDate.day,
+                          endTime.hour,
+                          endTime.minute,
+                        ),
+                      };
+                      Navigator.pop(context, result);
+                    },
+                    child: const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -10,6 +10,7 @@ import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
 import 'workout_edit_page.dart';
+import 'workout_history_page.dart';
 
 class WorkoutDetailPage extends StatefulWidget {
   final dynamic workout; // Accept both WorkoutSession and Map<String, dynamic> for now
@@ -36,8 +37,40 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
     if (widget.workout is WorkoutSession) {
       final session = widget.workout as WorkoutSession;
       _currentWorkout = _convertSessionToMap(session);
+      
+      // If coming from session, fetch the full workout from API to get real exercise IDs
+      if (widget.fromSession) {
+        final authState = context.read<AuthBloc>().state;
+        if (authState is AuthAuthenticated) {
+          final userId = authState.user.id;
+          // Fetch the workout to get real database IDs for exercises
+          context.read<WorkoutBloc>().add(
+            WorkoutsFetched(userId: userId.toString()),
+          );
+        }
+      }
     } else {
       _currentWorkout = widget.workout;
+    }
+  }
+
+  void _handleBack() {
+    if (widget.fromSession) {
+      // Get userId from auth to pass to history page
+      final authState = context.read<AuthBloc>().state;
+      if (authState is AuthAuthenticated) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WorkoutHistoryPage(
+              userId: authState.user.id.toString(),
+              fromSession: true,
+            ),
+          ),
+        );
+      }
+    } else if (Navigator.canPop(context)) {
+      Navigator.pop(context);
     }
   }
 
@@ -138,69 +171,81 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       return decimalPart.isEmpty ? formattedInt : '$formattedInt.$decimalPart';
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Workout Details'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            }
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () async {
-              final updated = await Navigator.push<bool>(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => WorkoutEditPage(workout: _currentWorkout),
-                ),
-              );
-              if (updated == true && context.mounted) {
-                // Reload workout data from server
-                final authState = context.read<AuthBloc>().state;
-                if (authState is AuthAuthenticated) {
-                  // Fetch latest workouts to get updated data
-                  context.read<WorkoutBloc>().add(
-                    WorkoutsFetched(userId: authState.user.id),
-                  );
-                }
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
+    return PopScope(
+      canPop: !widget.fromSession,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Handle back button when fromSession is true
+        if (widget.fromSession) {
+          _handleBack();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Workout Details'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              _showDeleteConfirmation(context);
+              _handleBack();
             },
           ),
-        ],
-      ),
-      body: BlocListener<WorkoutBloc, WorkoutState>(
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () async {
+                final updated = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => WorkoutEditPage(workout: _currentWorkout),
+                  ),
+                );
+                if (updated == true && context.mounted) {
+                  // Reload workout data from server
+                  final authState = context.read<AuthBloc>().state;
+                  if (authState is AuthAuthenticated) {
+                    // Fetch latest workouts to get updated data
+                    context.read<WorkoutBloc>().add(
+                      WorkoutsFetched(userId: authState.user.id),
+                    );
+                  }
+                }
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () {
+                _showDeleteConfirmation(context);
+              },
+            ),
+          ],
+        ),
+        body: BlocListener<WorkoutBloc, WorkoutState>(
         listener: (context, state) {
           // Handle WorkoutsLoaded for both delete and refresh after edit
           if (state is WorkoutsLoaded) {
-            if (_isDeleting) {
-              // Successfully deleted and fetched new list
-              // Pop 2 times: first close loading dialog, then close detail page
-              Navigator.popUntil(context, (route) {
-                // Count pops, return true when we're done (2 pops)
-                if (route.isFirst) {
-                  return true; // Stop at home/history
-                }
-                // Pop until we reach the history page
-                return false;
-              });
+            if (_isDeleting && mounted) {
+              // Successfully deleted - navigate to history page with fromDelete flag
+              _isDeleting = false; // Reset flag to prevent re-triggering
+              
+              final authState = context.read<AuthBloc>().state;
+              if (authState is AuthAuthenticated) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => WorkoutHistoryPage(
+                      userId: authState.user.id.toString(),
+                      fromDelete: true,
+                    ),
+                  ),
+                );
+              }
               
               AppDialogs.showSuccessDialog(
                 context: context,
                 title: 'Berhasil',
                 message: 'Workout berhasil dihapus.',
               );
-            } else {
+            } else if (!_isDeleting && mounted) {
               // Refresh after update - find current workout in list and update
               final workoutId = _currentWorkout['id'].toString();
               try {
@@ -218,7 +263,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                 // Workout not found in list, keep current data
               }
             }
-          } else if (state is WorkoutError) {
+          } else if (state is WorkoutError && mounted) {
             Navigator.pop(context); // Close loading dialog if still open
             AppDialogs.showErrorDialog(
               context: context,
@@ -253,11 +298,19 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                           color: AppColors.textSecondary,
                         ),
                         const SizedBox(width: 8),
-                        if (startedAt != null)
+                        if (startedAt != null && endedAt != null)
                           Text(
-                            '${DateFormat('HH:mm').format(startedAt)} - ${endedAt != null ? DateFormat('HH:mm').format(endedAt) : '...'}',
+                            '${DateFormat('HH:mm').format(startedAt)} - ${DateFormat('HH:mm').format(endedAt)}',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.textSecondary,
+                            ),
+                          )
+                        else
+                          Text(
+                            'Workout time not set yet',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                              fontStyle: FontStyle.italic,
                             ),
                           ),
                       ],
@@ -281,25 +334,25 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.scale,
-                            size: 18,
-                            color: AppColors.accent,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Total Volume: ${formatNumber(totalVolume)} kg',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.accent,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
                     ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.scale,
+                          size: 18,
+                          color: AppColors.accent,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Total Volume: ${formatNumber(totalVolume)} kg',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.accent,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -329,6 +382,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

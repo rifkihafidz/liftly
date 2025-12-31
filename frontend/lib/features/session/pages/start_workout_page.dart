@@ -6,6 +6,7 @@ import '../../../shared/widgets/app_dialogs.dart';
 import '../../plans/bloc/plan_bloc.dart';
 import '../../plans/bloc/plan_event.dart';
 import '../../plans/bloc/plan_state.dart';
+import '../../plans/pages/create_plan_page.dart';
 import 'session_page.dart';
 
 class StartWorkoutPage extends StatefulWidget {
@@ -195,6 +196,49 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                             },
                             icon: const Icon(Icons.refresh),
                             label: const Text('Retry'),
+                          ),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
+                    );
+                  }
+                  if (state is PlansLoaded && state.plans.isEmpty) {
+                    return Center(
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 32),
+                          Icon(
+                            Icons.fitness_center_outlined,
+                            size: 64,
+                            color: AppColors.textSecondary.withValues(alpha: 0.5),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No Plans Yet',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Create your first workout plan to get started',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const CreatePlanPage(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.add),
+                            label: const Text('Create Plan'),
                           ),
                           const SizedBox(height: 32),
                         ],
@@ -404,7 +448,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 10),
               // Start button
               SizedBox(
                 width: double.infinity,

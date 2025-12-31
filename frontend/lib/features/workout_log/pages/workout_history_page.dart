@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
+import '../../home/pages/home_page.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
@@ -10,10 +11,14 @@ import 'workout_detail_page.dart';
 
 class WorkoutHistoryPage extends StatefulWidget {
   final String userId;
+  final bool fromSession;
+  final bool fromDelete;
 
   const WorkoutHistoryPage({
     super.key,
     required this.userId,
+    this.fromSession = false,
+    this.fromDelete = false,
   });
 
   @override
@@ -29,22 +34,50 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
     );
   }
 
+  void _handleBack() {
+    if (widget.fromSession || widget.fromDelete) {
+      // Navigate to home page when coming from session flow or after delete
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+        (route) => route.isFirst,
+      );
+    } else if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Workout History'),
-      ),
-      body: BlocBuilder<WorkoutBloc, WorkoutState>(
-        builder: (context, state) {
-          if (state is WorkoutLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return PopScope(
+      canPop: !widget.fromSession && !widget.fromDelete,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Handle back button when fromSession or fromDelete is true
+        if (widget.fromSession || widget.fromDelete) {
+          _handleBack();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Workout History'),
+          leading: (widget.fromSession || widget.fromDelete)
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: _handleBack,
+                )
+              : null,
+        ),
+        body: BlocBuilder<WorkoutBloc, WorkoutState>(
+          builder: (context, state) {
+            if (state is WorkoutLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (state is WorkoutsLoaded) {
-            if (state.workouts.isEmpty) {
-              return Center(
-                child: Column(
+            if (state is WorkoutsLoaded) {
+              if (state.workouts.isEmpty) {
+                return Center(
+                  child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
@@ -129,6 +162,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
 
           return const SizedBox.shrink();
         },
+        ),
       ),
     );
   }
@@ -226,11 +260,19 @@ class _WorkoutCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             // Time range
-            if (startedAt != null)
+            if (startedAt != null && endedAt != null)
               Text(
-                '${DateFormat('HH:mm').format(startedAt)} - ${endedAt != null ? DateFormat('HH:mm').format(endedAt) : '...'}',
+                '${DateFormat('HH:mm').format(startedAt)} - ${DateFormat('HH:mm').format(endedAt)}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
+                ),
+              )
+            else
+              Text(
+                'Workout time not set yet',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontStyle: FontStyle.italic,
                 ),
               ),
             const SizedBox(height: 12),

@@ -3,10 +3,10 @@ part of '../api_service.dart';
 class WorkoutResponse {
   final String id;
   final String userId;
-  final String planId;
+  final String? planId;
   final DateTime workoutDate;
-  final DateTime startedAt;
-  final DateTime endedAt;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
   final List<ExerciseResponse> exercises;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -14,10 +14,10 @@ class WorkoutResponse {
   WorkoutResponse({
     required this.id,
     required this.userId,
-    required this.planId,
+    this.planId,
     required this.workoutDate,
-    required this.startedAt,
-    required this.endedAt,
+    this.startedAt,
+    this.endedAt,
     required this.exercises,
     required this.createdAt,
     required this.updatedAt,
@@ -29,10 +29,10 @@ class WorkoutResponse {
     return WorkoutResponse(
       id: (json['id'] ?? '').toString(),
       userId: (json['userId'] ?? '').toString(),
-      planId: (json['planId'] ?? '').toString(),
+      planId: json['planId'] != null ? (json['planId'] ?? '').toString() : null,
       workoutDate: DateTime.parse(json['workoutDate'] as String? ?? DateTime.now().toIso8601String()),
-      startedAt: DateTime.parse(json['startedAt'] as String? ?? DateTime.now().toIso8601String()),
-      endedAt: DateTime.parse(json['endedAt'] as String? ?? DateTime.now().toIso8601String()),
+      startedAt: json['startedAt'] != null ? DateTime.parse(json['startedAt'] as String) : null,
+      endedAt: json['endedAt'] != null ? DateTime.parse(json['endedAt'] as String) : null,
       exercises: exercisesData
           .map((e) => ExerciseResponse.fromJson(e as Map<String, dynamic>))
           .toList(),

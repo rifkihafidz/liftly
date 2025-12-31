@@ -26,9 +26,29 @@ public class WorkoutService {
 
         Workout workout = new Workout();
         workout.setUser(user);
-        workout.setWorkoutDate(request.getWorkoutDate());
-        workout.setStartedAt(request.getStartedAt());
-        workout.setEndedAt(request.getEndedAt());
+        // Convert LocalDate to LocalDateTime (start of day)
+        workout.setWorkoutDate(request.getWorkoutDate().atStartOfDay());
+        
+        // Combine workout date with time components
+        if (request.getStartedAt() != null) {
+            workout.setStartedAt(
+                request.getWorkoutDate().atTime(
+                    request.getStartedAt().getHour(),
+                    request.getStartedAt().getMinute(),
+                    request.getStartedAt().getSecond()
+                )
+            );
+        }
+        
+        if (request.getEndedAt() != null) {
+            workout.setEndedAt(
+                request.getWorkoutDate().atTime(
+                    request.getEndedAt().getHour(),
+                    request.getEndedAt().getMinute(),
+                    request.getEndedAt().getSecond()
+                )
+            );
+        }
 
         // Set plan if provided
         if (request.getPlanId() != null) {
@@ -121,9 +141,29 @@ public class WorkoutService {
         }
 
         // Update basic fields
-        workout.setWorkoutDate(request.getWorkoutDate());
-        workout.setStartedAt(request.getStartedAt());
-        workout.setEndedAt(request.getEndedAt());
+        // Convert LocalDate to LocalDateTime (start of day)
+        workout.setWorkoutDate(request.getWorkoutDate().atStartOfDay());
+        
+        // Combine workout date with time components
+        if (request.getStartedAt() != null) {
+            workout.setStartedAt(
+                request.getWorkoutDate().atTime(
+                    request.getStartedAt().getHour(),
+                    request.getStartedAt().getMinute(),
+                    request.getStartedAt().getSecond()
+                )
+            );
+        }
+        
+        if (request.getEndedAt() != null) {
+            workout.setEndedAt(
+                request.getWorkoutDate().atTime(
+                    request.getEndedAt().getHour(),
+                    request.getEndedAt().getMinute(),
+                    request.getEndedAt().getSecond()
+                )
+            );
+        }
 
         // Update plan if provided
         if (request.getPlanId() != null) {

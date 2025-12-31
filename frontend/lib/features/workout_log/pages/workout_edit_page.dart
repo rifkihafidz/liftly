@@ -23,22 +23,11 @@ class WorkoutEditPage extends StatefulWidget {
 
 class _WorkoutEditPageState extends State<WorkoutEditPage> {
   late Map<String, dynamic> _editedWorkout;
-  TimeOfDay? _startTime;
-  TimeOfDay? _endTime;
 
   @override
   void initState() {
     super.initState();
     _editedWorkout = _deepCopyWorkout(widget.workout);
-    // Initialize start and end times if they exist
-    if (_editedWorkout['startedAt'] != null) {
-      final startDateTime = DateTime.parse(_editedWorkout['startedAt'] as String);
-      _startTime = TimeOfDay(hour: startDateTime.hour, minute: startDateTime.minute);
-    }
-    if (_editedWorkout['endedAt'] != null) {
-      final endDateTime = DateTime.parse(_editedWorkout['endedAt'] as String);
-      _endTime = TimeOfDay(hour: endDateTime.hour, minute: endDateTime.minute);
-    }
   }
 
   Map<String, dynamic> _deepCopyWorkout(Map<String, dynamic> original) {
@@ -80,19 +69,29 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     final userId = authState.user.id;
     final workoutId = _editedWorkout['id'].toString();
 
-    String? formatDateTime(dynamic dateValue) {
+    String? formatDate(dynamic dateValue) {
       if (dateValue == null) return null;
       final dt = dateValue is DateTime 
         ? dateValue 
         : DateTime.parse(dateValue.toString());
-      return dt.toIso8601String().split('.')[0];
+      // Format as YYYY-MM-DD
+      return '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+    }
+
+    String? formatTime(dynamic dateValue) {
+      if (dateValue == null) return null;
+      final dt = dateValue is DateTime 
+        ? dateValue 
+        : DateTime.parse(dateValue.toString());
+      // Format as HH:mm:ss
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
     }
 
     final workoutDataToSave = <String, dynamic>{
       'planId': _editedWorkout['planId'],
-      'workoutDate': formatDateTime(_editedWorkout['workoutDate']),
-      'startedAt': formatDateTime(_editedWorkout['startedAt']),
-      'endedAt': formatDateTime(_editedWorkout['endedAt']),
+      'workoutDate': formatDate(_editedWorkout['workoutDate']),
+      'startedAt': formatTime(_editedWorkout['startedAt']),
+      'endedAt': formatTime(_editedWorkout['endedAt']),
     };
     
     final exercisesToSave = <Map<String, dynamic>>[];
@@ -101,13 +100,20 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     for (final exercise in originalExercises) {
       final exMap = exercise as Map<dynamic, dynamic>;
       
+      // Only include 'id' if it's a numeric value (database ID), not a temporary client-side ID
+      final exId = exMap['id'];
+      final isValidExId = exId != null && exId is! String || (exId is String && int.tryParse(exId) != null);
+      
       final setsToSave = <Map<String, dynamic>>[];
       final originalSets = (exMap['sets'] as List<dynamic>?) ?? [];
       
       for (final set in originalSets) {
         final setMap = set as Map<dynamic, dynamic>;
+        final setId = setMap['id'];
+        final isValidSetId = setId != null && setId is! String || (setId is String && int.tryParse(setId) != null);
+        
         final setToSave = <String, dynamic>{
-          if (setMap['id'] != null) 'id': setMap['id'],
+          if (isValidSetId) 'id': setId,
           'setNumber': setMap['setNumber'] ?? 1,
         };
         
@@ -116,8 +122,11 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
         
         for (final segment in originalSegments) {
           final segMap = segment as Map<dynamic, dynamic>;
+          final segId = segMap['id'];
+          final isValidSegId = segId != null && segId is! String || (segId is String && int.tryParse(segId) != null);
+          
           segmentsToSave.add({
-            if (segMap['id'] != null) 'id': segMap['id'],
+            if (isValidSegId) 'id': segId,
             'weight': segMap['weight'] ?? 0,
             'repsFrom': segMap['repsFrom'] ?? 0,
             'repsTo': segMap['repsTo'] ?? 0,
@@ -131,7 +140,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
       }
       
       exercisesToSave.add({
-        if (exMap['id'] != null) 'id': exMap['id'],
+        if (isValidExId) 'id': exId,
         'name': exMap['name'] ?? '',
         'order': exMap['order'] ?? 0,
         'skipped': exMap['skipped'] ?? false,
@@ -197,183 +206,103 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
             }
             
             return SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header section
-                  Container(
-                    color: AppColors.cardBg,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          DateFormat('EEEE, MMM dd, yyyy').format(workoutDate),
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Workout Time Section
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.inputBg,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.borderLight,
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Workout Time',
-                                    style: Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                  Text(
-                                    'Optional',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () async {
-                                        final time = await showTimePicker(
-                                          context: context,
-                                          initialTime: _startTime ?? TimeOfDay.now(),
-                                        );
-                                        if (time != null) {
-                                          setState(() {
-                                            _startTime = time;
-                                            final baseDate = DateTime.parse(_editedWorkout['workoutDate'] as String);
-                                            final updatedTime = baseDate.copyWith(
-                                              hour: time.hour,
-                                              minute: time.minute,
-                                              second: 0,
-                                              millisecond: 0,
-                                              microsecond: 0,
-                                            );
-                                            _editedWorkout['startedAt'] = updatedTime.toIso8601String();
-                                          });
-                                        }
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.cardBg,
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: AppColors.borderDark,
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Start Time',
-                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                color: AppColors.textSecondary,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              _startTime?.format(context) ?? 'Not set',
-                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                                color: _startTime == null ? AppColors.textSecondary : AppColors.textPrimary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () async {
-                                        final time = await showTimePicker(
-                                          context: context,
-                                          initialTime: _endTime ?? TimeOfDay.now(),
-                                        );
-                                        if (time != null) {
-                                          setState(() {
-                                            _endTime = time;
-                                            final baseDate = DateTime.parse(_editedWorkout['workoutDate'] as String);
-                                            final updatedTime = baseDate.copyWith(
-                                              hour: time.hour,
-                                              minute: time.minute,
-                                              second: 0,
-                                              millisecond: 0,
-                                              microsecond: 0,
-                                            );
-                                            _editedWorkout['endedAt'] = updatedTime.toIso8601String();
-                                          });
-                                        }
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.cardBg,
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: AppColors.borderDark,
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'End Time',
-                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                color: AppColors.textSecondary,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              _endTime?.format(context) ?? 'Not set',
-                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                                color: _endTime == null ? AppColors.textSecondary : AppColors.textPrimary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              // Exercises section
-              Padding(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with date and times
+            Card(
+              color: AppColors.cardBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${exercises.length} Exercises',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      'Workout Date: ${DateFormat('d MMMM y', 'id_ID').format(workoutDate)}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _DateTimeInput(
+                            label: 'Started At',
+                            dateTime: _editedWorkout['startedAt'] != null
+                                ? DateTime.parse(_editedWorkout['startedAt'] as String)
+                                : null,
+                            onTap: () async {
+                              final result = await showDialog<Map<String, DateTime?>>(
+                                context: context,
+                                builder: (context) => _WorkoutDateTimeDialog(
+                                  initialWorkoutDate: workoutDate,
+                                  initialStartedAt: _editedWorkout['startedAt'] != null
+                                      ? DateTime.parse(_editedWorkout['startedAt'] as String)
+                                      : null,
+                                  initialEndedAt: _editedWorkout['endedAt'] != null
+                                      ? DateTime.parse(_editedWorkout['endedAt'] as String)
+                                      : null,
+                                ),
+                              );
+                              if (result != null) {
+                                setState(() {
+                                  _editedWorkout['startedAt'] = result['startedAt']?.toIso8601String().split('.')[0];
+                                  _editedWorkout['endedAt'] = result['endedAt']?.toIso8601String().split('.')[0];
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _DateTimeInput(
+                            label: 'Ended At',
+                            dateTime: _editedWorkout['endedAt'] != null
+                                ? DateTime.parse(_editedWorkout['endedAt'] as String)
+                                : null,
+                            onTap: () async {
+                              final result = await showDialog<Map<String, DateTime?>>(
+                                context: context,
+                                builder: (context) => _WorkoutDateTimeDialog(
+                                  initialWorkoutDate: workoutDate,
+                                  initialStartedAt: _editedWorkout['startedAt'] != null
+                                      ? DateTime.parse(_editedWorkout['startedAt'] as String)
+                                      : null,
+                                  initialEndedAt: _editedWorkout['endedAt'] != null
+                                      ? DateTime.parse(_editedWorkout['endedAt'] as String)
+                                      : null,
+                                ),
+                              );
+                              if (result != null) {
+                                setState(() {
+                                  _editedWorkout['startedAt'] = result['startedAt']?.toIso8601String().split('.')[0];
+                                  _editedWorkout['endedAt'] = result['endedAt']?.toIso8601String().split('.')[0];
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Exercises section
+            Text(
+              '${exercises.length} Exercises',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
                     ...List.generate(exercises.length, (exIndex) {
                       final exercise = (exercises[exIndex] as Map<dynamic, dynamic>).cast<String, dynamic>();
                       final sets = (exercise['sets'] as List<dynamic>?) ?? [];
@@ -411,9 +340,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                           'setNumber': 1,
                                           'segments': [
                                             {
-                                              'weight': 0,
+                                              'weight': 0.0,
                                               'repsFrom': 1,
-                                              'repsTo': 1,
+                                              'repsTo': 12,
                                               'notes': '',
                                             }
                                           ],
@@ -481,6 +410,24 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                             ),
                                           ),
                                         ),
+                                      const Spacer(),
+                                      if (setIndex > 0) ...[
+                                        IconButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              sets.removeAt(setIndex);
+                                              for (int i = 0; i < sets.length; i++) {
+                                                sets[i]['setNumber'] = i + 1;
+                                              }
+                                            });
+                                          },
+                                          icon: const Icon(Icons.delete_outline, size: 20),
+                                          color: AppColors.error,
+                                          tooltip: 'Remove Set',
+                                          constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                                          padding: EdgeInsets.zero,
+                                        ),
+                                      ],
                                     ],
                                   ),
                                   const SizedBox(height: 12),
@@ -490,17 +437,39 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                       padding: const EdgeInsets.only(bottom: 12),
                                       child: Row(
                                         children: [
-                                          Expanded(child: _EditField(label: 'Weight', value: segment['weight'], onChanged: (v) => _updateSegment(exIndex, setIndex, segIndex, 'weight', double.tryParse(v) ?? 0))),
+                                          Expanded(
+                                            flex: 2,
+                                            child: _WeightField(initialValue: segment['weight'].toString(), onChanged: (v) => _updateSegment(exIndex, setIndex, segIndex, 'weight', double.tryParse(v) ?? 0)),
+                                          ),
                                           const SizedBox(width: 8),
-                                          Expanded(child: _EditField(label: 'From', value: segment['repsFrom'], onChanged: (v) => _updateSegment(exIndex, setIndex, segIndex, 'repsFrom', int.tryParse(v) ?? 0))),
+                                          Expanded(
+                                            child: _NumberField(label: 'From', initialValue: segment['repsFrom'].toString(), onChanged: (v) => _updateSegment(exIndex, setIndex, segIndex, 'repsFrom', int.tryParse(v) ?? 0)),
+                                          ),
                                           const SizedBox(width: 8),
-                                          Expanded(child: _EditField(label: 'To', value: segment['repsTo'], onChanged: (v) => _updateSegment(exIndex, setIndex, segIndex, 'repsTo', int.tryParse(v) ?? 0))),
+                                          Expanded(
+                                            child: _ToField(
+                                              initialValue: segment['repsTo'].toString(),
+                                              onChanged: (v) => _updateSegment(exIndex, setIndex, segIndex, 'repsTo', int.tryParse(v) ?? 0),
+                                              onDeleteTap: (segments.length > 1 && segIndex > 0) ? () {
+                                                setState(() {
+                                                  segments.removeAt(segIndex);
+                                                  // Update segment order
+                                                  for (int i = 0; i < segments.length; i++) {
+                                                    segments[i]['segmentOrder'] = i;
+                                                  }
+                                                });
+                                              } : null,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     );
                                   }),
                                   const SizedBox(height: 12),
-                                  _EditField(label: 'Notes (Optional)', value: (segments.isNotEmpty ? segments.first['notes'] ?? '' : ''), onChanged: (v) => _updateSegment(exIndex, setIndex, 0, 'notes', v)),
+                                  if (segments.isNotEmpty)
+                                    _NotesField(initialValue: segments[0]['notes'].toString(), onChanged: (v) => _updateSegment(exIndex, setIndex, 0, 'notes', v))
+                                  else
+                                    _NotesField(initialValue: '', onChanged: (_) {}),
                                   const SizedBox(height: 12),
                                   if (setIndex == sets.length - 1) ...[
                                     // Last set: show both buttons
@@ -514,9 +483,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                                   'setNumber': sets.length + 1,
                                                   'segments': [
                                                     {
-                                                      'weight': 0,
+                                                      'weight': 0.0,
                                                       'repsFrom': 1,
-                                                      'repsTo': 1,
+                                                      'repsTo': 12,
                                                       'notes': '',
                                                     }
                                                   ],
@@ -534,9 +503,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                             onPressed: () {
                                               setState(() {
                                                 final newSegment = {
-                                                  'weight': 0,
+                                                  'weight': 0.0,
                                                   'repsFrom': 1,
-                                                  'repsTo': 1,
+                                                  'repsTo': 12,
                                                   'notes': '',
                                                 };
                                                 segments.add(newSegment);
@@ -557,9 +526,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                             onPressed: () {
                                               setState(() {
                                                 final newSegment = {
-                                                  'weight': 0,
+                                                  'weight': 0.0,
                                                   'repsFrom': 1,
-                                                  'repsTo': 1,
+                                                  'repsTo': 12,
                                                   'notes': '',
                                                 };
                                                 segments.add(newSegment);
@@ -593,11 +562,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                         ),
                       );
                     }),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          ],
+        ),
+      ),
             );
           },
         ),
@@ -642,3 +609,521 @@ class _EditFieldState extends State<_EditField> {
     );
   }
 }
+
+class _DateTimeInput extends StatelessWidget {
+  final String label;
+  final DateTime? dateTime;
+  final VoidCallback onTap;
+
+  const _DateTimeInput({
+    required this.label,
+    required this.dateTime,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.cardBg,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.borderDark),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              dateTime != null
+                  ? DateFormat('d MMM y, HH:mm', 'id_ID').format(dateTime!)
+                  : 'Not set',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: dateTime == null
+                    ? AppColors.textSecondary
+                    : AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkoutDateTimeDialog extends StatefulWidget {
+  final DateTime initialWorkoutDate;
+  final DateTime? initialStartedAt;
+  final DateTime? initialEndedAt;
+
+  const _WorkoutDateTimeDialog({
+    required this.initialWorkoutDate,
+    required this.initialStartedAt,
+    required this.initialEndedAt,
+  });
+
+  @override
+  State<_WorkoutDateTimeDialog> createState() => _WorkoutDateTimeDialogState();
+}
+
+class _WorkoutDateTimeDialogState extends State<_WorkoutDateTimeDialog> {
+  late DateTime selectedDate;
+  late TimeOfDay startTime;
+  late TimeOfDay endTime;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedDate = widget.initialWorkoutDate;
+    startTime = widget.initialStartedAt != null
+        ? TimeOfDay.fromDateTime(widget.initialStartedAt!)
+        : TimeOfDay.now();
+    // endTime is +1 hour from startTime
+    final endDateTime = DateTime.now().add(const Duration(hours: 1));
+    endTime = widget.initialEndedAt != null
+        ? TimeOfDay.fromDateTime(widget.initialEndedAt!)
+        : TimeOfDay.fromDateTime(endDateTime);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppColors.cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Set Workout Time',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 20),
+            // Date Picker
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.inputBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.borderDark),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Workout Date',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          selectedDate = picked;
+                        });
+                      }
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          DateFormat('d MMMM y').format(selectedDate),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w500),
+                        ),
+                        Icon(Icons.calendar_today,
+                            size: 20, color: AppColors.accent),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Start Time Picker
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.inputBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.borderDark),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Started At',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showTimePicker(
+                        context: context,
+                        initialTime: startTime,
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          startTime = picked;
+                        });
+                      }
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          startTime.format(context),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
+                        ),
+                        Icon(Icons.access_time,
+                            size: 20, color: AppColors.accent),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // End Time Picker
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.inputBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.borderDark),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Ended At',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showTimePicker(
+                        context: context,
+                        initialTime: endTime,
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          endTime = picked;
+                        });
+                      }
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          endTime.format(context),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
+                        ),
+                        Icon(Icons.access_time,
+                            size: 20, color: AppColors.accent),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final result = {
+                        'workoutDate': selectedDate,
+                        'startedAt': DateTime(
+                          selectedDate.year,
+                          selectedDate.month,
+                          selectedDate.day,
+                          startTime.hour,
+                          startTime.minute,
+                        ),
+                        'endedAt': DateTime(
+                          selectedDate.year,
+                          selectedDate.month,
+                          selectedDate.day,
+                          endTime.hour,
+                          endTime.minute,
+                        ),
+                      };
+                      Navigator.pop(context, result);
+                    },
+                    child: const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WeightField extends StatefulWidget {
+  final String initialValue;
+  final Function(String) onChanged;
+
+  const _WeightField({required this.initialValue, required this.onChanged});
+
+  @override
+  State<_WeightField> createState() => _WeightFieldState();
+}
+
+class _WeightFieldState extends State<_WeightField> {
+  late TextEditingController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Weight (kg)',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: widget.onChanged,
+          decoration: InputDecoration(
+            hintText: '50',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NumberField extends StatefulWidget {
+  final String label;
+  final String initialValue;
+  final Function(String) onChanged;
+
+  const _NumberField({required this.label, required this.initialValue, required this.onChanged});
+
+  @override
+  State<_NumberField> createState() => _NumberFieldState();
+}
+
+class _NumberFieldState extends State<_NumberField> {
+  late TextEditingController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          onChanged: widget.onChanged,
+          decoration: InputDecoration(
+            hintText: widget.label == 'From' ? '6' : '8',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ToField extends StatefulWidget {
+  final String initialValue;
+  final Function(String) onChanged;
+  final VoidCallback? onDeleteTap;
+
+  const _ToField({required this.initialValue, required this.onChanged, this.onDeleteTap});
+
+  @override
+  State<_ToField> createState() => _ToFieldState();
+}
+
+class _ToFieldState extends State<_ToField> {
+  late TextEditingController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'To',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+            if (widget.onDeleteTap != null)
+              GestureDetector(
+                onTap: widget.onDeleteTap,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 0),
+                  child: Icon(Icons.close, size: 14, color: AppColors.error),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          onChanged: widget.onChanged,
+          decoration: InputDecoration(
+            hintText: '8',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NotesField extends StatefulWidget {
+  final String initialValue;
+  final Function(String) onChanged;
+
+  const _NotesField({required this.initialValue, required this.onChanged});
+
+  @override
+  State<_NotesField> createState() => _NotesFieldState();
+}
+
+class _NotesFieldState extends State<_NotesField> {
+  late TextEditingController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Notes (Optional)',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          maxLines: 2,
+          onChanged: widget.onChanged,
+          decoration: InputDecoration(
+            hintText: 'Wide grip, feels good, etc.',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          ),
+        ),
+      ],
+    );
+  }
+}
+

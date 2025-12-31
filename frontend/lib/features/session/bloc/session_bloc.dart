@@ -42,7 +42,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         userId: event.userId,
         planId: event.planId,
         workoutDate: DateTime.now(),
-        startedAt: DateTime.now(),
+        startedAt: null,
         exercises: exercises,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -370,9 +370,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
 
       // Build workout data for API
       final workoutData = {
-        'workoutDate': session.workoutDate.toIso8601String(),
-        'startedAt': session.startedAt?.toIso8601String(),
-        'endedAt': DateTime.now().toIso8601String(),
+        'workoutDate': '${session.workoutDate.year}-${session.workoutDate.month.toString().padLeft(2, '0')}-${session.workoutDate.day.toString().padLeft(2, '0')}',
+        'startedAt': session.startedAt != null 
+            ? '${session.startedAt!.hour.toString().padLeft(2, '0')}:${session.startedAt!.minute.toString().padLeft(2, '0')}:${session.startedAt!.second.toString().padLeft(2, '0')}'
+            : null,
+        'endedAt': session.endedAt != null 
+            ? '${session.endedAt!.hour.toString().padLeft(2, '0')}:${session.endedAt!.minute.toString().padLeft(2, '0')}:${session.endedAt!.second.toString().padLeft(2, '0')}'
+            : null,
         'planId': session.planId != null ? int.tryParse(session.planId!) : null,
         'exercises': session.exercises.map((exercise) {
           return {
@@ -404,7 +408,23 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       );
 
       if (response.success && response.data != null) {
-        emit(SessionSaved(session: session));
+        // Get the actual workout ID from the API response
+        final workoutId = response.data!.id;
+        
+        // Create a new session with the actual ID from the API
+        final savedSession = WorkoutSession(
+          id: workoutId,
+          userId: session.userId,
+          planId: session.planId,
+          workoutDate: session.workoutDate,
+          startedAt: session.startedAt,
+          endedAt: session.endedAt,
+          exercises: session.exercises,
+          createdAt: session.createdAt,
+          updatedAt: session.updatedAt,
+        );
+        
+        emit(SessionSaved(session: savedSession));
       } else {
         emit(SessionError(message: response.message));
       }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/user.dart';
 import '../../../shared/widgets/app_dialogs.dart';
@@ -440,21 +441,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String _formatDate(String dateString) {
     try {
       final date = DateTime.parse(dateString);
-      final months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec'
-      ];
-      return '${date.day} ${months[date.month - 1]} ${date.year}';
+      return DateFormat('yyyy-MM-dd HH:mm:ss').format(date);
     } catch (e) {
       return dateString;
     }

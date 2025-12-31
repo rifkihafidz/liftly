@@ -8,7 +8,7 @@ part 'models/workout_response.dart';
 part 'models/stats_response.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.137.79:8080/api';
+  static const String baseUrl = 'http://192.168.1.7:8080/api';
   // static const String baseUrl = 'http://10.134.195.5:8080/api';
   static const Duration timeout = Duration(seconds: 30);
 

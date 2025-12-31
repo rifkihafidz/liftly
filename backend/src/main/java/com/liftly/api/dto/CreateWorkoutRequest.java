@@ -3,15 +3,19 @@ package com.liftly.api.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateWorkoutRequest {
-    private LocalDateTime workoutDate;
+    private LocalDate workoutDate;
+    @JsonDeserialize(using = TimeDeserializer.class)
     private LocalDateTime startedAt;
+    @JsonDeserialize(using = TimeDeserializer.class)
     private LocalDateTime endedAt;
     private Long planId;
     private List<WorkoutExerciseRequest> exercises;
