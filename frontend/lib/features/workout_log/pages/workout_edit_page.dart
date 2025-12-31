@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../shared/widgets/app_dialogs.dart';
+import '../../../shared/widgets/workout_form_widgets.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
@@ -232,7 +233,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                     Row(
                       children: [
                         Expanded(
-                          child: _DateTimeInput(
+                          child: DateTimeInput(
                             label: 'Started At',
                             dateTime: _editedWorkout['startedAt'] != null
                                 ? DateTime.parse(_editedWorkout['startedAt'] as String)
@@ -240,7 +241,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                             onTap: () async {
                               final result = await showDialog<Map<String, DateTime?>>(
                                 context: context,
-                                builder: (context) => _WorkoutDateTimeDialog(
+                                builder: (context) => WorkoutDateTimeDialog(
                                   initialWorkoutDate: workoutDate,
                                   initialStartedAt: _editedWorkout['startedAt'] != null
                                       ? DateTime.parse(_editedWorkout['startedAt'] as String)
@@ -261,7 +262,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: _DateTimeInput(
+                          child: DateTimeInput(
                             label: 'Ended At',
                             dateTime: _editedWorkout['endedAt'] != null
                                 ? DateTime.parse(_editedWorkout['endedAt'] as String)
@@ -269,7 +270,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                             onTap: () async {
                               final result = await showDialog<Map<String, DateTime?>>(
                                 context: context,
-                                builder: (context) => _WorkoutDateTimeDialog(
+                                builder: (context) => WorkoutDateTimeDialog(
                                   initialWorkoutDate: workoutDate,
                                   initialStartedAt: _editedWorkout['startedAt'] != null
                                       ? DateTime.parse(_editedWorkout['startedAt'] as String)
@@ -439,15 +440,15 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                         children: [
                                           Expanded(
                                             flex: 2,
-                                            child: _WeightField(initialValue: segment['weight'].toString(), onChanged: (v) => _updateSegment(exIndex, setIndex, segIndex, 'weight', double.tryParse(v) ?? 0)),
+                                            child: WeightField(initialValue: segment['weight'].toString(), onChanged: (v) => _updateSegment(exIndex, setIndex, segIndex, 'weight', double.tryParse(v) ?? 0)),
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
-                                            child: _NumberField(label: 'From', initialValue: segment['repsFrom'].toString(), onChanged: (v) => _updateSegment(exIndex, setIndex, segIndex, 'repsFrom', int.tryParse(v) ?? 0)),
+                                            child: NumberField(label: 'From', initialValue: segment['repsFrom'].toString(), onChanged: (v) => _updateSegment(exIndex, setIndex, segIndex, 'repsFrom', int.tryParse(v) ?? 0)),
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
-                                            child: _ToField(
+                                            child: ToField(
                                               initialValue: segment['repsTo'].toString(),
                                               onChanged: (v) => _updateSegment(exIndex, setIndex, segIndex, 'repsTo', int.tryParse(v) ?? 0),
                                               onDeleteTap: (segments.length > 1 && segIndex > 0) ? () {
@@ -467,9 +468,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                   }),
                                   const SizedBox(height: 12),
                                   if (segments.isNotEmpty)
-                                    _NotesField(initialValue: segments[0]['notes'].toString(), onChanged: (v) => _updateSegment(exIndex, setIndex, 0, 'notes', v))
+                                    NotesField(initialValue: segments[0]['notes'].toString(), onChanged: (v) => _updateSegment(exIndex, setIndex, 0, 'notes', v))
                                   else
-                                    _NotesField(initialValue: '', onChanged: (_) {}),
+                                    NotesField(initialValue: '', onChanged: (_) {}),
                                   const SizedBox(height: 12),
                                   if (setIndex == sets.length - 1) ...[
                                     // Last set: show both buttons
@@ -606,523 +607,6 @@ class _EditFieldState extends State<_EditField> {
       decoration: InputDecoration(labelText: widget.label, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
       keyboardType: TextInputType.number,
       onChanged: widget.onChanged,
-    );
-  }
-}
-
-class _DateTimeInput extends StatelessWidget {
-  final String label;
-  final DateTime? dateTime;
-  final VoidCallback onTap;
-
-  const _DateTimeInput({
-    required this.label,
-    required this.dateTime,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.cardBg,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.borderDark),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              dateTime != null
-                  ? DateFormat('d MMM y, HH:mm', 'id_ID').format(dateTime!)
-                  : 'Not set',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: dateTime == null
-                    ? AppColors.textSecondary
-                    : AppColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkoutDateTimeDialog extends StatefulWidget {
-  final DateTime initialWorkoutDate;
-  final DateTime? initialStartedAt;
-  final DateTime? initialEndedAt;
-
-  const _WorkoutDateTimeDialog({
-    required this.initialWorkoutDate,
-    required this.initialStartedAt,
-    required this.initialEndedAt,
-  });
-
-  @override
-  State<_WorkoutDateTimeDialog> createState() => _WorkoutDateTimeDialogState();
-}
-
-class _WorkoutDateTimeDialogState extends State<_WorkoutDateTimeDialog> {
-  late DateTime selectedDate;
-  late TimeOfDay startTime;
-  late TimeOfDay endTime;
-
-  @override
-  void initState() {
-    super.initState();
-    selectedDate = widget.initialWorkoutDate;
-    startTime = widget.initialStartedAt != null
-        ? TimeOfDay.fromDateTime(widget.initialStartedAt!)
-        : TimeOfDay.now();
-    // endTime is +1 hour from startTime
-    final endDateTime = DateTime.now().add(const Duration(hours: 1));
-    endTime = widget.initialEndedAt != null
-        ? TimeOfDay.fromDateTime(widget.initialEndedAt!)
-        : TimeOfDay.fromDateTime(endDateTime);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: AppColors.cardBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Set Workout Time',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 20),
-            // Date Picker
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.inputBg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.borderDark),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Workout Date',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: selectedDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          selectedDate = picked;
-                        });
-                      }
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          DateFormat('d MMMM y').format(selectedDate),
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w500),
-                        ),
-                        Icon(Icons.calendar_today,
-                            size: 20, color: AppColors.accent),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Start Time Picker
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.inputBg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.borderDark),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Started At',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: startTime,
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          startTime = picked;
-                        });
-                      }
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          startTime.format(context),
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
-                        ),
-                        Icon(Icons.access_time,
-                            size: 20, color: AppColors.accent),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            // End Time Picker
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.inputBg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.borderDark),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Ended At',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: endTime,
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          endTime = picked;
-                        });
-                      }
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          endTime.format(context),
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
-                        ),
-                        Icon(Icons.access_time,
-                            size: 20, color: AppColors.accent),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      final result = {
-                        'workoutDate': selectedDate,
-                        'startedAt': DateTime(
-                          selectedDate.year,
-                          selectedDate.month,
-                          selectedDate.day,
-                          startTime.hour,
-                          startTime.minute,
-                        ),
-                        'endedAt': DateTime(
-                          selectedDate.year,
-                          selectedDate.month,
-                          selectedDate.day,
-                          endTime.hour,
-                          endTime.minute,
-                        ),
-                      };
-                      Navigator.pop(context, result);
-                    },
-                    child: const Text('Save'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WeightField extends StatefulWidget {
-  final String initialValue;
-  final Function(String) onChanged;
-
-  const _WeightField({required this.initialValue, required this.onChanged});
-
-  @override
-  State<_WeightField> createState() => _WeightFieldState();
-}
-
-class _WeightFieldState extends State<_WeightField> {
-  late TextEditingController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = TextEditingController(text: widget.initialValue);
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Weight (kg)',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 4),
-        TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: widget.onChanged,
-          decoration: InputDecoration(
-            hintText: '50',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _NumberField extends StatefulWidget {
-  final String label;
-  final String initialValue;
-  final Function(String) onChanged;
-
-  const _NumberField({required this.label, required this.initialValue, required this.onChanged});
-
-  @override
-  State<_NumberField> createState() => _NumberFieldState();
-}
-
-class _NumberFieldState extends State<_NumberField> {
-  late TextEditingController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = TextEditingController(text: widget.initialValue);
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          widget.label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 4),
-        TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          onChanged: widget.onChanged,
-          decoration: InputDecoration(
-            hintText: widget.label == 'From' ? '6' : '8',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ToField extends StatefulWidget {
-  final String initialValue;
-  final Function(String) onChanged;
-  final VoidCallback? onDeleteTap;
-
-  const _ToField({required this.initialValue, required this.onChanged, this.onDeleteTap});
-
-  @override
-  State<_ToField> createState() => _ToFieldState();
-}
-
-class _ToFieldState extends State<_ToField> {
-  late TextEditingController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = TextEditingController(text: widget.initialValue);
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'To',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-            ),
-            if (widget.onDeleteTap != null)
-              GestureDetector(
-                onTap: widget.onDeleteTap,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 0),
-                  child: Icon(Icons.close, size: 14, color: AppColors.error),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          onChanged: widget.onChanged,
-          decoration: InputDecoration(
-            hintText: '8',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _NotesField extends StatefulWidget {
-  final String initialValue;
-  final Function(String) onChanged;
-
-  const _NotesField({required this.initialValue, required this.onChanged});
-
-  @override
-  State<_NotesField> createState() => _NotesFieldState();
-}
-
-class _NotesFieldState extends State<_NotesField> {
-  late TextEditingController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = TextEditingController(text: widget.initialValue);
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Notes (Optional)',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 4),
-        TextField(
-          controller: controller,
-          maxLines: 2,
-          onChanged: widget.onChanged,
-          decoration: InputDecoration(
-            hintText: 'Wide grip, feels good, etc.',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          ),
-        ),
-      ],
     );
   }
 }
