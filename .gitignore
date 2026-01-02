@@ -10,7 +10,6 @@
 .history
 .svn/
 .swiftpm/
-migrate_working_dir/
 
 # IntelliJ related
 *.iml
@@ -23,13 +22,44 @@ migrate_working_dir/
 
 # Flutter/Dart/Pub related
 **/doc/api/
-**/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
-/coverage/
+**/ephemeral/
+**/generated_plugin_registrant.dart
+
+# iOS/Flutter
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/ephemeral/
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/gradle/
+/android/local.properties
+
+# Unity
+/[Ee]xport/
+/[Ee]xport_Presets/
+/[Ll]ibrary/
+/[Ll]ogs/
+/[Oo]bj/
+/[Pp]rojectSettings/
+/[Tt]emp/
+/[Uu]serSettings/
+/[Bb]uilds/
+/[Aa]ssets/AssetStoreTools*
+
+# CocoaPods
+/ios/Pods/
+/macos/Pods/
+**/Pods/
 
 # Symbolication related
 app.*.symbols
@@ -37,37 +67,27 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-# Local environment files
-/android/local.properties
-
-# Gradle build cache (DO NOT COMMIT)
-android/.gradle/
+# Android Studio
+android/.gradle
+/android/.gradle
 .gradle/
-
-# Generated files
-/lib/generated_bindings.dart
-*.g.dart
-
-# Temporary files
-*.tmp
-*.temp
-.dart_plugin_registrant.dart
 
 # Coverage
 coverage/
-.coverage/
 
-# Environment variables
-.env
-.env.*
-
-# OS
-Thumbs.db
-.AppleDouble
-.LSOverride
+# Local configuration file (sdk path, etc)
+local.properties
 .metadata
+
+# Xcode
+*.xcuserstate
+project.xcworkspace/
+xcuserdata/
+
+# Generated Plugin Registrants
+**/GeneratedPluginRegistrant.h
+**/GeneratedPluginRegistrant.m
+**/GeneratedPluginRegistrant.swift
+**/GeneratedPluginRegistrant.java
+**/generated_plugin_registrant.dart
+**/generated_plugin_registrant.cc
