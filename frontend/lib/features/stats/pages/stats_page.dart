@@ -7,9 +7,10 @@ import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../core/models/stats_filter.dart';
-import '../../../shared/widgets/shimmer_widgets.dart';
+
 import '../../workout_log/repositories/workout_repository.dart';
 import '../../../shared/widgets/app_dialogs.dart';
+import 'stats_shimmer.dart';
 
 class StatsPage extends StatefulWidget {
   const StatsPage({super.key});
@@ -24,6 +25,7 @@ class _StatsPageState extends State<StatsPage> {
   late ScrollController _scrollController;
   bool _showStickySelectorBar = false;
   bool _isLoading = true;
+  bool _isContentLoading = false;
   String? _errorMessage;
   late int _userId;
   int _prCurrentPage = 0; // Pagination for personal records
@@ -109,7 +111,12 @@ class _StatsPageState extends State<StatsPage> {
 
   /// Change period and load data atomically to avoid empty state flash
   Future<void> _changePeriod(TimePeriod newPeriod) async {
-    // Fetch data with new period WITHOUT updating _selectedPeriod yet
+    setState(() {
+      _selectedPeriod = newPeriod;
+      _referenceDate = DateTime.now();
+      _isContentLoading = true;
+    });
+
     try {
       final filter = StatsFilter(
         timePeriod: newPeriod,
@@ -133,22 +140,27 @@ class _StatsPageState extends State<StatsPage> {
         return isAfter && isBefore;
       }).toList();
 
-      // NOW update period and sessions atomically (no flash)
+      if (!mounted) return;
       setState(() {
-        _selectedPeriod = newPeriod;
-        _referenceDate = DateTime.now();
-        _prCurrentPage = 0;
         _sessions = filteredWorkouts;
+        _isContentLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Error loading data: ${e.toString()}';
+        _isContentLoading = false;
       });
     }
   }
 
   /// Change date and load data atomically to avoid empty state flash
   Future<void> _changeDate(DateTime newDate) async {
+    setState(() {
+      _referenceDate = newDate;
+      _isContentLoading = true;
+    });
+
     try {
       final filter = StatsFilter(
         timePeriod: _selectedPeriod,
@@ -172,14 +184,16 @@ class _StatsPageState extends State<StatsPage> {
         return isAfter && isBefore;
       }).toList();
 
-      // NOW update date and sessions atomically (no flash)
+      if (!mounted) return;
       setState(() {
-        _referenceDate = newDate;
         _sessions = filteredWorkouts;
+        _isContentLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Error loading data: ${e.toString()}';
+        _isContentLoading = false;
       });
     }
   }
@@ -389,38 +403,7 @@ class _StatsPageState extends State<StatsPage> {
   Widget build(BuildContext context) {
     // Show loading state
     if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Statistics'), elevation: 0),
-        body: SafeArea(
-          bottom: false,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Time period selector skeleton
-                const SizedBox(height: 16),
-                StatsCardShimmer(height: 50),
-                const SizedBox(height: 32),
-                // Personal records skeleton
-                TextLineShimmer(lineCount: 1, lineHeight: 24),
-                const SizedBox(height: 16),
-                StatsCardShimmer(height: 400),
-                const SizedBox(height: 32),
-                // Workout frequency skeleton
-                TextLineShimmer(lineCount: 1, lineHeight: 24),
-                const SizedBox(height: 16),
-                StatsCardShimmer(height: 300),
-                const SizedBox(height: 32),
-                // Volume trend skeleton
-                TextLineShimmer(lineCount: 1, lineHeight: 24),
-                const SizedBox(height: 16),
-                StatsCardShimmer(height: 300),
-              ],
-            ),
-          ),
-        ),
-      );
+      return const StatsPageShimmer(); // Full page shimmer
     }
 
     // Show error state
@@ -498,8 +481,13 @@ class _StatsPageState extends State<StatsPage> {
                         _changeDate(date);
                       },
                     ),
-                    _buildOverview(context, filteredSessions),
-                    _buildDynamicContent(context, filteredSessions),
+                    if (_isContentLoading)
+                      const StatsContentShimmer() // I need to create this in stats_shimmer.dart first?
+                    // Or I can just manually put the widgets there.
+                    else ...[
+                      _buildOverview(context, filteredSessions),
+                      _buildDynamicContent(context, filteredSessions),
+                    ],
                   ],
                 ),
               ),
@@ -520,20 +508,10 @@ class _StatsPageState extends State<StatsPage> {
                     selectedPeriod: _selectedPeriod,
                     referenceDate: _referenceDate,
                     onPeriodChanged: (period) {
-                      setState(() {
-                        _selectedPeriod = period;
-                        _referenceDate = DateTime.now();
-                        _prCurrentPage = 0; // Reset pagination
-                      });
-                      // Reload data with new date range (no loading for local storage)
-                      _loadWorkoutData(showLoading: false);
+                      _changePeriod(period);
                     },
                     onDateChanged: (date) {
-                      setState(() {
-                        _referenceDate = date;
-                      });
-                      // Reload data with new date range (no loading for local storage)
-                      _loadWorkoutData(showLoading: false);
+                      _changeDate(date);
                     },
                   ),
                 ),
