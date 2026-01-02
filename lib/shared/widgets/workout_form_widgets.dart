@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/constants/colors.dart';
 
 // Reusable datetime dialog untuk session/workout form
@@ -26,8 +27,18 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
   String _formatDate(DateTime date) {
     // Format date without requiring locale initialization
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
@@ -58,10 +69,9 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
           children: [
             Text(
               'Set Workout Time',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 20),
             // Date Picker
@@ -77,10 +87,9 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                 children: [
                   Text(
                     'Workout Date',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   GestureDetector(
@@ -102,13 +111,14 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                       children: [
                         Text(
                           _formatDate(selectedDate),
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
+                          style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(fontWeight: FontWeight.w500),
                         ),
-                        Icon(Icons.calendar_today,
-                            size: 20, color: AppColors.accent),
+                        Icon(
+                          Icons.calendar_today,
+                          size: 20,
+                          color: AppColors.accent,
+                        ),
                       ],
                     ),
                   ),
@@ -129,10 +139,9 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                 children: [
                   Text(
                     'Started At',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   GestureDetector(
@@ -152,15 +161,14 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                       children: [
                         Text(
                           startTime.format(context),
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w500),
                         ),
-                        Icon(Icons.access_time,
-                            size: 20, color: AppColors.accent),
+                        Icon(
+                          Icons.access_time,
+                          size: 20,
+                          color: AppColors.accent,
+                        ),
                       ],
                     ),
                   ),
@@ -181,10 +189,9 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                 children: [
                   Text(
                     'Ended At',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   GestureDetector(
@@ -204,15 +211,14 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                       children: [
                         Text(
                           endTime.format(context),
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w500),
                         ),
-                        Icon(Icons.access_time,
-                            size: 20, color: AppColors.accent),
+                        Icon(
+                          Icons.access_time,
+                          size: 20,
+                          color: AppColors.accent,
+                        ),
                       ],
                     ),
                   ),
@@ -269,7 +275,11 @@ class WeightField extends StatefulWidget {
   final String initialValue;
   final Function(String) onChanged;
 
-  const WeightField({super.key, required this.initialValue, required this.onChanged});
+  const WeightField({
+    super.key,
+    required this.initialValue,
+    required this.onChanged,
+  });
 
   @override
   State<WeightField> createState() => _WeightFieldState();
@@ -297,15 +307,18 @@ class _WeightFieldState extends State<WeightField> {
       children: [
         Text(
           'Weight (kg)',
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: AppColors.textSecondary),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: 4),
         TextField(
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            LengthLimitingTextInputFormatter(6),
+          ],
           onChanged: widget.onChanged,
           decoration: InputDecoration(
             hintText: '50',
@@ -360,15 +373,18 @@ class _NumberFieldState extends State<NumberField> {
       children: [
         Text(
           widget.label,
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: AppColors.textSecondary),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: 4),
         TextField(
           controller: controller,
           keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(2),
+          ],
           onChanged: widget.onChanged,
           decoration: InputDecoration(
             hintText: widget.label == 'From' ? '6' : '8',
@@ -426,10 +442,9 @@ class _ToFieldState extends State<ToField> {
           children: [
             Text(
               'To',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
             if (widget.onDeleteTap != null)
               GestureDetector(
@@ -445,6 +460,10 @@ class _ToFieldState extends State<ToField> {
         TextField(
           controller: controller,
           keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(2),
+          ],
           onChanged: widget.onChanged,
           decoration: InputDecoration(
             hintText: '8',
@@ -465,7 +484,11 @@ class NotesField extends StatefulWidget {
   final String initialValue;
   final Function(String) onChanged;
 
-  const NotesField({super.key, required this.initialValue, required this.onChanged});
+  const NotesField({
+    super.key,
+    required this.initialValue,
+    required this.onChanged,
+  });
 
   @override
   State<NotesField> createState() => _NotesFieldState();
@@ -493,10 +516,9 @@ class _NotesFieldState extends State<NotesField> {
       children: [
         Text(
           'Notes (Optional)',
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: AppColors.textSecondary),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: 4),
         TextField(
@@ -550,18 +572,16 @@ class DateTimeInput extends StatelessWidget {
           children: [
             Text(
               label,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 6),
             Text(
               formattedTime,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w500),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
             ),
           ],
         ),

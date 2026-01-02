@@ -694,7 +694,12 @@ class _StatsPageState extends State<StatsPage> {
     BuildContext context,
     Map<String, double> records,
   ) {
-    final prsList = records.entries.toList();
+    // Apply filter
+    final prsList = _prSelectedExercises.isEmpty
+        ? records.entries.toList()
+        : records.entries
+              .where((e) => _prSelectedExercises.contains(e.key))
+              .toList();
     final itemsPerPage = 4;
     final totalPages = (prsList.length / itemsPerPage).ceil();
 
@@ -725,31 +730,77 @@ class _StatsPageState extends State<StatsPage> {
           itemBuilder: (context, index) {
             final entry = currentPRs[index];
             return Container(
-              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppColors.cardBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.borderLight),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    entry.key,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${_formatNumber(entry.value)} kg',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.accent,
-                      fontWeight: FontWeight.bold,
+                ],
+                border: Border.all(
+                  color: AppColors.accent.withValues(alpha: 0.15),
+                  width: 1,
+                ),
+              ),
+              clipBehavior: Clip.hardEdge,
+              child: Stack(
+                children: [
+                  // Decorative watermark
+                  Positioned(
+                    right: -10,
+                    bottom: -10,
+                    child: Icon(
+                      Icons.emoji_events_rounded,
+                      size: 64,
+                      color: AppColors.accent.withValues(alpha: 0.05),
+                    ),
+                  ),
+                  // Content
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          entry.key.toUpperCase(),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
+                              ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              _formatNumber(entry.value),
+                              style: Theme.of(context).textTheme.headlineMedium
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    height: 1,
+                                  ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'kg',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],

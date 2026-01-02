@@ -9,6 +9,12 @@ import '../../plans/bloc/plan_state.dart';
 import '../../plans/pages/create_plan_page.dart';
 import 'session_page.dart';
 
+class _SessionQueueItem {
+  final String id;
+  final String name;
+  _SessionQueueItem(this.name) : id = UniqueKey().toString();
+}
+
 class StartWorkoutPage extends StatefulWidget {
   const StartWorkoutPage({super.key});
 
@@ -19,8 +25,11 @@ class StartWorkoutPage extends StatefulWidget {
 class _StartWorkoutPageState extends State<StartWorkoutPage> {
   WorkoutPlan? _selectedPlan;
   final _exerciseController = TextEditingController();
-  final List<String> _customExercises = [];
-  final Set<String> _selectedPlanExercises = {}; // Track which plan exercises to include
+  final List<_SessionQueueItem> _customExercises = [];
+  final Set<String> _selectedPlanExercises =
+      {}; // Track which plan exercises to include
+  final _exerciseFocusNode = FocusNode();
+  bool _isAddingExercise = false;
 
   @override
   void initState() {
@@ -41,6 +50,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
   @override
   void dispose() {
     _exerciseController.dispose();
+    _exerciseFocusNode.dispose();
     super.dispose();
   }
 
@@ -58,75 +68,31 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
     return _selectedPlanExercises.contains(exerciseName);
   }
 
-  void _showAddExerciseDialog() {
-    _exerciseController.clear();
+  // No popup dialog, inline addition
+  void _submitCustomExercise() {
+    final text = _exerciseController.text.trim();
+    if (text.isNotEmpty) {
+      setState(() {
+        _customExercises.add(_SessionQueueItem(text));
+        _exerciseController.clear();
+        _isAddingExercise = false; // Close form after adding
+        FocusManager.instance.primaryFocus?.unfocus();
+      });
+    }
+  }
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Add Custom Exercise'),
-        backgroundColor: AppColors.cardBg,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _exerciseController,
-                autofocus: true,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) {
-                  if (_exerciseController.text.isNotEmpty) {
-                    Navigator.pop(dialogContext);
-                    setState(() {
-                      _customExercises.add(_exerciseController.text);
-                    });
-                  }
-                },
-                decoration: InputDecoration(
-                  labelText: 'Exercise Name',
-                  hintText: 'e.g., Bench Press',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (_exerciseController.text.isNotEmpty) {
-                Navigator.pop(dialogContext);
-                setState(() {
-                  _customExercises.add(_exerciseController.text);
-                });
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
+  void _cancelAddingExercise() {
+    setState(() {
+      _isAddingExercise = false;
+      _exerciseController.clear();
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Start Workout'),
-      ),
+      appBar: AppBar(title: const Text('Start Workout')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -157,9 +123,8 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                           const SizedBox(height: 16),
                           Text(
                             'Loading plans...',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 32),
                         ],
@@ -184,15 +149,16 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                           const SizedBox(height: 8),
                           Text(
                             state.message,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textSecondary),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 16),
                           ElevatedButton.icon(
                             onPressed: () {
-                              context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
+                              context.read<PlanBloc>().add(
+                                const PlansFetchRequested(userId: '1'),
+                              );
                             },
                             icon: const Icon(Icons.refresh),
                             label: const Text('Retry'),
@@ -210,21 +176,21 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                           Icon(
                             Icons.fitness_center_outlined,
                             size: 64,
-                            color: AppColors.textSecondary.withValues(alpha: 0.5),
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.5,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Text(
                             'No Plans Yet',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Create your first workout plan to get started',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppColors.textSecondary),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 24),
@@ -283,16 +249,26 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                   end: Alignment.bottomRight,
                                   colors: [
                                     isSelected
-                                        ? AppColors.accent.withValues(alpha: 0.15)
-                                        : AppColors.accent.withValues(alpha: 0.05),
+                                        ? AppColors.accent.withValues(
+                                            alpha: 0.15,
+                                          )
+                                        : AppColors.accent.withValues(
+                                            alpha: 0.05,
+                                          ),
                                     isSelected
-                                        ? AppColors.accent.withValues(alpha: 0.08)
-                                        : AppColors.accent.withValues(alpha: 0.02),
+                                        ? AppColors.accent.withValues(
+                                            alpha: 0.08,
+                                          )
+                                        : AppColors.accent.withValues(
+                                            alpha: 0.02,
+                                          ),
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: isSelected ? AppColors.accent : AppColors.borderLight,
+                                  color: isSelected
+                                      ? AppColors.accent
+                                      : AppColors.borderLight,
                                   width: isSelected ? 2 : 1,
                                 ),
                               ),
@@ -300,24 +276,33 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               plan.name,
-                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
                                               '${plan.exercises.length} exercises',
-                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                color: AppColors.textSecondary,
-                                              ),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                  ),
                                             ),
                                           ],
                                         ),
@@ -334,21 +319,30 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                     const SizedBox(height: 12),
                                     Text(
                                       'Exercises:',
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppColors.textSecondary,
-                                      ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: AppColors.textSecondary,
+                                          ),
                                     ),
                                     const SizedBox(height: 8),
                                     Wrap(
                                       spacing: 8,
                                       runSpacing: 8,
                                       children: plan.exercises
-                                          .map((ex) => _ExerciseCheckItem(
-                                            key: ValueKey('${plan.id}_${ex.name}'),
-                                            exerciseName: ex.name,
-                                            isChecked: () => _isExerciseSelected(ex.name),
-                                            onTap: () => _toggleExercise(ex.name),
-                                          ))
+                                          .map(
+                                            (ex) => _ExerciseCheckItem(
+                                              key: ValueKey(
+                                                '${plan.id}_${ex.name}',
+                                              ),
+                                              exerciseName: ex.name,
+                                              isChecked: () =>
+                                                  _isExerciseSelected(ex.name),
+                                              onTap: () =>
+                                                  _toggleExercise(ex.name),
+                                            ),
+                                          )
                                           .toList(),
                                     ),
                                   ],
@@ -364,7 +358,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                   return const SizedBox.shrink();
                 },
               ),
-              // Custom exercises
+              // Custom Exercises Section
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -372,78 +366,191 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        _selectedPlan == null ? 'Add Exercises' : 'Add More Exercises',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        'Custom Exercises',
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
                       if (_customExercises.isNotEmpty)
-                        TextButton.icon(
+                        TextButton(
                           onPressed: () {
                             setState(() {
                               _customExercises.clear();
                             });
                           },
-                          icon: const Icon(Icons.delete, size: 16),
-                          label: const Text('Clear All'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.error,
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(50, 30),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text('Clear All'),
                         ),
                     ],
                   ),
                   const SizedBox(height: 12),
+
+                  // Selected custom exercises list
                   if (_customExercises.isNotEmpty)
-                    ...List.generate(_customExercises.length, (index) {
-                      final exercise = _customExercises[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: AppColors.accent.withValues(alpha: 0.3),
-                            width: 1,
+                    ReorderableListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _customExercises.length,
+                      onReorder: (oldIndex, newIndex) {
+                        setState(() {
+                          if (oldIndex < newIndex) {
+                            newIndex -= 1;
+                          }
+                          final item = _customExercises.removeAt(oldIndex);
+                          _customExercises.insert(newIndex, item);
+                        });
+                      },
+                      itemBuilder: (context, index) {
+                        final exercise = _customExercises[index];
+                        return Container(
+                          key: ValueKey(exercise.id),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
                           ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                exercise,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textPrimary,
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.accent.withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.drag_handle,
+                                    color: AppColors.textSecondary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    exercise.name,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _customExercises.removeAt(index);
+                                  });
+                                },
+                                child: Icon(
+                                  Icons.close,
+                                  size: 20,
+                                  color: AppColors.error,
                                 ),
                               ),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  _customExercises.removeAt(index);
-                                });
-                              },
-                              icon: const Icon(Icons.close),
-                              color: AppColors.error,
-                              constraints: const BoxConstraints.tightFor(
-                                width: 32,
-                                height: 32,
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+
+                  // Dynamic Input Field vs Button
+                  // Input Field (visible when adding)
+                  if (_isAddingExercise) ...[
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.inputBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.accent),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      child: ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: _exerciseController,
+                        builder: (context, value, child) {
+                          final isEnabled = value.text.trim().isNotEmpty;
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _exerciseController,
+                                  focusNode: _exerciseFocusNode,
+                                  autofocus: true,
+                                  textInputAction: TextInputAction.done,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(color: AppColors.textPrimary),
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter exercise name...',
+                                    hintStyle: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                    border: InputBorder.none,
+                                  ),
+                                  onSubmitted: (_) {
+                                    if (isEnabled) _submitCustomExercise();
+                                  },
+                                ),
                               ),
-                              padding: EdgeInsets.zero,
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  const SizedBox(height: 8),
+                              IconButton(
+                                onPressed: isEnabled
+                                    ? _submitCustomExercise
+                                    : null,
+                                icon: const Icon(Icons.check),
+                                color: isEnabled
+                                    ? AppColors.success
+                                    : AppColors.textSecondary,
+                                tooltip: 'Add',
+                              ),
+                              IconButton(
+                                onPressed: _cancelAddingExercise,
+                                icon: const Icon(Icons.close),
+                                color: AppColors.error,
+                                tooltip: 'Cancel',
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Add Button (Always visible)
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: _showAddExerciseDialog,
+                      onPressed: _isAddingExercise
+                          ? null // Disable if already adding
+                          : () {
+                              setState(() {
+                                _isAddingExercise = true;
+                              });
+                            },
                       icon: const Icon(Icons.add),
                       label: const Text('Add Custom Exercise'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.all(16),
+                        side: BorderSide(
+                          color: _isAddingExercise
+                              ? AppColors.borderLight.withValues(alpha: 0.3)
+                              : AppColors.borderLight,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -458,7 +565,8 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                     final allExercises = <String>[];
 
                     // Add selected plan exercises (in order)
-                    if (_selectedPlan != null && _selectedPlanExercises.isNotEmpty) {
+                    if (_selectedPlan != null &&
+                        _selectedPlanExercises.isNotEmpty) {
                       for (var ex in _selectedPlan!.exercises) {
                         if (_selectedPlanExercises.contains(ex.name)) {
                           allExercises.add(ex.name);
@@ -467,7 +575,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                     }
 
                     // Add custom exercises
-                    allExercises.addAll(_customExercises);
+                    allExercises.addAll(_customExercises.map((e) => e.name));
 
                     if (allExercises.isEmpty) {
                       AppDialogs.showErrorDialog(
@@ -527,12 +635,11 @@ class _ExerciseCheckItem extends StatelessWidget {
         builder: (context) {
           final checked = isChecked();
           return Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: checked ? AppColors.accent.withValues(alpha: 0.2) : AppColors.inputBg,
+              color: checked
+                  ? AppColors.accent.withValues(alpha: 0.2)
+                  : AppColors.inputBg,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: checked ? AppColors.accent : AppColors.borderLight,
@@ -549,9 +656,9 @@ class _ExerciseCheckItem extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   exerciseName,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textPrimary),
                 ),
               ],
             ),

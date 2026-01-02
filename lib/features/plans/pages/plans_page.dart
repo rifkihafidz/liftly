@@ -7,6 +7,8 @@ import '../bloc/plan_event.dart';
 import '../bloc/plan_state.dart';
 import 'create_plan_page.dart';
 
+enum PlanSortOption { newest, oldest, nameAZ, nameZA }
+
 class PlansPage extends StatefulWidget {
   const PlansPage({super.key});
 
@@ -15,6 +17,8 @@ class PlansPage extends StatefulWidget {
 }
 
 class _PlansPageState extends State<PlansPage> {
+  PlanSortOption _sortOption = PlanSortOption.newest;
+
   @override
   void initState() {
     super.initState();
@@ -27,13 +31,38 @@ class _PlansPageState extends State<PlansPage> {
       appBar: AppBar(
         title: const Text('Workout Plans'),
         actions: [
+          PopupMenuButton<PlanSortOption>(
+            icon: const Icon(Icons.sort),
+            tooltip: 'Sort Plans',
+            onSelected: (option) {
+              setState(() {
+                _sortOption = option;
+              });
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: PlanSortOption.newest,
+                child: Text('Newest First'),
+              ),
+              const PopupMenuItem(
+                value: PlanSortOption.oldest,
+                child: Text('Oldest First'),
+              ),
+              const PopupMenuItem(
+                value: PlanSortOption.nameAZ,
+                child: Text('Name (A-Z)'),
+              ),
+              const PopupMenuItem(
+                value: PlanSortOption.nameZA,
+                child: Text('Name (Z-A)'),
+              ),
+            ],
+          ),
           IconButton(
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const CreatePlanPage(),
-                ),
+                MaterialPageRoute(builder: (context) => const CreatePlanPage()),
               );
             },
             icon: const Icon(Icons.add),
@@ -85,9 +114,8 @@ class _PlansPageState extends State<PlansPage> {
                         const SizedBox(height: 8),
                         Text(
                           'Create your first workout plan',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 32),
                         SizedBox(
@@ -111,12 +139,39 @@ class _PlansPageState extends State<PlansPage> {
                 );
               }
 
+              // Sort plans
+              final sortedPlans = List.of(state.plans);
+              switch (_sortOption) {
+                case PlanSortOption.newest:
+                  sortedPlans.sort(
+                    (a, b) => b.createdAt.compareTo(a.createdAt),
+                  );
+                  break;
+                case PlanSortOption.oldest:
+                  sortedPlans.sort(
+                    (a, b) => a.createdAt.compareTo(b.createdAt),
+                  );
+                  break;
+                case PlanSortOption.nameAZ:
+                  sortedPlans.sort(
+                    (a, b) =>
+                        a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+                  );
+                  break;
+                case PlanSortOption.nameZA:
+                  sortedPlans.sort(
+                    (a, b) =>
+                        b.name.toLowerCase().compareTo(a.name.toLowerCase()),
+                  );
+                  break;
+              }
+
               return SafeArea(
                 child: ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: state.plans.length,
+                  itemCount: sortedPlans.length,
                   itemBuilder: (context, index) {
-                    final plan = state.plans[index];
+                    final plan = sortedPlans[index];
                     return GestureDetector(
                       onTap: () {
                         Navigator.push(
@@ -146,30 +201,40 @@ class _PlansPageState extends State<PlansPage> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         plan.name,
-                                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                       ),
-                                      if (plan.description != null) ...[  
+                                      if (plan.description != null) ...[
                                         const SizedBox(height: 4),
                                         Text(
                                           plan.description!,
-                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                            color: AppColors.textSecondary,
-                                          ),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: AppColors.textSecondary,
+                                              ),
                                         ),
                                       ],
                                       const SizedBox(height: 8),
                                       Text(
                                         '${plan.exercises.length} exercises',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: AppColors.accent,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: AppColors.accent,
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                       ),
                                     ],
                                   ),
@@ -189,19 +254,25 @@ class _PlansPageState extends State<PlansPage> {
                                             backgroundColor: AppColors.cardBg,
                                             actions: [
                                               TextButton(
-                                                onPressed: () => Navigator.pop(context),
+                                                onPressed: () =>
+                                                    Navigator.pop(context),
                                                 child: const Text('Cancel'),
                                               ),
                                               TextButton(
                                                 onPressed: () {
                                                   Navigator.pop(context);
                                                   context.read<PlanBloc>().add(
-                                                    PlanDeleted(userId: '1', planId: plan.id),
+                                                    PlanDeleted(
+                                                      userId: '1',
+                                                      planId: plan.id,
+                                                    ),
                                                   );
                                                 },
                                                 child: const Text(
                                                   'Delete',
-                                                  style: TextStyle(color: Colors.red),
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                  ),
                                                 ),
                                               ),
                                             ],
@@ -229,21 +300,23 @@ class _PlansPageState extends State<PlansPage> {
                                   ),
                                   child: Text(
                                     ex.name,
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textPrimary,
-                                    ),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: AppColors.textPrimary,
+                                        ),
                                   ),
                                 );
                               }).toList(),
                             ),
-                            if (plan.exercises.length > 4) ...[  
+                            if (plan.exercises.length > 4) ...[
                               const SizedBox(height: 8),
                               Text(
                                 '+${plan.exercises.length - 4} more',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontStyle: FontStyle.italic,
-                                ),
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontStyle: FontStyle.italic,
+                                    ),
                               ),
                             ],
                           ],

@@ -7,6 +7,12 @@ import '../bloc/plan_bloc.dart';
 import '../bloc/plan_event.dart';
 import '../bloc/plan_state.dart';
 
+class _QueueItem {
+  final String id;
+  final String name;
+  _QueueItem(this.name) : id = UniqueKey().toString();
+}
+
 class CreatePlanPage extends StatefulWidget {
   final WorkoutPlan? plan;
 
@@ -19,19 +25,22 @@ class CreatePlanPage extends StatefulWidget {
 class _CreatePlanPageState extends State<CreatePlanPage> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
-  late List<TextEditingController> _exerciseControllers;
+  late TextEditingController _newExerciseController;
+  final _focusNode = FocusNode();
+  final List<_QueueItem> _exercises = [];
+  bool _isAddingExercise = false;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.plan?.name ?? '');
-    _descriptionController = TextEditingController(text: widget.plan?.description ?? '');
-    _exerciseControllers = (widget.plan?.exercises ?? [])
-        .map((e) => TextEditingController(text: e.name))
-        .toList();
+    _descriptionController = TextEditingController(
+      text: widget.plan?.description ?? '',
+    );
+    _newExerciseController = TextEditingController();
 
-    if (_exerciseControllers.isEmpty) {
-      _exerciseControllers.add(TextEditingController());
+    if (widget.plan != null) {
+      _exercises.addAll(widget.plan!.exercises.map((e) => _QueueItem(e.name)));
     }
   }
 
@@ -39,12 +48,40 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
-    for (var controller in _exerciseControllers) {
-      controller.dispose();
-    }
+    _newExerciseController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
+  void _submitExercise() {
+    final text = _newExerciseController.text.trim();
+    if (text.isNotEmpty) {
+      setState(() {
+        _exercises.add(_QueueItem(text));
+        _newExerciseController.clear();
+        _isAddingExercise = false;
+        FocusManager.instance.primaryFocus?.unfocus();
+      });
+    }
+  }
+
+  void _cancelAddingExercise() {
+    setState(() {
+      _isAddingExercise = false;
+      _newExerciseController.clear();
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
+  }
+
+  void _editExercise(int index) {
+    setState(() {
+      final exerciseToEdit = _exercises[index];
+      _exercises.removeAt(index);
+      _newExerciseController.text = exerciseToEdit.name;
+      _isAddingExercise = true;
+      _focusNode.requestFocus();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,79 +151,207 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                       'Exercises',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _exerciseControllers.add(TextEditingController());
-                        });
-                      },
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                    if (_exercises.isNotEmpty)
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _exercises.clear();
+                          });
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(50, 30),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
+                        child: const Text('Clear All'),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _exerciseControllers.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
+
+                // Added Exercises List
+                if (_exercises.isNotEmpty)
+                  ReorderableListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _exercises.length,
+                    onReorder: (oldIndex, newIndex) {
+                      setState(() {
+                        if (oldIndex < newIndex) {
+                          newIndex -= 1;
+                        }
+                        final item = _exercises.removeAt(oldIndex);
+                        _exercises.insert(newIndex, item);
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      final exercise = _exercises[index];
+                      return Container(
+                        key: ValueKey(exercise.id),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
-                          color: AppColors.inputBg,
-                          borderRadius: BorderRadius.circular(8),
+                          color: AppColors.accent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: AppColors.borderDark,
+                            color: AppColors.accent.withValues(alpha: 0.3),
                             width: 1,
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Row(
                               children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _exerciseControllers[index],
-                                    decoration: InputDecoration(
-                                      hintText: 'Exercise ${index + 1}',
-                                      isDense: true,
+                                Icon(
+                                  Icons.drag_handle,
+                                  color: AppColors.textSecondary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  exercise.name,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                InkWell(
+                                  onTap: () => _editExercise(index),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    child: Icon(
+                                      Icons.edit,
+                                      size: 18,
+                                      color: AppColors.accent,
                                     ),
                                   ),
                                 ),
-                                if (_exerciseControllers.length > 1)
-                                const SizedBox(width: 8),
-                                if (_exerciseControllers.length > 1)
-                                  IconButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _exerciseControllers[index].dispose();
-                                        _exerciseControllers.removeAt(index);
-                                      });
-                                    },
-                                    icon: const Icon(Icons.delete),
-                                    color: AppColors.error,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minHeight: 40),
+                                InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _exercises.removeAt(index);
+                                    });
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 4),
+                                    child: Icon(
+                                      Icons.close,
+                                      size: 20,
+                                      color: AppColors.error,
+                                    ),
                                   ),
+                                ),
                               ],
                             ),
                           ],
                         ),
+                      );
+                    },
+                  ),
+
+                // Input Field (visible when adding)
+                if (_isAddingExercise) ...[
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.inputBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.accent),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    child: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _newExerciseController,
+                      builder: (context, value, child) {
+                        final isEnabled = value.text.trim().isNotEmpty;
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _newExerciseController,
+                                focusNode: _focusNode,
+                                autofocus: true,
+                                textInputAction: TextInputAction.done,
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: AppColors.textPrimary),
+                                decoration: InputDecoration(
+                                  hintText: 'Enter exercise name...',
+                                  hintStyle: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                  border: InputBorder.none,
+                                ),
+                                onSubmitted: (_) {
+                                  if (isEnabled) _submitExercise();
+                                },
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: isEnabled ? _submitExercise : null,
+                              icon: const Icon(Icons.check),
+                              color: isEnabled
+                                  ? AppColors.success
+                                  : AppColors.textSecondary,
+                              tooltip: 'Add',
+                            ),
+                            IconButton(
+                              onPressed: _cancelAddingExercise,
+                              icon: const Icon(Icons.close),
+                              color: AppColors.error,
+                              tooltip: 'Cancel',
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                const SizedBox(height: 8),
+                // Add Button (Always visible)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _isAddingExercise
+                        ? null // Disable if already adding
+                        : () {
+                            setState(() {
+                              _isAddingExercise = true;
+                            });
+                          },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Exercise'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.all(16),
+                      side: BorderSide(
+                        color: _isAddingExercise
+                            ? AppColors.borderLight.withValues(alpha: 0.3)
+                            : AppColors.borderLight,
                       ),
-                    );
-                  },
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
                   child: BlocBuilder<PlanBloc, PlanState>(
@@ -205,7 +370,11 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                                   ),
                                 ),
                               )
-                            : Text(widget.plan == null ? 'Create Plan' : 'Update Plan'),
+                            : Text(
+                                widget.plan == null
+                                    ? 'Create Plan'
+                                    : 'Update Plan',
+                              ),
                       );
                     },
                   ),
@@ -220,31 +389,16 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
   }
 
   void _savePlan() {
-    // Check if there are empty exercise fields
-    final hasEmptyExercises = _exerciseControllers.any((c) => c.text.trim().isEmpty);
-    if (hasEmptyExercises) {
-      AppDialogs.showErrorDialog(
-        context: context,
-        title: 'Incomplete Form',
-        message: 'There are exercises that have not been filled in. Please fill in all exercises or delete the unused forms.',
-      );
-      return;
-    }
-
     // Collect non-empty exercises
-    final exercises = <String>[];
-    for (var i = 0; i < _exerciseControllers.length; i++) {
-      if (_exerciseControllers[i].text.isNotEmpty) {
-        exercises.add(_exerciseControllers[i].text);
-      }
-    }
+    // Exercises are already in _exercises list
 
     // Check if exercises exist but no plan name
-    if (exercises.isNotEmpty && _nameController.text.isEmpty) {
+    if (_exercises.isNotEmpty && _nameController.text.isEmpty) {
       AppDialogs.showErrorDialog(
         context: context,
         title: 'Plan Name Required',
-        message: 'Please enter a plan name first. Exercises have been added but the plan name is still empty.',
+        message:
+            'Please enter a plan name first. Exercises have been added but the plan name is still empty.',
       );
       return;
     }
@@ -260,7 +414,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
     }
 
     // Check if exercises are empty
-    if (exercises.isEmpty) {
+    if (_exercises.isEmpty) {
       AppDialogs.showErrorDialog(
         context: context,
         title: 'Exercises Required',
@@ -277,7 +431,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
           description: _descriptionController.text.isNotEmpty
               ? _descriptionController.text
               : null,
-          exercises: exercises,
+          exercises: _exercises.map((e) => e.name).toList(),
         ),
       );
     } else {
@@ -289,7 +443,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
           description: _descriptionController.text.isNotEmpty
               ? _descriptionController.text
               : null,
-          exercises: exercises,
+          exercises: _exercises.map((e) => e.name).toList(),
         ),
       );
     }
