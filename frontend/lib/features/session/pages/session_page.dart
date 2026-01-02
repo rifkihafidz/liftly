@@ -6,8 +6,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/workout_form_widgets.dart';
-import '../../auth/bloc/auth_bloc.dart';
-import '../../auth/bloc/auth_state.dart';
 import '../../workout_log/pages/workout_detail_page.dart';
 import '../bloc/session_bloc.dart';
 import '../bloc/session_event.dart';
@@ -25,94 +23,28 @@ class SessionPage extends StatefulWidget {
 
 class _SessionPageState extends State<SessionPage> {
   late Map<String, dynamic> _editedSession;
+  bool _sessionInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize with empty session to prevent LateInitializationError
-    _editedSession = {
-      'workoutDate': DateTime.now(),
-      'startedAt': null,
-      'endedAt': null,
-      'planId': null,
-      'exercises': [],
-    };
     initializeDateFormatting('id_ID');
-    // Get userId from auth
-    final authState = context.read<AuthBloc>().state;
-    final userId = (authState is AuthAuthenticated)
-        ? authState.user.id.toString()
-        : '1';
-
-    // Reset bloc state first by emitting Loading, then trigger SessionStarted
+    
+    // Start session with actual exercises
     final bloc = context.read<SessionBloc>();
-    bloc.add(SessionStarted(planId: null, exerciseNames: [], userId: userId));
-    // Force create new session by triggering SessionStarted with actual exercises
-    Future.delayed(const Duration(milliseconds: 100), () {
-      bloc.add(
-        SessionStarted(
-          planId: widget.planId,
-          exerciseNames: widget.exerciseNames,
-          userId: userId,
-        ),
-      );
-    });
+    const userId = '1'; // Default local user ID
+    bloc.add(
+      SessionStarted(
+        planId: widget.planId,
+        exerciseNames: widget.exerciseNames,
+        userId: userId,
+      ),
+    );
   }
 
   @override
   void dispose() {
     super.dispose();
-  }
-
-  Map<String, dynamic> _deepCopySession(WorkoutSession session) {
-    return {
-      'workoutDate': session.workoutDate,
-      'startedAt': null,
-      'endedAt': null,
-      'planId': session.planId,
-      'exercises': session.exercises.map((ex) {
-        final sets = ex.sets.isNotEmpty
-            ? ex.sets.map((set) {
-                return {
-                  'id': set.id,
-                  'setNumber': set.setNumber,
-                  'segments': set.segments.map((seg) {
-                    return {
-                      'id': seg.id,
-                      'weight': seg.weight,
-                      'repsFrom': seg.repsFrom,
-                      'repsTo': seg.repsTo,
-                      'notes': seg.notes,
-                      'segmentOrder': seg.segmentOrder,
-                    };
-                  }).toList(),
-                };
-              }).toList()
-            : [
-                {
-                  'id': 'set_${DateTime.now().millisecondsSinceEpoch}',
-                  'setNumber': 1,
-                  'segments': [
-                    {
-                      'id': 'seg_${DateTime.now().millisecondsSinceEpoch}',
-                      'weight': 0.0,
-                      'repsFrom': 1,
-                      'repsTo': 12,
-                      'notes': '',
-                      'segmentOrder': 0,
-                    },
-                  ],
-                },
-              ];
-        return {
-          'name': ex.name,
-          'id': ex.id,
-          'order': ex.order,
-          'skipped': ex.skipped,
-          'sets': sets,
-        };
-      }).toList(),
-    };
   }
 
   @override
@@ -165,16 +97,15 @@ class _SessionPageState extends State<SessionPage> {
                 title: 'Berhasil',
                 message: 'Workout berhasil disimpan.',
                 onConfirm: () {
-                  // Pop to StartWorkoutPage
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  }
-                  // Then navigate to WorkoutDetailPage
                   if (mounted) {
-                    Navigator.push(
+                    // Pop the dialog first
+                    Navigator.pop(context);
+                    
+                    // Replace session with detail (smooth transition, no Home flash)
+                    Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => WorkoutDetailPage(
+                        builder: (_) => WorkoutDetailPage(
                           workout: state.session,
                           fromSession: true,
                         ),
@@ -197,11 +128,64 @@ class _SessionPageState extends State<SessionPage> {
               }
 
             if (state is SessionInProgress) {
-              // Update _editedSession only if number of exercises changed
-              final currentCount =
-                  (_editedSession['exercises'] as List<dynamic>? ?? []).length;
-              if (currentCount != state.session.exercises.length) {
-                _editedSession = _deepCopySession(state.session);
+              // Initialize _editedSession only once from the bloc state
+              if (!_sessionInitialized) {
+                final session = state.session;
+                _editedSession = {
+                  'workoutDate': session.workoutDate,
+                  'startedAt': session.startedAt,
+                  'endedAt': session.endedAt,
+                  'planId': session.planId,
+                  'exercises': session.exercises.map((ex) {
+                    // If exercise has no sets, create 1 default set
+                    final sets = ex.sets.isEmpty
+                        ? [
+                            {
+                              'id': 'set_${DateTime.now().millisecondsSinceEpoch}_${ex.id}',
+                              'setNumber': 1,
+                              'segments': [
+                                {
+                                  'id': 'seg_${DateTime.now().millisecondsSinceEpoch}_${ex.id}_0',
+                                  'weight': 0.0,
+                                  'repsFrom': 1,
+                                  'repsTo': 12,
+                                  'notes': '',
+                                  'segmentOrder': 0,
+                                },
+                              ],
+                            },
+                          ]
+                        : ex.sets
+                            .map((set) {
+                              return {
+                                'id': set.id,
+                                'setNumber': set.setNumber,
+                                'segments': set.segments
+                                    .map((seg) {
+                                      return {
+                                        'id': seg.id,
+                                        'weight': seg.weight,
+                                        'repsFrom': seg.repsFrom,
+                                        'repsTo': seg.repsTo,
+                                        'notes': seg.notes,
+                                        'segmentOrder': seg.segmentOrder,
+                                      };
+                                    })
+                                    .toList(),
+                              };
+                            })
+                            .toList();
+
+                    return {
+                      'name': ex.name,
+                      'id': ex.id,
+                      'order': ex.order,
+                      'skipped': ex.skipped,
+                      'sets': sets,
+                    };
+                  }).toList(),
+                };
+                _sessionInitialized = true;
               }
 
               final exercises =
@@ -225,7 +209,7 @@ class _SessionPageState extends State<SessionPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Workout Date: ${DateFormat('d MMMM y', 'id_ID').format(_editedSession['workoutDate'] as DateTime)}',
+                                'Workout Date: ${DateFormat('EEEE, dd MMMM yyyy').format(_editedSession['workoutDate'] as DateTime)}',
                                 style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(fontWeight: FontWeight.w600),
                               ),
@@ -755,42 +739,43 @@ class _SessionPageState extends State<SessionPage> {
                               );
                             }).toList();
 
+                            final workoutDate =
+                                _editedSession['workoutDate'] as DateTime? ??
+                                    DateTime.now();
+                            final now = DateTime.now();
+                            // Keep the original session ID - don't create a new one!
+                            // The session already has a unique ID from when it was started
+                            final originalSessionId = (state).session.id;
                             final updatedSession = WorkoutSession(
-                              id:
-                                  widget.planId ??
-                                  'session_${DateTime.now().millisecondsSinceEpoch}',
+                              id: originalSessionId,
                               userId: (state)
                                   .session
                                   .userId, // Get from current session state
                               planId: _editedSession['planId'] as String?,
-                              workoutDate:
-                                  _editedSession['workoutDate'] as DateTime? ??
-                                  DateTime.now(),
+                              workoutDate: workoutDate,
                               startedAt: _editedSession['startedAt'] as DateTime?,
                               endedAt: _editedSession['endedAt'] as DateTime?,
                               exercises: sessionExercises,
-                              createdAt: DateTime.now(),
-                              updatedAt: DateTime.now(),
+                              createdAt: now,
+                              updatedAt: now,
                             );
 
-                            // First update bloc state, then save
+                            // Update bloc with the final session data, then save
                             context.read<SessionBloc>().add(
                               SessionRecovered(session: updatedSession),
                             );
 
                             // Give bloc time to update state, then save
-                            if (mounted) {
-                              Future.delayed(
-                                const Duration(milliseconds: 100),
-                                () {
-                                  if (mounted && context.mounted) {
-                                    context.read<SessionBloc>().add(
-                                      const SessionSaveRequested(),
-                                    );
-                                  }
-                                },
-                              );
-                            }
+                            Future.delayed(
+                              const Duration(milliseconds: 50),
+                              () {
+                                if (mounted && context.mounted) {
+                                  context.read<SessionBloc>().add(
+                                    const SessionSaveRequested(),
+                                  );
+                                }
+                              },
+                            );
                           },
                           child: const Text('Finish Workout'),
                         ),

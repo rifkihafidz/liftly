@@ -4,16 +4,15 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../shared/widgets/app_dialogs.dart';
-import '../../auth/bloc/auth_bloc.dart';
-import '../../auth/bloc/auth_state.dart';
+import '../../session/pages/workout_history_page.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
 import 'workout_edit_page.dart';
-import 'workout_history_page.dart';
 
 class WorkoutDetailPage extends StatefulWidget {
-  final dynamic workout; // Accept both WorkoutSession and Map<String, dynamic> for now
+  final dynamic
+  workout; // Accept both WorkoutSession and Map<String, dynamic> for now
   final bool fromSession;
 
   const WorkoutDetailPage({
@@ -37,39 +36,29 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
     if (widget.workout is WorkoutSession) {
       final session = widget.workout as WorkoutSession;
       _currentWorkout = _convertSessionToMap(session);
-      
-      // If coming from session, fetch the full workout from API to get real exercise IDs
-      if (widget.fromSession) {
-        final authState = context.read<AuthBloc>().state;
-        if (authState is AuthAuthenticated) {
-          final userId = authState.user.id;
-          // Fetch the workout to get real database IDs for exercises
-          context.read<WorkoutBloc>().add(
-            WorkoutsFetched(userId: userId.toString()),
-          );
-        }
-      }
+
+      // Don't fetch again if coming from session - we already have the data
+      // The data passed to us is the freshly saved workout from the database
+      // No need to call WorkoutsFetched which would cause redundant queries
     } else {
       _currentWorkout = widget.workout;
     }
   }
 
   void _handleBack() {
+    print(
+      '[NAV DEBUG] Detail back pressed - fromSession: ${widget.fromSession}',
+    );
     if (widget.fromSession) {
-      // Get userId from auth to pass to history page
-      final authState = context.read<AuthBloc>().state;
-      if (authState is AuthAuthenticated) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => WorkoutHistoryPage(
-              userId: authState.user.id.toString(),
-              fromSession: true,
-            ),
-          ),
-        );
-      }
+      // Replace detail with history (smooth transition, no Home flash)
+      print('[NAV DEBUG] Replacing detail with history');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const WorkoutHistoryPage()),
+      );
     } else if (Navigator.canPop(context)) {
+      // Normal back from other sources
+      print('[NAV DEBUG] Normal pop');
       Navigator.pop(context);
     }
   }
@@ -83,28 +72,34 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       'startedAt': session.startedAt?.toIso8601String(),
       'endedAt': session.endedAt?.toIso8601String(),
       'exercises': session.exercises
-          .map((ex) => {
-                'id': ex.id,
-                'name': ex.name,
-                'order': ex.order,
-                'skipped': ex.skipped,
-                'sets': ex.sets
-                    .map((set) => {
-                          'id': set.id,
-                          'setNumber': set.setNumber,
-                          'segments': set.segments
-                              .map((seg) => {
-                                    'id': seg.id,
-                                    'weight': seg.weight,
-                                    'repsFrom': seg.repsFrom,
-                                    'repsTo': seg.repsTo,
-                                    'segmentOrder': seg.segmentOrder,
-                                    'notes': seg.notes,
-                                  })
-                              .toList(),
-                        })
-                    .toList(),
-              })
+          .map(
+            (ex) => {
+              'id': ex.id,
+              'name': ex.name,
+              'order': ex.order,
+              'skipped': ex.skipped,
+              'sets': ex.sets
+                  .map(
+                    (set) => {
+                      'id': set.id,
+                      'setNumber': set.setNumber,
+                      'segments': set.segments
+                          .map(
+                            (seg) => {
+                              'id': seg.id,
+                              'weight': seg.weight,
+                              'repsFrom': seg.repsFrom,
+                              'repsTo': seg.repsTo,
+                              'segmentOrder': seg.segmentOrder,
+                              'notes': seg.notes,
+                            },
+                          )
+                          .toList(),
+                    },
+                  )
+                  .toList(),
+            },
+          )
           .toList(),
       'createdAt': session.createdAt.toIso8601String(),
       'updatedAt': session.updatedAt.toIso8601String(),
@@ -148,6 +143,10 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       return totalVolume;
     }
 
+    int countNonSkippedExercises(List<dynamic> exercises) {
+      return exercises.where((ex) => ex['skipped'] != true).length;
+    }
+
     final totalVolume = calculateTotalVolume(exercises);
 
     String formatNumber(double number) {
@@ -157,17 +156,17 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       } else {
         format = number.toStringAsFixed(1);
       }
-      
+
       // Add thousand separator
       final parts = format.split('.');
       final intPart = parts[0];
       final decimalPart = parts.length > 1 ? parts[1] : '';
-      
+
       final formattedInt = intPart.replaceAllMapped(
         RegExp(r'\B(?=(\d{3})+(?!\d))'),
         (match) => ',',
       );
-      
+
       return decimalPart.isEmpty ? formattedInt : '$formattedInt.$decimalPart';
     }
 
@@ -177,6 +176,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
         if (didPop) return;
         // Handle back button when fromSession is true
         if (widget.fromSession) {
+          print('[NAV DEBUG] PopScope back pressed - fromSession');
           _handleBack();
         }
       },
@@ -186,6 +186,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
+              print('[NAV DEBUG] AppBar back button pressed');
               _handleBack();
             },
           ),
@@ -193,21 +194,29 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () async {
+                print(
+                  '[EDIT DEBUG] Edit button pressed - workoutId: ${_currentWorkout['id']}',
+                );
+                print(
+                  '[EDIT DEBUG] Current data - startedAt: ${_currentWorkout['startedAt']}, endedAt: ${_currentWorkout['endedAt']}',
+                );
                 final updated = await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(
                     builder: (_) => WorkoutEditPage(workout: _currentWorkout),
                   ),
                 );
+                print('[EDIT DEBUG] Edit page returned - updated: $updated');
                 if (updated == true && context.mounted) {
                   // Reload workout data from server
-                  final authState = context.read<AuthBloc>().state;
-                  if (authState is AuthAuthenticated) {
-                    // Fetch latest workouts to get updated data
-                    context.read<WorkoutBloc>().add(
-                      WorkoutsFetched(userId: authState.user.id),
-                    );
-                  }
+                  const userId = '1'; // Default local user ID
+                  // Fetch latest workouts to get updated data
+                  print(
+                    '[EDIT DEBUG] Triggering WorkoutsFetched to reload data',
+                  );
+                  context.read<WorkoutBloc>().add(
+                    const WorkoutsFetched(userId: userId),
+                  );
                 }
               },
             ),
@@ -220,169 +229,182 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
           ],
         ),
         body: BlocListener<WorkoutBloc, WorkoutState>(
-        listener: (context, state) {
-          // Handle WorkoutsLoaded for both delete and refresh after edit
-          if (state is WorkoutsLoaded) {
-            if (_isDeleting && mounted) {
-              // Successfully deleted - navigate to history page with fromDelete flag
-              _isDeleting = false; // Reset flag to prevent re-triggering
-              
-              final authState = context.read<AuthBloc>().state;
-              if (authState is AuthAuthenticated) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => WorkoutHistoryPage(
-                      userId: authState.user.id.toString(),
-                      fromDelete: true,
-                    ),
-                  ),
-                );
-              }
-              
-              AppDialogs.showSuccessDialog(
-                context: context,
-                title: 'Berhasil',
-                message: 'Workout berhasil dihapus.',
+          listener: (context, state) {
+            // Handle WorkoutsLoaded for both delete and refresh after edit
+            if (state is WorkoutsLoaded) {
+              print(
+                '[EDIT DEBUG] WorkoutsLoaded received - workouts count: ${state.workouts.length}',
               );
-            } else if (!_isDeleting && mounted) {
-              // Refresh after update - find current workout in list and update
-              final workoutId = _currentWorkout['id'].toString();
-              try {
-                final updatedWorkout = state.workouts.firstWhere(
-                  (w) => w.id == workoutId,
-                );
+              if (_isDeleting && mounted) {
+                // Successfully deleted - close detail page and let history reload
+                _isDeleting = false; // Reset flag to prevent re-triggering
+
+                // Close loading dialog first
+                Navigator.pop(context);
                 
-                if (context.mounted) {
-                  setState(() {
-                    // Update current workout with latest data from WorkoutSession
-                    _currentWorkout = _convertSessionToMap(updatedWorkout);
+                // Pop detail page to go back to history
+                Navigator.pop(context);
+
+                AppDialogs.showSuccessDialog(
+                  context: context,
+                  title: 'Berhasil',
+                  message: 'Workout berhasil dihapus.',
+                );
+              } else if (!_isDeleting && mounted) {
+                // Refresh after update - find current workout in list and update
+                final workoutId = _currentWorkout['id'].toString();
+                print(
+                  '[EDIT DEBUG] Looking for workout: $workoutId in loaded workouts',
+                );
+                try {
+                  final updatedWorkout = state.workouts.firstWhere((w) {
+                    print(
+                      '[EDIT DEBUG] Comparing - workout id: ${w.id} vs target: $workoutId',
+                    );
+                    return w.id == workoutId;
                   });
+
+                  print(
+                    '[EDIT DEBUG] Found workout! startedAt: ${updatedWorkout.startedAt}, endedAt: ${updatedWorkout.endedAt}',
+                  );
+
+                  if (context.mounted) {
+                    setState(() {
+                      // Update current workout with latest data from WorkoutSession
+                      final newData = _convertSessionToMap(updatedWorkout);
+                      print(
+                        '[EDIT DEBUG] Updated data - startedAt: ${newData['startedAt']}, endedAt: ${newData['endedAt']}',
+                      );
+                      _currentWorkout = newData;
+                    });
+                    print('[EDIT DEBUG] setState completed - UI should update');
+                  }
+                } catch (e) {
+                  // Workout not found in list, keep current data
+                  print(
+                    '[EDIT DEBUG] ERROR: Workout not found in loaded list! $e',
+                  );
                 }
-              } catch (e) {
-                // Workout not found in list, keep current data
               }
+            } else if (state is WorkoutError && mounted) {
+              print('[EDIT DEBUG] WorkoutError: ${state.message}');
+              Navigator.pop(context); // Close loading dialog if still open
+              AppDialogs.showErrorDialog(
+                context: context,
+                title: 'Terjadi Kesalahan',
+                message: state.message,
+              );
             }
-          } else if (state is WorkoutError && mounted) {
-            Navigator.pop(context); // Close loading dialog if still open
-            AppDialogs.showErrorDialog(
-              context: context,
-              title: 'Terjadi Kesalahan',
-              message: state.message,
-            );
-          }
-        },
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header section
-              Container(
-                color: AppColors.cardBg,
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      DateFormat('EEEE, MMM dd, yyyy').format(workoutDate),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 18,
-                          color: AppColors.textSecondary,
+          },
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header section
+                Container(
+                  color: AppColors.cardBg,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        DateFormat('EEEE, dd MMMM yyyy').format(workoutDate),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(width: 8),
-                        if (startedAt != null && endedAt != null)
-                          Text(
-                            '${DateFormat('HH:mm').format(startedAt)} - ${DateFormat('HH:mm').format(endedAt)}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          )
-                        else
-                          Text(
-                            'Workout time not set yet',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                      ],
-                    ),
-                    if (duration != null) ...[
-                      const SizedBox(height: 8),
+                      ),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Icon(
-                            Icons.timer,
+                            Icons.access_time,
                             size: 18,
-                            color: AppColors.accent,
+                            color: AppColors.textSecondary,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            'Duration: ${_formatDuration(duration)}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.accent,
-                              fontWeight: FontWeight.w500,
+                          if (startedAt != null && endedAt != null)
+                            Text(
+                              '${DateFormat('HH:mm').format(startedAt)} - ${DateFormat('HH:mm').format(endedAt)}',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            )
+                          else
+                            Text(
+                              'Workout time not set yet',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontStyle: FontStyle.italic,
+                                  ),
                             ),
+                        ],
+                      ),
+                      if (duration != null) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.timer,
+                              size: 18,
+                              color: AppColors.accent,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Duration: ${_formatDuration(duration)}',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.scale, size: 18, color: AppColors.accent),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Total Volume: ${formatNumber(totalVolume)} kg',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: AppColors.accent,
+                                  fontWeight: FontWeight.w500,
+                                ),
                           ),
                         ],
                       ),
                     ],
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.scale,
-                          size: 18,
-                          color: AppColors.accent,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Total Volume: ${formatNumber(totalVolume)} kg',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.accent,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              // Exercises section
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${exercises.length} Exercises',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                // Exercises section
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${countNonSkippedExercises(exercises)} Exercises',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    ...List.generate(exercises.length, (index) {
-                      final exercise = exercises[index] as Map<String, dynamic>;
-                      return _ExerciseCard(
-                        exercise: exercise,
-                        index: index,
-                        formatNumber: formatNumber,
-                      );
-                    }),
-                  ],
+                      const SizedBox(height: 16),
+                      ...List.generate(exercises.length, (index) {
+                        final exercise =
+                            exercises[index] as Map<String, dynamic>;
+                        return _ExerciseCard(
+                          exercise: exercise,
+                          index: index,
+                          formatNumber: formatNumber,
+                        );
+                      }),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -420,10 +442,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                 Navigator.pop(ctx);
                 _deleteWorkout(context);
               },
-              child: const Text(
-                'Hapus',
-                style: TextStyle(color: Colors.red),
-              ),
+              child: const Text('Hapus', style: TextStyle(color: Colors.red)),
             ),
           ],
         );
@@ -432,13 +451,8 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
   }
 
   void _deleteWorkout(BuildContext context) {
-    final authState = context.read<AuthBloc>().state;
-    if (authState is! AuthAuthenticated) {
-      return;
-    }
-
     _isDeleting = true; // Set flag
-    final userId = authState.user.id;
+    const userId = '1'; // Default local user ID
     final workoutId = _currentWorkout['id'].toString();
     final bloc = context.read<WorkoutBloc>();
 
@@ -456,12 +470,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       ),
     );
 
-    bloc.add(
-      WorkoutDeleted(
-        userId: userId,
-        workoutId: workoutId,
-      ),
-    );
+    bloc.add(WorkoutDeleted(userId: userId, workoutId: workoutId));
   }
 }
 
@@ -519,18 +528,16 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                           children: [
                             Text(
                               '${widget.index + 1}. ${widget.exercise['name']}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
+                              style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: isSkipped
-                                    ? AppColors.textSecondary
-                                    : AppColors.textPrimary,
-                                decoration: isSkipped
-                                    ? TextDecoration.lineThrough
-                                    : null,
-                              ),
+                                    fontWeight: FontWeight.w600,
+                                    color: isSkipped
+                                        ? AppColors.textSecondary
+                                        : AppColors.textPrimary,
+                                    decoration: isSkipped
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                  ),
                             ),
                             if (isSkipped) ...[
                               const SizedBox(width: 8),
@@ -540,39 +547,35 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.textSecondary
-                                      .withValues(alpha: 0.2),
+                                  color: AppColors.textSecondary.withValues(
+                                    alpha: 0.2,
+                                  ),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   'Skipped',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelSmall
+                                  style: Theme.of(context).textTheme.labelSmall
                                       ?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
+                                        color: AppColors.textSecondary,
+                                      ),
                                 ),
                               ),
                             ],
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          '${sets.length} sets',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
+                        if (!isSkipped)
+                          Text(
+                            '${sets.length} sets',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textSecondary),
                           ),
-                        ),
                       ],
                     ),
                   ),
                   if (!isSkipped)
                     Icon(
-                      _isExpanded
-                          ? Icons.expand_less
-                          : Icons.expand_more,
+                      _isExpanded ? Icons.expand_less : Icons.expand_more,
                       color: AppColors.textSecondary,
                     ),
                 ],
@@ -594,8 +597,7 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                 children: [
                   ...List.generate(sets.length, (setIndex) {
                     final set = sets[setIndex] as Map<String, dynamic>;
-                    final segments =
-                        (set['segments'] as List<dynamic>?) ?? [];
+                    final segments = (set['segments'] as List<dynamic>?) ?? [];
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -612,40 +614,54 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                               children: [
                                 Text(
                                   'Set ${set['setNumber']}',
-                                  style:
-                                      Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.accent,
-                                  ),
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.accent,
+                                      ),
                                 ),
                                 const SizedBox(width: 8),
-                                if (((set['segments'] as List<dynamic>?)?.length ?? 0) > 1)
+                                if (((set['segments'] as List<dynamic>?)
+                                            ?.length ??
+                                        0) >
+                                    1)
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.accent.withValues(alpha: 0.1),
+                                      color: AppColors.accent.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
                                       'Drop Set',
-                                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                        color: AppColors.accent,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 10,
-                                      ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: AppColors.accent,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 10,
+                                          ),
                                     ),
                                   ),
                               ],
                             ),
-                            if (segments.isNotEmpty && ((segments.first['notes'] as String?) ?? '').isNotEmpty)
+                            if (segments.isNotEmpty &&
+                                ((segments.first['notes'] as String?) ?? '')
+                                    .isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Text(
                                   'Notes: ${segments.first['notes']}',
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontStyle: FontStyle.italic,
-                                  ),
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                        fontStyle: FontStyle.italic,
+                                      ),
                                 ),
                               ),
                           ],
@@ -669,10 +685,10 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                                     width: 24,
                                     height: 24,
                                     decoration: BoxDecoration(
-                                      color: AppColors.accent
-                                          .withValues(alpha: 0.2),
-                                      borderRadius:
-                                          BorderRadius.circular(4),
+                                      color: AppColors.accent.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Center(
                                       child: Text(
@@ -681,9 +697,9 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                                             .textTheme
                                             .labelSmall
                                             ?.copyWith(
-                                          color: AppColors.accent,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                              color: AppColors.accent,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                       ),
                                     ),
                                   )
@@ -692,8 +708,9 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                                     width: 24,
                                     height: 24,
                                     decoration: BoxDecoration(
-                                      color: AppColors.accent
-                                          .withValues(alpha: 0.1),
+                                      color: AppColors.accent.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       shape: BoxShape.circle,
                                     ),
                                     child: Center(
@@ -716,7 +733,8 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                                         children: [
                                           Expanded(
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   '${weight}kg × $repsFrom-$repsTo reps',
@@ -724,9 +742,9 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                                                       .textTheme
                                                       .bodySmall
                                                       ?.copyWith(
-                                                    fontWeight:
-                                                        FontWeight.w500,
-                                                  ),
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
                                                 ),
                                               ],
                                             ),
@@ -737,9 +755,9 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                                                 .textTheme
                                                 .labelSmall
                                                 ?.copyWith(
-                                              color:
-                                                  AppColors.textSecondary,
-                                            ),
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
                                           ),
                                         ],
                                       ),

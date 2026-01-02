@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
-import '../../auth/bloc/auth_bloc.dart';
-import '../../auth/bloc/auth_event.dart';
-import '../../auth/bloc/auth_state.dart';
-import '../../auth/pages/profile_page.dart';
 import '../../session/pages/start_workout_page.dart';
-import '../../workout_log/pages/workout_history_page.dart';
+import '../../session/pages/workout_history_page.dart';
 import '../../plans/pages/plans_page.dart';
 import '../../stats/pages/stats_page.dart';
 
@@ -23,28 +18,6 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Liftly'),
-        actions: [
-          IconButton(
-            onPressed: () {
-              final authState = context.read<AuthBloc>().state;
-              if (authState is AuthAuthenticated) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProfilePage(
-                      userId: authState.user.id,
-                    ),
-                  ),
-                );
-              }
-            },
-            icon: const Icon(Icons.person),
-          ),
-          IconButton(
-            onPressed: () => _showLogoutConfirmation(context),
-            icon: const Icon(Icons.logout),
-          ),
-        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -100,17 +73,12 @@ class _HomePageState extends State<HomePage> {
                   subtitle: 'View and edit past sessions',
                   icon: Icons.history,
                   onTap: () {
-                    final authState = context.read<AuthBloc>().state;
-                    if (authState is AuthAuthenticated) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => WorkoutHistoryPage(
-                            userId: authState.user.id,
-                          ),
-                        ),
-                      );
-                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WorkoutHistoryPage(),
+                      ),
+                    );
                   },
                 ),
                 const SizedBox(height: 16),
@@ -133,89 +101,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-    );
-  }
-
-  void _showLogoutConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: AppColors.cardBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF9800).withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.logout,
-                    color: Color(0xFFFF9800),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Logout?',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Apakah Anda yakin ingin logout dari aplikasi?',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.cardBg,
-                          side: const BorderSide(color: AppColors.accent),
-                        ),
-                        child: Text(
-                          'Batal',
-                          style: Theme.of(context).textTheme.labelLarge
-                              ?.copyWith(color: AppColors.accent),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          BlocProvider.of<AuthBloc>(
-                            context,
-                          ).add(const AuthLogoutRequested());
-                        },
-                        child: const Text('Logout'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

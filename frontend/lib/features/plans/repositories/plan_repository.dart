@@ -1,7 +1,9 @@
 import '../../../core/models/workout_plan.dart';
-import '../../../core/services/api_service.dart';
+import '../data_sources/plan_local_data_source.dart';
 
 class PlanRepository {
+  final PlanLocalDataSource _localDataSource = PlanLocalDataSource();
+
   Future<WorkoutPlan> createPlan({
     required String userId,
     required String name,
@@ -9,18 +11,30 @@ class PlanRepository {
     required List<String> exercises,
   }) async {
     try {
-      final response = await ApiService.createPlan(
+      // Generate local ID (timestamp based)
+      final id = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // Convert exercise strings to PlanExercise objects with order
+      final planExercises = exercises
+          .asMap()
+          .entries
+          .map((entry) => PlanExercise(
+                id: '${id}_${entry.key}',
+                name: entry.value,
+                order: entry.key,
+              ))
+          .toList();
+
+      // Save to local database
+      final plan = await _localDataSource.createPlan(
+        id: id,
         userId: userId,
         name: name,
         description: description,
-        exercises: exercises,
+        exercises: planExercises,
       );
 
-      if (!response.success || response.data == null) {
-        throw Exception(response.message);
-      }
-
-      return _mapPlanResponseToWorkoutPlan(response.data!);
+      return plan;
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
@@ -28,13 +42,9 @@ class PlanRepository {
 
   Future<List<WorkoutPlan>> getPlans({required String userId}) async {
     try {
-      final response = await ApiService.getPlans(userId: userId);
-
-      if (!response.success || response.data == null) {
-        throw Exception(response.message);
-      }
-
-      return response.data!.map((plan) => _mapPlanResponseToWorkoutPlan(plan)).toList();
+      // Get from local database
+      final plans = await _localDataSource.getPlans(userId: userId);
+      return plans;
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
@@ -45,13 +55,9 @@ class PlanRepository {
     required String planId,
   }) async {
     try {
-      final response = await ApiService.getPlan(userId: userId, planId: planId);
-
-      if (!response.success || response.data == null) {
-        throw Exception(response.message);
-      }
-
-      return _mapPlanResponseToWorkoutPlan(response.data!);
+      // Get from local database
+      final plan = await _localDataSource.getPlan(planId: planId);
+      return plan;
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
@@ -65,19 +71,26 @@ class PlanRepository {
     required List<String> exercises,
   }) async {
     try {
-      final response = await ApiService.updatePlan(
-        userId: userId,
+      // Convert exercise strings to PlanExercise objects with order
+      final planExercises = exercises
+          .asMap()
+          .entries
+          .map((entry) => PlanExercise(
+                id: '${planId}_${entry.key}',
+                name: entry.value,
+                order: entry.key,
+              ))
+          .toList();
+
+      // Update in local database
+      final plan = await _localDataSource.updatePlan(
         planId: planId,
         name: name,
         description: description,
-        exercises: exercises,
+        exercises: planExercises,
       );
 
-      if (!response.success || response.data == null) {
-        throw Exception(response.message);
-      }
-
-      return _mapPlanResponseToWorkoutPlan(response.data!);
+      return plan;
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
@@ -88,33 +101,11 @@ class PlanRepository {
     required String planId,
   }) async {
     try {
-      final response = await ApiService.deletePlan(userId: userId, planId: planId);
-      if (!response.success) {
-        throw Exception(response.message);
-      }
+      // Delete from local database
+      await _localDataSource.deletePlan(planId: planId);
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
-  }
-
-  WorkoutPlan _mapPlanResponseToWorkoutPlan(PlanResponse planResponse) {
-    final exercises = planResponse.exercises
-        .map((ex) => PlanExercise(
-              id: ex.id,
-              name: ex.name,
-              order: ex.order,
-            ))
-        .toList();
-
-    return WorkoutPlan(
-      id: planResponse.id,
-      userId: planResponse.userId,
-      name: planResponse.name,
-      description: planResponse.description,
-      exercises: exercises,
-      createdAt: planResponse.createdAt,
-      updatedAt: planResponse.updatedAt,
-    );
   }
 
   String _parseErrorMessage(String error) {

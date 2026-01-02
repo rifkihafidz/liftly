@@ -18,7 +18,7 @@ class _PlansPageState extends State<PlansPage> {
   @override
   void initState() {
     super.initState();
-    context.read<PlanBloc>().add(const PlansFetchRequested());
+    context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
   }
 
   @override
@@ -196,7 +196,7 @@ class _PlansPageState extends State<PlansPage> {
                                                 onPressed: () {
                                                   Navigator.pop(context);
                                                   context.read<PlanBloc>().add(
-                                                    PlanDeleted(planId: plan.id),
+                                                    PlanDeleted(userId: '1', planId: plan.id),
                                                   );
                                                 },
                                                 child: const Text(

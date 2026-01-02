@@ -220,6 +220,36 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
   }
 
   void _savePlan() {
+    // Check if there are empty exercise fields
+    final hasEmptyExercises = _exerciseControllers.any((c) => c.text.trim().isEmpty);
+    if (hasEmptyExercises) {
+      AppDialogs.showErrorDialog(
+        context: context,
+        title: 'Form Tidak Lengkap',
+        message: 'Ada exercise yang belum diisi. Silakan isi semua exercise atau hapus form yang tidak digunakan.',
+      );
+      return;
+    }
+
+    // Collect non-empty exercises
+    final exercises = <String>[];
+    for (var i = 0; i < _exerciseControllers.length; i++) {
+      if (_exerciseControllers[i].text.isNotEmpty) {
+        exercises.add(_exerciseControllers[i].text);
+      }
+    }
+
+    // Check if exercises exist but no plan name
+    if (exercises.isNotEmpty && _nameController.text.isEmpty) {
+      AppDialogs.showErrorDialog(
+        context: context,
+        title: 'Plan Name Required',
+        message: 'Masukkan nama plan terlebih dahulu. Exercises sudah ditambahkan tapi nama plan masih kosong.',
+      );
+      return;
+    }
+
+    // Check if no name and no exercises
     if (_nameController.text.isEmpty) {
       AppDialogs.showErrorDialog(
         context: context,
@@ -229,7 +259,8 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
       return;
     }
 
-    if (_exerciseControllers.every((c) => c.text.isEmpty)) {
+    // Check if exercises are empty
+    if (exercises.isEmpty) {
       AppDialogs.showErrorDialog(
         context: context,
         title: 'Exercises Required',
@@ -238,16 +269,10 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
       return;
     }
 
-    final exercises = <String>[];
-    for (var i = 0; i < _exerciseControllers.length; i++) {
-      if (_exerciseControllers[i].text.isNotEmpty) {
-        exercises.add(_exerciseControllers[i].text);
-      }
-    }
-
     if (widget.plan == null) {
       context.read<PlanBloc>().add(
         PlanCreated(
+          userId: '1',
           name: _nameController.text,
           description: _descriptionController.text.isNotEmpty
               ? _descriptionController.text
@@ -258,6 +283,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
     } else {
       context.read<PlanBloc>().add(
         PlanUpdated(
+          userId: '1',
           planId: widget.plan!.id,
           name: _nameController.text,
           description: _descriptionController.text.isNotEmpty

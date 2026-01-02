@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/workout_form_widgets.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
-import '../../auth/bloc/auth_bloc.dart';
-import '../../auth/bloc/auth_state.dart';
 
 class WorkoutEditPage extends StatefulWidget {
   final Map<String, dynamic> workout;
@@ -63,37 +60,104 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     });
   }
 
-  void _saveChanges() {
-    final authState = context.read<AuthBloc>().state;
-    if (authState is! AuthAuthenticated) return;
+  DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) {
+      // Try to parse dd-MM-yyyy HH:mm:ss format first
+      try {
+        final parts = value.split(' ');
+        if (parts.length == 2) {
+          final dateParts = parts[0].split('-');
+          final timeParts = parts[1].split(':');
+          return DateTime(
+            int.parse(dateParts[2]),
+            int.parse(dateParts[1]),
+            int.parse(dateParts[0]),
+            int.parse(timeParts[0]),
+            int.parse(timeParts[1]),
+            timeParts.length > 2 ? int.parse(timeParts[2]) : 0,
+          );
+        }
+      } catch (_) {
+        // Fall back to DateTime.parse()
+      }
+      try {
+        return DateTime.parse(value);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
 
-    final userId = authState.user.id;
+  String _formatDate(DateTime date) {
+    // Format date without requiring locale initialization
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  void _saveChanges() {
+    const userId = '1'; // Default local user ID
     final workoutId = _editedWorkout['id'].toString();
+    
+    print('[EDIT DEBUG] _saveChanges called for workoutId: $workoutId');
+    print('[EDIT DEBUG] Current startedAt in _editedWorkout: ${_editedWorkout['startedAt']}');
+    print('[EDIT DEBUG] Current endedAt in _editedWorkout: ${_editedWorkout['endedAt']}');
 
     String? formatDate(dynamic dateValue) {
       if (dateValue == null) return null;
       final dt = dateValue is DateTime 
         ? dateValue 
-        : DateTime.parse(dateValue.toString());
+        : _parseDateTime(dateValue);
+      if (dt == null) return null;
       // Format as YYYY-MM-DD
       return '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
     }
 
-    String? formatTime(dynamic dateValue) {
+    String? formatDateTime(dynamic dateValue, String workoutDateStr) {
       if (dateValue == null) return null;
-      final dt = dateValue is DateTime 
-        ? dateValue 
-        : DateTime.parse(dateValue.toString());
-      // Format as HH:mm:ss
-      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
+      
+      DateTime dt;
+      if (dateValue is DateTime) {
+        dt = dateValue;
+      } else if (dateValue is String) {
+        // If it's just a time string like "15:18:00", combine with workout date
+        if (dateValue.length <= 8) {  // HH:mm:ss format
+          final workoutDate = DateTime.parse(workoutDateStr);
+          final timeParts = dateValue.split(':');
+          dt = DateTime(
+            workoutDate.year,
+            workoutDate.month,
+            workoutDate.day,
+            int.parse(timeParts[0]),
+            int.parse(timeParts[1]),
+            timeParts.length > 2 ? int.parse(timeParts[2]) : 0,
+          );
+        } else {
+          dt = DateTime.parse(dateValue);
+        }
+      } else {
+        return null;
+      }
+      
+      // Format as dd-MM-yyyy HH:mm:ss (matching SQLiteService format)
+      return '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
     }
 
+    final workoutDateStr = formatDate(_editedWorkout['workoutDate']) ?? '';
     final workoutDataToSave = <String, dynamic>{
+      'id': _editedWorkout['id'],
       'planId': _editedWorkout['planId'],
-      'workoutDate': formatDate(_editedWorkout['workoutDate']),
-      'startedAt': formatTime(_editedWorkout['startedAt']),
-      'endedAt': formatTime(_editedWorkout['endedAt']),
+      'workoutDate': workoutDateStr,
+      'startedAt': formatDateTime(_editedWorkout['startedAt'], workoutDateStr),
+      'endedAt': formatDateTime(_editedWorkout['endedAt'], workoutDateStr),
     };
+    
+    print('[EDIT DEBUG] Formatted workoutDataToSave - startedAt: ${workoutDataToSave['startedAt']}, endedAt: ${workoutDataToSave['endedAt']}');
     
     final exercisesToSave = <Map<String, dynamic>>[];
     final originalExercises = (_editedWorkout['exercises'] as List<dynamic>?) ?? [];
@@ -101,9 +165,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     for (final exercise in originalExercises) {
       final exMap = exercise as Map<dynamic, dynamic>;
       
-      // Only include 'id' if it's a numeric value (database ID), not a temporary client-side ID
+      // Always include exercise 'id' if it exists (preserve existing IDs from database)
       final exId = exMap['id'];
-      final isValidExId = exId != null && exId is! String || (exId is String && int.tryParse(exId) != null);
       
       final setsToSave = <Map<String, dynamic>>[];
       final originalSets = (exMap['sets'] as List<dynamic>?) ?? [];
@@ -111,10 +174,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
       for (final set in originalSets) {
         final setMap = set as Map<dynamic, dynamic>;
         final setId = setMap['id'];
-        final isValidSetId = setId != null && setId is! String || (setId is String && int.tryParse(setId) != null);
         
         final setToSave = <String, dynamic>{
-          if (isValidSetId) 'id': setId,
+          if (setId != null) 'id': setId,
           'setNumber': setMap['setNumber'] ?? 1,
         };
         
@@ -124,10 +186,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
         for (final segment in originalSegments) {
           final segMap = segment as Map<dynamic, dynamic>;
           final segId = segMap['id'];
-          final isValidSegId = segId != null && segId is! String || (segId is String && int.tryParse(segId) != null);
           
           segmentsToSave.add({
-            if (isValidSegId) 'id': segId,
+            if (segId != null) 'id': segId,
             'weight': segMap['weight'] ?? 0,
             'repsFrom': segMap['repsFrom'] ?? 0,
             'repsTo': segMap['repsTo'] ?? 0,
@@ -141,7 +202,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
       }
       
       exercisesToSave.add({
-        if (isValidExId) 'id': exId,
+        if (exId != null) 'id': exId,
         'name': exMap['name'] ?? '',
         'order': exMap['order'] ?? 0,
         'skipped': exMap['skipped'] ?? false,
@@ -151,6 +212,12 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     
     workoutDataToSave['exercises'] = exercisesToSave;
 
+    print('[EDIT DEBUG] About to call WorkoutUpdated event with:');
+    print('[EDIT DEBUG]   workoutId: $workoutId');
+    print('[EDIT DEBUG]   startedAt: ${workoutDataToSave['startedAt']}');
+    print('[EDIT DEBUG]   endedAt: ${workoutDataToSave['endedAt']}');
+    print('[EDIT DEBUG]   exercises count: ${exercisesToSave.length}');
+
     context.read<WorkoutBloc>().add(
 
       WorkoutUpdated(
@@ -159,11 +226,13 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
         workoutData: workoutDataToSave,
       ),
     );
+    
+    print('[EDIT DEBUG] WorkoutUpdated event sent to WorkoutBloc');
   }
 
   @override
   Widget build(BuildContext context) {
-    final workoutDate = DateTime.parse(_editedWorkout['workoutDate'] as String);
+    final workoutDate = _parseDateTime(_editedWorkout['workoutDate'] as String) ?? DateTime.now();
     final exercises = (_editedWorkout['exercises'] as List<dynamic>?) ?? [];
 
     return Scaffold(
@@ -178,6 +247,11 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
         ],
       ),
       body: BlocListener<WorkoutBloc, WorkoutState>(
+        listenWhen: (previous, current) {
+          // Only listen to state changes, not rebuilds
+          return (previous is! WorkoutError || current is! WorkoutError) &&
+                 (previous is! WorkoutUpdatedSuccess || current is! WorkoutUpdatedSuccess);
+        },
         listener: (context, state) {
           if (state is WorkoutUpdatedSuccess) {
             AppDialogs.showSuccessDialog(
@@ -224,7 +298,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Workout Date: ${DateFormat('d MMMM y', 'id_ID').format(workoutDate)}',
+                      'Workout Date: ${_formatDate(workoutDate)}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -235,20 +309,14 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                         Expanded(
                           child: DateTimeInput(
                             label: 'Started At',
-                            dateTime: _editedWorkout['startedAt'] != null
-                                ? DateTime.parse(_editedWorkout['startedAt'] as String)
-                                : null,
+                            dateTime: _parseDateTime(_editedWorkout['startedAt']),
                             onTap: () async {
                               final result = await showDialog<Map<String, DateTime?>>(
                                 context: context,
                                 builder: (context) => WorkoutDateTimeDialog(
                                   initialWorkoutDate: workoutDate,
-                                  initialStartedAt: _editedWorkout['startedAt'] != null
-                                      ? DateTime.parse(_editedWorkout['startedAt'] as String)
-                                      : null,
-                                  initialEndedAt: _editedWorkout['endedAt'] != null
-                                      ? DateTime.parse(_editedWorkout['endedAt'] as String)
-                                      : null,
+                                  initialStartedAt: _parseDateTime(_editedWorkout['startedAt']),
+                                  initialEndedAt: _parseDateTime(_editedWorkout['endedAt']),
                                 ),
                               );
                               if (result != null) {
@@ -264,20 +332,14 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                         Expanded(
                           child: DateTimeInput(
                             label: 'Ended At',
-                            dateTime: _editedWorkout['endedAt'] != null
-                                ? DateTime.parse(_editedWorkout['endedAt'] as String)
-                                : null,
+                            dateTime: _parseDateTime(_editedWorkout['endedAt']),
                             onTap: () async {
                               final result = await showDialog<Map<String, DateTime?>>(
                                 context: context,
                                 builder: (context) => WorkoutDateTimeDialog(
                                   initialWorkoutDate: workoutDate,
-                                  initialStartedAt: _editedWorkout['startedAt'] != null
-                                      ? DateTime.parse(_editedWorkout['startedAt'] as String)
-                                      : null,
-                                  initialEndedAt: _editedWorkout['endedAt'] != null
-                                      ? DateTime.parse(_editedWorkout['endedAt'] as String)
-                                      : null,
+                                  initialStartedAt: _parseDateTime(_editedWorkout['startedAt']),
+                                  initialEndedAt: _parseDateTime(_editedWorkout['endedAt']),
                                 ),
                               );
                               if (result != null) {
@@ -335,8 +397,11 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                       final currentSkipped = exercise['skipped'] == true;
                                       _editedWorkout['exercises'][exIndex]['skipped'] = !currentSkipped;
                                       
-                                      // Jika uncheck skipped dan tidak ada sets, buat set default
-                                      if (currentSkipped && sets.isEmpty) {
+                                      // Jika uncheck skipped, reset sets ke 1 set kosong
+                                      if (currentSkipped) {
+                                        // Clear all existing sets
+                                        sets.clear();
+                                        // Add 1 default empty set
                                         sets.add({
                                           'setNumber': 1,
                                           'segments': [

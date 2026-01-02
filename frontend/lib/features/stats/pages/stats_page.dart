@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'dart:typed_data';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../core/models/stats_filter.dart';
-import '../../../core/services/api_service.dart';
+import '../../workout_log/repositories/workout_repository.dart';
 import '../../../shared/widgets/app_dialogs.dart';
-import '../../auth/bloc/auth_bloc.dart';
-import '../../auth/bloc/auth_state.dart';
 
 class StatsPage extends StatefulWidget {
   const StatsPage({super.key});
@@ -23,7 +21,7 @@ class _StatsPageState extends State<StatsPage> {
   late List<WorkoutSession> _sessions;
   late TimePeriod _selectedPeriod;
   late ScrollController _scrollController;
-  bool _showFloatingPeriodSelector = false;
+  bool _showStickySelectorBar = false;
   bool _isLoading = true;
   String? _errorMessage;
   late int _userId;
@@ -32,27 +30,23 @@ class _StatsPageState extends State<StatsPage> {
   late ScreenshotController _screenshotController;
   late ScreenshotController _sharePreviewController;
 
+  // For period selection
+  late DateTime _referenceDate;
+
   @override
   void initState() {
     super.initState();
     _sessions = [];
     _selectedPeriod = TimePeriod.week;
+    _referenceDate = DateTime.now();
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
     _screenshotController = ScreenshotController();
     _sharePreviewController = ScreenshotController();
 
-    // Get userId from AuthBloc
-    final authState = context.read<AuthBloc>().state;
-    if (authState is AuthAuthenticated) {
-      _userId = int.parse(authState.user.id);
-      _loadWorkoutData();
-    } else {
-      setState(() {
-        _errorMessage = 'User not authenticated';
-        _isLoading = false;
-      });
-    }
+    // Default local user ID
+    _userId = 1;
+    _loadWorkoutData();
   }
 
   @override
@@ -62,57 +56,74 @@ class _StatsPageState extends State<StatsPage> {
     super.dispose();
   }
 
-  Future<void> _loadWorkoutData() async {
+  Future<void> _loadWorkoutData({bool showLoading = true}) async {
     try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
+      if (showLoading) {
+        setState(() {
+          _isLoading = true;
+          _errorMessage = null;
+        });
+      }
 
-      // Get date range based on selected period
-      final filter = StatsFilter(timePeriod: _selectedPeriod);
+      // Get date range based on selected period with reference date
+      final filter = StatsFilter(
+        timePeriod: _selectedPeriod,
+        referenceDate: _referenceDate,
+      );
       final startDate = filter.getStartDate();
       final endDate = filter.getEndDate();
 
-      // Call stats summary endpoint - single call gets ALL data
-      final response = await ApiService.getStatsSummary(
-        userId: _userId,
-        startDate: startDate,
-        endDate: endDate,
+      // Debug log
+      print('[STATS] Loading workouts for period: $_selectedPeriod');
+      print('[STATS]   Reference date: $_referenceDate');
+      print('[STATS]   Filter start: $startDate');
+      print('[STATS]   Filter end: $endDate');
+
+      // Load workouts from local repository
+      final workoutRepository = WorkoutRepository();
+      final allWorkouts = await workoutRepository.getWorkouts(
+        userId: _userId.toString(),
       );
 
-      if (response.success && response.data != null) {
-        final statsData = response.data!;
-
-        // Convert workouts from the response to WorkoutSession objects
-        final sessions = statsData.workouts
-            .map(
-              (workoutMap) =>
-                  WorkoutSession.fromMap(workoutMap as Map<String, dynamic>),
-            )
-            .toList();
-
-        setState(() {
-          _sessions = sessions;
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _errorMessage = response.message;
-          _isLoading = false;
-        });
+      print('[STATS] Total workouts from repository: ${allWorkouts.length}');
+      for (var i = 0; i < allWorkouts.length; i++) {
+        print('[STATS]   Workout $i: date=${allWorkouts[i].workoutDate}, exercises=${allWorkouts[i].exercises.length}');
       }
+
+      // Filter workouts by date range
+      final filteredWorkouts = allWorkouts.where((session) {
+        final isAfter = session.workoutDate.isAfter(
+          startDate.subtract(const Duration(days: 1)),
+        );
+        final isBefore = session.workoutDate.isBefore(
+          endDate.add(const Duration(days: 1)),
+        );
+        print('[STATS]   Workout ${session.workoutDate}: isAfter=$isAfter, isBefore=$isBefore -> included=${isAfter && isBefore}');
+        return isAfter && isBefore;
+      }).toList();
+
+      print('[STATS] Filtered workouts: ${filteredWorkouts.length}');
+
+      setState(() {
+        _sessions = filteredWorkouts;
+        if (showLoading) {
+          _isLoading = false;
+        }
+      });
     } catch (e) {
       setState(() {
         _errorMessage = 'Error loading data: ${e.toString()}';
-        _isLoading = false;
+        if (showLoading) {
+          _isLoading = false;
+        }
       });
     }
   }
 
   void _onScroll() {
+    // Show sticky selector when scrolled past the original selector
     setState(() {
-      _showFloatingPeriodSelector = _scrollController.offset > 50;
+      _showStickySelectorBar = _scrollController.offset > 100;
     });
   }
 
@@ -301,7 +312,10 @@ class _StatsPageState extends State<StatsPage> {
   }
 
   List<WorkoutSession> _getFilteredSessions() {
-    final filter = StatsFilter(timePeriod: _selectedPeriod);
+    final filter = StatsFilter(
+      timePeriod: _selectedPeriod,
+      referenceDate: _referenceDate,
+    );
     return _sessions
         .where((session) => filter.isInPeriod(session.workoutDate))
         .toList();
@@ -384,13 +398,22 @@ class _StatsPageState extends State<StatsPage> {
                     // ===== TIME PERIOD SELECTOR =====
                     _TimePeriodSelector(
                       selectedPeriod: _selectedPeriod,
+                      referenceDate: _referenceDate,
                       onPeriodChanged: (period) {
                         setState(() {
                           _selectedPeriod = period;
+                          _referenceDate = DateTime.now();
                           _prCurrentPage = 0; // Reset pagination
                         });
-                        // Reload data with new date range
-                        _loadWorkoutData();
+                        // Reload data with new date range (no loading for local storage)
+                        _loadWorkoutData(showLoading: false);
+                      },
+                      onDateChanged: (date) {
+                        setState(() {
+                          _referenceDate = date;
+                        });
+                        // Reload data with new date range (no loading for local storage)
+                        _loadWorkoutData(showLoading: false);
                       },
                     ),
                     const SizedBox(height: 28),
@@ -402,7 +425,7 @@ class _StatsPageState extends State<StatsPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 8),
                     GridView.count(
                       crossAxisCount: 3,
                       crossAxisSpacing: 12,
@@ -441,7 +464,7 @@ class _StatsPageState extends State<StatsPage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 8),
 
                       // Volume Trend Chart
                       _VolumeChartCard(sessions: filteredSessions),
@@ -451,6 +474,7 @@ class _StatsPageState extends State<StatsPage> {
                       _WorkoutFrequencyCard(
                         sessions: filteredSessions,
                         timePeriod: _selectedPeriod,
+                        referenceDate: _referenceDate,
                       ),
                       const SizedBox(height: 32),
                     ] else ...[
@@ -494,7 +518,7 @@ class _StatsPageState extends State<StatsPage> {
                         ],
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 14),
                     if (_getPersonalRecords(filteredSessions).isNotEmpty) ...[
                       Builder(
                         builder: (context) {
@@ -610,109 +634,36 @@ class _StatsPageState extends State<StatsPage> {
               ),
             ),
           ),
-          // Floating Period Selector
-          if (_showFloatingPeriodSelector)
+          // Sticky Time Period Selector - Shows only when scrolled past original
+          if (_showStickySelectorBar)
             Positioned(
-              bottom: 24,
-              right: 24,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.65),
-                      Colors.blue.withValues(alpha: 0.55),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                      spreadRadius: 1,
-                    ),
-                    BoxShadow(
-                      color: Colors.blue.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    width: 1,
-                  ),
-                ),
-                child: PopupMenuButton<TimePeriod>(
-                  itemBuilder: (BuildContext context) =>
-                      TimePeriod.values.map((period) {
-                        String label = '';
-                        IconData icon = Icons.calendar_month;
-                        switch (period) {
-                          case TimePeriod.week:
-                            label = 'Weekly';
-                            icon = Icons.calendar_view_week;
-                            break;
-                          case TimePeriod.month:
-                            label = 'Monthly';
-                            icon = Icons.calendar_view_month;
-                            break;
-                          case TimePeriod.year:
-                            label = 'Annually';
-                            icon = Icons.calendar_today;
-                            break;
-                        }
-                        return PopupMenuItem(
-                          value: period,
-                          child: Row(
-                            children: [
-                              Icon(icon, size: 18, color: AppColors.accent),
-                              const SizedBox(width: 12),
-                              Text(label),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                  onSelected: (TimePeriod value) {
-                    setState(() {
-                      _selectedPeriod = value;
-                      _prCurrentPage = 0; // Reset pagination
-                    });
-                    // Reload data with new date range
-                    _loadWorkoutData();
-                  },
-                  offset: const Offset(-30, -130),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  color: AppColors.cardBg,
-                  elevation: 12,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _selectedPeriod.shortCode,
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                        ),
-                        const SizedBox(width: 6),
-                        Icon(
-                          Icons.expand_more,
-                          color: Colors.white.withValues(alpha: 0.8),
-                          size: 18,
-                        ),
-                      ],
-                    ),
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  padding: const EdgeInsets.all(16),
+                  child: _TimePeriodSelector(
+                    selectedPeriod: _selectedPeriod,
+                    referenceDate: _referenceDate,
+                    onPeriodChanged: (period) {
+                      setState(() {
+                        _selectedPeriod = period;
+                        _referenceDate = DateTime.now();
+                        _prCurrentPage = 0; // Reset pagination
+                      });
+                      // Reload data with new date range (no loading for local storage)
+                      _loadWorkoutData(showLoading: false);
+                    },
+                    onDateChanged: (date) {
+                      setState(() {
+                        _referenceDate = date;
+                      });
+                      // Reload data with new date range (no loading for local storage)
+                      _loadWorkoutData(showLoading: false);
+                    },
                   ),
                 ),
               ),
@@ -723,12 +674,14 @@ class _StatsPageState extends State<StatsPage> {
             top: 0,
             child: SizedBox(
               width: 600, // Wider to fit all content with footer
-              height: 1067, // 600 * 16/9 for perfect 9:16 aspect ratio with footer space
+              height:
+                  1067, // 600 * 16/9 for perfect 9:16 aspect ratio with footer space
               child: Screenshot(
                 controller: _sharePreviewController,
                 child: _StatsSharePreview(
                   selectedPeriod: _selectedPeriod,
                   sessions: _getFilteredSessions(),
+                  referenceDate: _referenceDate,
                 ),
               ),
             ),
@@ -795,10 +748,12 @@ class _StatsPageState extends State<StatsPage> {
 class _StatsSharePreview extends StatelessWidget {
   final TimePeriod selectedPeriod;
   final List<WorkoutSession> sessions;
+  final DateTime referenceDate;
 
   const _StatsSharePreview({
     required this.selectedPeriod,
     required this.sessions,
+    required this.referenceDate,
   });
 
   double _calculateTotalVolume(List<WorkoutSession> sessions) {
@@ -830,9 +785,9 @@ class _StatsSharePreview extends StatelessWidget {
   }
 
   String _formatNumber(double num) {
-    return num
-        .toStringAsFixed(0)
-        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (Match m) => ',');
+    return num.toStringAsFixed(
+      0,
+    ).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (Match m) => ',');
   }
 
   @override
@@ -872,9 +827,9 @@ class _StatsSharePreview extends StatelessWidget {
             // Overview - Same as app
             Text(
               'Overview',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 14),
             GridView.count(
@@ -892,7 +847,8 @@ class _StatsSharePreview extends StatelessWidget {
                 ),
                 _StatBox(
                   label: 'Volume',
-                  value: '${_formatNumber(_calculateTotalVolume(filteredSessions))} kg',
+                  value:
+                      '${_formatNumber(_calculateTotalVolume(filteredSessions))} kg',
                   icon: Icons.scale,
                   color: AppColors.success,
                 ),
@@ -910,9 +866,9 @@ class _StatsSharePreview extends StatelessWidget {
             if (filteredSessions.isNotEmpty) ...[
               Text(
                 'Trends',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 14),
               _VolumeChartCard(sessions: filteredSessions),
@@ -920,13 +876,14 @@ class _StatsSharePreview extends StatelessWidget {
               _WorkoutFrequencyCard(
                 sessions: filteredSessions,
                 timePeriod: selectedPeriod,
+                referenceDate: referenceDate,
               ),
             ] else ...[
               Text(
                 'Trends',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 14),
               _EmptyStateCard(
@@ -1191,15 +1148,17 @@ class _VolumeChartCard extends StatelessWidget {
 class _WorkoutFrequencyCard extends StatelessWidget {
   final List<WorkoutSession> sessions;
   final TimePeriod timePeriod;
+  final DateTime referenceDate;
 
   const _WorkoutFrequencyCard({
     required this.sessions,
     required this.timePeriod,
+    required this.referenceDate,
   });
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
+    final now = referenceDate;
 
     // Determine period range and labels based on timePeriod
     List<int> frequencyData = [];
@@ -1209,10 +1168,12 @@ class _WorkoutFrequencyCard extends StatelessWidget {
     switch (timePeriod) {
       case TimePeriod.week:
         // Monday to Sunday (7 days)
-        title = 'Workout Frequency (This Week)';
-        frequencyData = List.filled(7, 0);
         final dayOfWeek = now.weekday;
         final mondayOfWeek = now.subtract(Duration(days: dayOfWeek - 1));
+        final sundayOfWeek = mondayOfWeek.add(const Duration(days: 6));
+        
+        title = 'Workout Frequency (${DateFormat('MMM d').format(mondayOfWeek)} - ${DateFormat('MMM d').format(sundayOfWeek)})';
+        frequencyData = List.filled(7, 0);
 
         final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         labels = dayNames;
@@ -1234,9 +1195,10 @@ class _WorkoutFrequencyCard extends StatelessWidget {
 
       case TimePeriod.month:
         // Group by weeks in current month
-        title = 'Workout Frequency (This Month)';
         final firstDayOfMonth = DateTime(now.year, now.month, 1);
         final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+        
+        title = 'Workout Frequency (${DateFormat('MMMM yyyy').format(now)})';
 
         // Calculate weeks
         int daysToAdd =
@@ -1275,7 +1237,7 @@ class _WorkoutFrequencyCard extends StatelessWidget {
 
       case TimePeriod.year:
         // All months in current year
-        title = 'Workout Frequency (This Year - Annually)';
+        title = 'Workout Frequency (${now.year})';
         frequencyData = List.filled(12, 0);
         final monthNames = [
           'Jan',
@@ -1438,123 +1400,834 @@ class _WorkoutFrequencyCard extends StatelessWidget {
 }
 
 /// Time Period Selector Widget - Dropdown
-class _TimePeriodSelector extends StatelessWidget {
+class _TimePeriodSelector extends StatefulWidget {
   final TimePeriod selectedPeriod;
   final ValueChanged<TimePeriod> onPeriodChanged;
+  final DateTime referenceDate;
+  final ValueChanged<DateTime> onDateChanged;
 
   const _TimePeriodSelector({
     required this.selectedPeriod,
     required this.onPeriodChanged,
+    required this.referenceDate,
+    required this.onDateChanged,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.accent.withValues(alpha: 0.15),
-            AppColors.accent.withValues(alpha: 0.08),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: AppColors.accent.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
+  State<_TimePeriodSelector> createState() => _TimePeriodSelectorState();
+}
+
+class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
+  String _getDisplayValue(DateTime ref) {
+    switch (widget.selectedPeriod) {
+      case TimePeriod.week:
+        final weekStart = ref.subtract(Duration(days: ref.weekday - 1));
+        final weekEnd = weekStart.add(const Duration(days: 6));
+        return '${_formatDate(weekStart)} - ${_formatDate(weekEnd)}';
+      case TimePeriod.month:
+        return '${_monthName(ref.month)} ${ref.year}';
+      case TimePeriod.year:
+        return '${ref.year}';
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    // Add leading zero for single digit days
+    final dayStr = date.day.toString().padLeft(2, '0');
+    return '$dayStr ${months[date.month - 1]}';
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1];
+  }
+
+  void _navigatePrevious(DateTime ref) {
+    switch (widget.selectedPeriod) {
+      case TimePeriod.week:
+        widget.onDateChanged(ref.subtract(const Duration(days: 7)));
+        break;
+      case TimePeriod.month:
+        widget.onDateChanged(DateTime(ref.year, ref.month - 1));
+        break;
+      case TimePeriod.year:
+        widget.onDateChanged(DateTime(ref.year - 1));
+        break;
+    }
+  }
+
+  void _navigateNext(DateTime ref, DateTime now) {
+    switch (widget.selectedPeriod) {
+      case TimePeriod.week:
+        widget.onDateChanged(ref.add(const Duration(days: 7)));
+        break;
+      case TimePeriod.month:
+        widget.onDateChanged(DateTime(ref.year, ref.month + 1));
+        break;
+      case TimePeriod.year:
+        widget.onDateChanged(DateTime(ref.year + 1));
+        break;
+    }
+  }
+
+  bool _canNavigatePrevious(DateTime ref, DateTime now) {
+    switch (widget.selectedPeriod) {
+      case TimePeriod.week:
+        // Can always go back for weekly (like monthly)
+        return true;
+      case TimePeriod.month:
+        return true; // Can always go back for month
+      case TimePeriod.year:
+        return true; // Can always go back for year
+    }
+  }
+
+  bool _canNavigateNext(DateTime ref, DateTime now) {
+    switch (widget.selectedPeriod) {
+      case TimePeriod.week:
+        // For weekly: next week must have started (weekStart <= today)
+        final nextWeekStart = ref.add(const Duration(days: 7));
+        final nowDate = DateTime(now.year, now.month, now.day);
+        final nextWeekStartDate = DateTime(nextWeekStart.year, nextWeekStart.month, nextWeekStart.day);
+        return !nextWeekStartDate.isAfter(nowDate);
+      case TimePeriod.month:
+        return (ref.month < now.month && ref.year == now.year) || ref.year < now.year;
+      case TimePeriod.year:
+        return ref.year < now.year;
+    }
+  }
+
+  void _showWeekPicker(BuildContext context) async {
+    final now = DateTime.now();
+    await showDialog(
+      context: context,
+      builder: (_) => _WeekPickerDialog(
+        referenceDate: widget.referenceDate,
+        onWeekSelected: (date) {
+          Navigator.pop(context);
+          widget.onDateChanged(date);
+        },
+        nowYear: now.year,
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Time Period',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
+    );
+  }
+
+  void _showMonthPicker(BuildContext context) async {
+    final now = DateTime.now();
+    await showDialog(
+      context: context,
+      builder: (ctx) => _MonthPickerDialog(
+        referenceDate: widget.referenceDate,
+        onMonthSelected: (date) {
+          Navigator.pop(ctx);
+          widget.onDateChanged(date);
+        },
+        nowYear: now.year,
+        nowMonth: now.month,
+      ),
+    );
+  }
+
+  void _showYearPicker(BuildContext context) {
+    final now = DateTime.now();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Select Year',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
-          DropdownButton<TimePeriod>(
-            value: selectedPeriod,
-            onChanged: (TimePeriod? newValue) {
-              if (newValue != null) {
-                onPeriodChanged(newValue);
-              }
-            },
-            dropdownColor: AppColors.cardBg,
-            elevation: 8,
-            items: TimePeriod.values.map((TimePeriod period) {
-              // Map shortcodes to full names
-              String displayLabel = '';
-              switch (period) {
-                case TimePeriod.week:
-                  displayLabel = 'Weekly';
-                  break;
-                case TimePeriod.month:
-                  displayLabel = 'Monthly';
-                  break;
-                case TimePeriod.year:
-                  displayLabel = 'Annually';
-                  break;
-              }
-              return DropdownMenuItem<TimePeriod>(
-                value: period,
-                child: Text(
-                  displayLabel,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
+        ),
+        content: SizedBox(
+          height: 250,
+          width: double.maxFinite,
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 2,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+            ),
+            itemCount: 10,
+            itemBuilder: (context, index) {
+              final year = now.year - 5 + index;
+              final isSelected = year == widget.referenceDate.year;
+              final canSelect = year <= now.year;
+
+              return GestureDetector(
+                onTap: canSelect
+                    ? () {
+                        widget.onDateChanged(DateTime(year));
+                        Navigator.pop(context);
+                      }
+                    : null,
+                child: Opacity(
+                  opacity: canSelect ? 1.0 : 0.5,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.accent : AppColors.inputBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected ? AppColors.accent : AppColors.borderLight,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        year.toString(),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isSelected ? Colors.white : AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               );
-            }).toList(),
-            underline: SizedBox.shrink(),
-            icon: Icon(
-              Icons.arrow_drop_down,
-              color: AppColors.accent,
-              size: 28,
-            ),
-            selectedItemBuilder: (BuildContext context) {
-              return TimePeriod.values.map((TimePeriod period) {
-                String displayLabel = '';
-                switch (period) {
-                  case TimePeriod.week:
-                    displayLabel = 'Weekly';
-                    break;
-                  case TimePeriod.month:
-                    displayLabel = 'Monthly';
-                    break;
-                  case TimePeriod.year:
-                    displayLabel = 'Annually';
-                    break;
-                }
-                return Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_month,
-                      color: AppColors.accent,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      displayLabel,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.accent,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                );
-              }).toList();
             },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
           ),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final ref = widget.referenceDate;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Time Period',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.accent.withValues(alpha: 0.15),
+                AppColors.accent.withValues(alpha: 0.08),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.accent.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Left: Value with arrow controls
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    // Back arrow
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: IconButton(
+                        onPressed: _canNavigatePrevious(ref, now)
+                            ? () => _navigatePrevious(ref)
+                            : null,
+                        icon: const Icon(Icons.chevron_left),
+                        color: AppColors.accent,
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        iconSize: 24,
+                      ),
+                    ),
+                    // Value
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          switch (widget.selectedPeriod) {
+                            case TimePeriod.week:
+                              _showWeekPicker(context);
+                              break;
+                            case TimePeriod.month:
+                              _showMonthPicker(context);
+                              break;
+                            case TimePeriod.year:
+                              _showYearPicker(context);
+                              break;
+                          }
+                        },
+                        child: Text(
+                          _getDisplayValue(ref),
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                    // Forward arrow
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: IconButton(
+                        onPressed: _canNavigateNext(ref, now)
+                            ? () => _navigateNext(ref, now)
+                            : null,
+                        icon: const Icon(Icons.chevron_right),
+                        color: AppColors.accent,
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        iconSize: 24,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Right: Dropdown period
+              Expanded(
+                child: DropdownButton<TimePeriod>(
+                  value: widget.selectedPeriod,
+                  onChanged: (TimePeriod? newValue) {
+                    if (newValue != null) {
+                      widget.onPeriodChanged(newValue);
+                    }
+                  },
+                  dropdownColor: AppColors.cardBg,
+                  elevation: 8,
+                  isExpanded: true,
+                  items: TimePeriod.values.map((TimePeriod period) {
+                    String displayLabel = '';
+                    switch (period) {
+                      case TimePeriod.week:
+                        displayLabel = 'Weekly';
+                        break;
+                      case TimePeriod.month:
+                        displayLabel = 'Monthly';
+                        break;
+                      case TimePeriod.year:
+                        displayLabel = 'Annually';
+                        break;
+                    }
+                    return DropdownMenuItem<TimePeriod>(
+                      value: period,
+                      child: Text(
+                        displayLabel,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  underline: SizedBox.shrink(),
+                  icon: Icon(
+                    Icons.arrow_drop_down,
+                    color: AppColors.accent,
+                    size: 24,
+                  ),
+                  selectedItemBuilder: (BuildContext context) {
+                    return TimePeriod.values.map((TimePeriod period) {
+                      String displayLabel = '';
+                      switch (period) {
+                        case TimePeriod.week:
+                          displayLabel = 'Weekly';
+                          break;
+                        case TimePeriod.month:
+                          displayLabel = 'Monthly';
+                          break;
+                        case TimePeriod.year:
+                          displayLabel = 'Annually';
+                          break;
+                      }
+                      return Center(
+                        child: Text(
+                          displayLabel,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.accent,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      );
+                    }).toList();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Stateful Week Picker Dialog
+class _WeekPickerDialog extends StatefulWidget {
+  final DateTime referenceDate;
+  final ValueChanged<DateTime> onWeekSelected;
+  final int nowYear;
+
+  const _WeekPickerDialog({
+    required this.referenceDate,
+    required this.onWeekSelected,
+    required this.nowYear,
+  });
+
+  @override
+  State<_WeekPickerDialog> createState() => _WeekPickerDialogState();
+}
+
+class _WeekPickerDialogState extends State<_WeekPickerDialog> {
+  late int _selectedYear;
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    
+    // Handle cross-year weeks (e.g., Dec 29 - Jan 4)
+    final ref = widget.referenceDate;
+    _selectedYear = _determineYearForWeek(ref);
+    
+    // Scroll to selected week after frame renders
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToSelectedWeek();
+    });
+  }
+
+  /// Determine which year to display for the week containing the reference date
+  /// If the reference date is early Jan and the week starts in Dec of previous year,
+  /// show the previous year
+  int _determineYearForWeek(DateTime ref) {
+    final refYear = ref.year;
+    
+    // If in January, check if week starts in previous year
+    if (ref.month == 1 && ref.day <= 10) {
+      final refMonday = ref.subtract(Duration(days: ref.weekday - 1));
+      // If the week's Monday is in December of previous year, use that year
+      if (refMonday.year == refYear - 1) {
+        return refYear - 1;
+      }
+    }
+    
+    return refYear;
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _changeYear(int newYear, int nowYear) {
+    setState(() {
+      _selectedYear = newYear;
+    });
+    
+    // Determine if this year should scroll to selected week
+    final ref = widget.referenceDate;
+    final shouldScrollToSelected = _yearContainsSelectedWeek(newYear, ref);
+    
+    // Scroll based on whether the year contains the selected week
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (shouldScrollToSelected) {
+        // Year contains the selected week: scroll to selected week
+        _scrollToSelectedWeek();
+      } else {
+        // Other year: scroll to top
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      }
+    });
+  }
+
+  /// Check if a year contains the week that has the reference date
+  /// For example, if ref is 02 Jan 2026, the week starts on 29 Dec 2025
+  /// So year 2025 contains the selected week, but 2026 does not
+  bool _yearContainsSelectedWeek(int checkYear, DateTime ref) {
+    // Find Monday of the week containing reference date
+    DateTime refMonday = ref.subtract(Duration(days: ref.weekday - 1));
+    // The year that "owns" this week is the year of the Monday
+    return refMonday.year == checkYear;
+  }
+
+  void _scrollToSelectedWeek() {
+    final ref = widget.referenceDate;
+    
+    // Find first Monday of the year
+    DateTime firstDay = DateTime(_selectedYear);
+    while (firstDay.weekday != DateTime.monday) {
+      firstDay = firstDay.add(const Duration(days: 1));
+    }
+
+    // Find which week contains the reference date
+    for (int weekNum = 1; ; weekNum++) {
+      final weekDate = firstDay.add(Duration(days: (weekNum - 1) * 7));
+      final weekEnd = weekDate.add(const Duration(days: 6));
+      
+      // Check if this week contains the reference date
+      if (ref.isAfter(weekDate.subtract(const Duration(days: 1))) &&
+          ref.isBefore(weekEnd.add(const Duration(days: 1)))) {
+        // Scroll to this week
+        // With 4 columns, each row has 4 items
+        final row = (weekNum - 1) ~/ 4;
+        final itemHeight = 80.0; // Approximate height of each item
+        final offset = row * itemHeight;
+        
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            offset,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+        break;
+      }
+      
+      // Stop if we've gone past the end of the year
+      if (weekDate.month == 12 && weekDate.day > 25) break;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = widget.referenceDate;
+
+    // Find first Monday of the year
+    DateTime firstDay = DateTime(_selectedYear);
+    while (firstDay.weekday != DateTime.monday) {
+      firstDay = firstDay.add(const Duration(days: 1));
+    }
+
+    // Find last Sunday of the year
+    DateTime lastDay = DateTime(_selectedYear, 12, 31);
+    while (lastDay.weekday != DateTime.sunday) {
+      lastDay = lastDay.add(const Duration(days: 1));
+    }
+
+    final weeksInYear = ((lastDay.difference(firstDay).inDays + 1) ~/ 7);
+
+    return AlertDialog(
+      backgroundColor: AppColors.cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        'Select Week',
+        style: Theme.of(
+          context,
+        ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Year selector
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.inputBg,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    _changeYear(_selectedYear - 1, widget.nowYear);
+                  },
+                  icon: const Icon(Icons.arrow_back),
+                  color: AppColors.accent,
+                ),
+                Text(
+                  _selectedYear.toString(),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                IconButton(
+                  onPressed: _selectedYear < widget.nowYear
+                      ? () {
+                          _changeYear(_selectedYear + 1, widget.nowYear);
+                        }
+                      : null,
+                  icon: const Icon(Icons.arrow_forward),
+                  color: AppColors.accent,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Week list
+          SizedBox(
+            height: 300,
+            width: double.maxFinite,
+            child: GridView.builder(
+              controller: _scrollController,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                childAspectRatio: 1.2,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+              ),
+              itemCount: weeksInYear,
+              itemBuilder: (ctx, index) {
+                final weekNum = index + 1;
+                final weekDate = firstDay.add(
+                  Duration(days: (weekNum - 1) * 7),
+                );
+                // Check if this week contains the reference date
+                final weekEnd = weekDate.add(const Duration(days: 6));
+                // Compare dates ignoring time of day
+                final refDate = DateTime(ref.year, ref.month, ref.day);
+                final weekStartDate = DateTime(weekDate.year, weekDate.month, weekDate.day);
+                final weekEndDate = DateTime(weekEnd.year, weekEnd.month, weekEnd.day);
+                final isSelected = refDate.isAfter(weekStartDate.subtract(const Duration(days: 1))) &&
+                    refDate.isBefore(weekEndDate.add(const Duration(days: 1)));
+
+                // Check if week is in the past or present (can be selected)
+                final now = DateTime.now();
+                
+                // Can select if week has started (weekStart <= today)
+                final nowDate = DateTime(now.year, now.month, now.day);
+                final canSelectSimple = !weekStartDate.isAfter(nowDate);
+
+                return GestureDetector(
+                  onTap: canSelectSimple ? () {
+                    widget.onWeekSelected(weekDate);
+                  } : null,
+                  child: Opacity(
+                    opacity: canSelectSimple ? 1.0 : 0.5,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.accent : AppColors.inputBg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.accent
+                              : AppColors.borderLight,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'W$weekNum',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Stateful Month Picker Dialog
+class _MonthPickerDialog extends StatefulWidget {
+  final DateTime referenceDate;
+  final ValueChanged<DateTime> onMonthSelected;
+  final int nowYear;
+  final int nowMonth;
+
+  const _MonthPickerDialog({
+    required this.referenceDate,
+    required this.onMonthSelected,
+    required this.nowYear,
+    required this.nowMonth,
+  });
+
+  @override
+  State<_MonthPickerDialog> createState() => _MonthPickerDialogState();
+}
+
+class _MonthPickerDialogState extends State<_MonthPickerDialog> {
+  late int _selectedYear;
+  final months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedYear = widget.referenceDate.year;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = widget.referenceDate;
+
+    return AlertDialog(
+      backgroundColor: AppColors.cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        'Select Month',
+        style: Theme.of(
+          context,
+        ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Year selector
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.inputBg,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedYear--;
+                    });
+                  },
+                  icon: const Icon(Icons.arrow_back),
+                  color: AppColors.accent,
+                ),
+                Text(
+                  _selectedYear.toString(),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                IconButton(
+                  onPressed: _selectedYear < widget.nowYear
+                      ? () {
+                          setState(() {
+                            _selectedYear++;
+                          });
+                        }
+                      : null,
+                  icon: const Icon(Icons.arrow_forward),
+                  color: AppColors.accent,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Month grid
+          SizedBox(
+            height: 250,
+            width: double.maxFinite,
+            child: GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                childAspectRatio: 1.5,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+              ),
+              itemCount: 12,
+              itemBuilder: (ctx, index) {
+                final month = index + 1;
+                final isSelected =
+                    month == ref.month && _selectedYear == ref.year;
+                final canSelect =
+                    (month <= widget.nowMonth &&
+                        _selectedYear == widget.nowYear) ||
+                    _selectedYear < widget.nowYear;
+
+                return GestureDetector(
+                  onTap: canSelect
+                      ? () {
+                          widget.onMonthSelected(
+                            DateTime(_selectedYear, month),
+                          );
+                        }
+                      : null,
+                  child: Opacity(
+                    opacity: canSelect ? 1.0 : 0.5,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.accent
+                            : AppColors.inputBg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.accent
+                              : AppColors.borderLight,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          months[index].substring(0, 3),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
     );
   }
 }

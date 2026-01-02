@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
-import '../../auth/bloc/auth_bloc.dart';
-import '../../auth/bloc/auth_state.dart';
 import '../../workout_log/bloc/workout_bloc.dart';
 import '../../workout_log/bloc/workout_event.dart';
 import '../../workout_log/bloc/workout_state.dart';
-import 'workout_detail_page.dart';
+import '../../workout_log/pages/workout_detail_page.dart';
 
 class WorkoutHistoryPage extends StatefulWidget {
   const WorkoutHistoryPage({super.key});
@@ -25,10 +23,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   }
 
   void _loadWorkouts() {
-    final authState = context.read<AuthBloc>().state;
-    if (authState is AuthAuthenticated) {
-      context.read<WorkoutBloc>().add(WorkoutsFetched(userId: authState.user.id));
-    }
+    context.read<WorkoutBloc>().add(const WorkoutsFetched());
   }
 
   @override
@@ -36,13 +31,17 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Workout History'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
       ),
       body: BlocBuilder<WorkoutBloc, WorkoutState>(
         builder: (context, state) {
           if (state is WorkoutLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (state is WorkoutError) {
@@ -81,6 +80,9 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
           if (state is WorkoutsLoaded) {
             final workouts = state.workouts;
             
+            // Sort workouts by date - newest first
+            workouts.sort((a, b) => b.workoutDate.compareTo(a.workoutDate));
+
             if (workouts.isEmpty) {
               return SafeArea(
                 child: Padding(
@@ -124,17 +126,14 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => WorkoutDetailPage(
-                            session: session,
-                            onSessionUpdated: (updatedSession) {
-                              _loadWorkouts();
-                            },
-                            onSessionDeleted: () {
-                              _loadWorkouts();
-                              Navigator.pop(context);
-                            },
+                            workout: session,
+                            fromSession: false,
                           ),
                         ),
-                      );
+                      ).then((_) {
+                        // Reload workouts when returning from detail page
+                        _loadWorkouts();
+                      });
                     },
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 16),
@@ -164,20 +163,28 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    DateFormat('MMM d, yyyy').format(session.workoutDate),
-                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                    DateFormat(
+                                      'EEEE, dd MMMM yyyy',
+                                    ).format(session.workoutDate),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(fontWeight: FontWeight.w600),
                                   ),
-                                  if (session.startedAt != null && session.endedAt != null)
+                                  if (session.startedAt != null &&
+                                      session.endedAt != null)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 4),
                                       child: Text(
                                         '${DateFormat('HH:mm').format(session.startedAt!)} - ${DateFormat('HH:mm').format(session.endedAt!)} • ${session.formattedDuration}',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: AppColors.accent.withValues(alpha: 0.7),
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: AppColors.accent
+                                                  .withValues(alpha: 0.7),
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                       ),
                                     ),
                                 ],
@@ -198,19 +205,24 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.accent.withValues(alpha: 0.15),
+                                  color: AppColors.accent.withValues(
+                                    alpha: 0.15,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: AppColors.accent.withValues(alpha: 0.25),
+                                    color: AppColors.accent.withValues(
+                                      alpha: 0.25,
+                                    ),
                                     width: 0.5,
                                   ),
                                 ),
                                 child: Text(
-                                  '${session.exercises.length} Exercises',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.accent,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  '${session.exercises.where((e) => !e.skipped).length} Exercises',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: AppColors.accent,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -220,19 +232,24 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.success.withValues(alpha: 0.15),
+                                  color: AppColors.success.withValues(
+                                    alpha: 0.15,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: AppColors.success.withValues(alpha: 0.25),
+                                    color: AppColors.success.withValues(
+                                      alpha: 0.25,
+                                    ),
                                     width: 0.5,
                                   ),
                                 ),
                                 child: Text(
-                                  '${session.exercises.fold<int>(0, (sum, ex) => sum + ex.sets.length)} Sets',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.success,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  '${session.exercises.where((ex) => ex.skipped != true).fold<int>(0, (sum, ex) => sum + ex.sets.length)} Sets',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: AppColors.success,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                 ),
                               ),
                             ],
@@ -252,4 +269,3 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
     );
   }
 }
-

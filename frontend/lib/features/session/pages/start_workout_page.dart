@@ -26,7 +26,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
   void initState() {
     super.initState();
     // Fetch plans when page is opened
-    context.read<PlanBloc>().add(const PlansFetchRequested());
+    context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
   }
 
   @override
@@ -192,7 +192,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                           const SizedBox(height: 16),
                           ElevatedButton.icon(
                             onPressed: () {
-                              context.read<PlanBloc>().add(const PlansFetchRequested());
+                              context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
                             },
                             icon: const Icon(Icons.refresh),
                             label: const Text('Retry'),

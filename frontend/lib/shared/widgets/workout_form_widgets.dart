@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/constants/colors.dart';
 
 // Reusable datetime dialog untuk session/workout form
@@ -23,6 +22,15 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
   late DateTime selectedDate;
   late TimeOfDay startTime;
   late TimeOfDay endTime;
+
+  String _formatDate(DateTime date) {
+    // Format date without requiring locale initialization
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
 
   @override
   void initState() {
@@ -93,7 +101,7 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          DateFormat('d MMMM y', 'id_ID').format(selectedDate),
+                          _formatDate(selectedDate),
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium

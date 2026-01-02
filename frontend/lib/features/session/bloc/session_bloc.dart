@@ -1,10 +1,15 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/models/workout_session.dart';
-import '../../../core/services/api_service.dart';
+import '../../workout_log/repositories/workout_repository.dart';
 import 'session_event.dart';
 import 'session_state.dart';
 
+// Global counter for unique workout IDs
+int _workoutIdCounter = 0;
+
 class SessionBloc extends Bloc<SessionEvent, SessionState> {
+  final WorkoutRepository _workoutRepository = WorkoutRepository();
   SessionBloc() : super(const SessionInitial()) {
     on<SessionStarted>(_onSessionStarted);
     on<SessionRecovered>(_onSessionRecovered);
@@ -24,12 +29,32 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
   ) async {
     emit(const SessionLoading());
     try {
+      final now = DateTime.now();
+      final workoutDate = now; // Initial workout date is today
+      
+      // Increment counter for unique ID generation
+      _workoutIdCounter++;
+      
+      // Generate unique ID based on workout date, current time, and counter
+      // This ensures uniqueness even if app is restarted
+      final generatedId = '${workoutDate.millisecondsSinceEpoch}_${now.millisecondsSinceEpoch}_${_workoutIdCounter}';
+      
+      // DEBUG: Always log the generated ID to verify counter is incrementing
+      if (kDebugMode) {
+        print('[WorkoutDB] ⚡ SessionBloc._onSessionStarted: NEW SESSION ID GENERATED');
+        print('[WorkoutDB]   - Workout date timestamp: ${workoutDate.millisecondsSinceEpoch}');
+        print('[WorkoutDB]   - Current time timestamp: ${now.millisecondsSinceEpoch}');
+        print('[WorkoutDB]   - Counter value: $_workoutIdCounter');
+        print('[WorkoutDB]   - FINAL SESSION ID: $generatedId');
+      }
+      
+      final timestamp = now.millisecondsSinceEpoch;
       final exercises = event.exerciseNames
           .asMap()
           .entries
           .map(
             (e) => SessionExercise(
-              id: 'ex_${e.key}',
+              id: 'ex_${timestamp}_${e.key}',
               name: e.value,
               order: e.key,
               sets: [],
@@ -38,14 +63,14 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
           .toList();
 
       final session = WorkoutSession(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: generatedId,
         userId: event.userId,
         planId: event.planId,
-        workoutDate: DateTime.now(),
+        workoutDate: workoutDate,
         startedAt: null,
         exercises: exercises,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        createdAt: now,
+        updatedAt: now,
       );
 
       emit(SessionInProgress(session: session));
@@ -146,11 +171,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     
     if (event.exerciseIndex < exercises.length) {
       final exercise = exercises[event.exerciseIndex];
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final setNumber = exercise.sets.length + 1;
       final newSet = ExerciseSet(
-        id: 'set_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'set_${timestamp}_ex${event.exerciseIndex}_s$setNumber',
         segments: [
           SetSegment(
-            id: 'seg_${DateTime.now().millisecondsSinceEpoch}',
+            id: 'seg_${timestamp}_ex${event.exerciseIndex}_s${setNumber}_0',
             weight: event.weight,
             repsFrom: event.repsFrom,
             repsTo: event.repsTo,
@@ -158,7 +185,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
             notes: event.notes,
           ),
         ],
-        setNumber: exercise.sets.length + 1,
+        setNumber: setNumber,
       );
 
       final updatedSets = [...exercise.sets, newSet];
@@ -242,12 +269,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       
       if (event.setIndex < sets.length) {
         final set = sets[event.setIndex];
+        final segmentOrder = set.segments.length;
         final newSegment = SetSegment(
-          id: 'seg_${DateTime.now().millisecondsSinceEpoch}',
+          id: 'seg_${DateTime.now().millisecondsSinceEpoch}_ex${event.exerciseIndex}_s${event.setIndex}_seg$segmentOrder',
           weight: event.weight,
           repsFrom: event.repsFrom,
           repsTo: event.repsTo,
-          segmentOrder: set.segments.length,
+          segmentOrder: segmentOrder,
           notes: '',
         );
 
@@ -368,66 +396,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       final currentState = state as SessionInProgress;
       final session = currentState.session;
 
-      // Build workout data for API
-      final workoutData = {
-        'workoutDate': '${session.workoutDate.year}-${session.workoutDate.month.toString().padLeft(2, '0')}-${session.workoutDate.day.toString().padLeft(2, '0')}',
-        'startedAt': session.startedAt != null 
-            ? '${session.startedAt!.hour.toString().padLeft(2, '0')}:${session.startedAt!.minute.toString().padLeft(2, '0')}:${session.startedAt!.second.toString().padLeft(2, '0')}'
-            : null,
-        'endedAt': session.endedAt != null 
-            ? '${session.endedAt!.hour.toString().padLeft(2, '0')}:${session.endedAt!.minute.toString().padLeft(2, '0')}:${session.endedAt!.second.toString().padLeft(2, '0')}'
-            : null,
-        'planId': session.planId != null ? int.tryParse(session.planId!) : null,
-        'exercises': session.exercises.map((exercise) {
-          return {
-            'name': exercise.name,
-            'order': exercise.order,
-            'skipped': exercise.skipped,
-            'sets': exercise.sets.map((set) {
-              return {
-                'setNumber': set.setNumber,
-                'segments': set.segments.map((segment) {
-                  return {
-                    'weight': segment.weight,
-                    'repsFrom': segment.repsFrom,
-                    'repsTo': segment.repsTo,
-                    'segmentOrder': segment.segmentOrder,
-                    'notes': segment.notes,
-                  };
-                }).toList(),
-              };
-            }).toList(),
-          };
-        }).toList(),
-      };
-
-      // Call API to save workout
-      final response = await ApiService.createWorkout(
+      // Save workout directly using WorkoutRepository
+      final savedSession = await _workoutRepository.createWorkout(
         userId: session.userId,
-        workoutData: workoutData,
+        workout: session,
       );
-
-      if (response.success && response.data != null) {
-        // Get the actual workout ID from the API response
-        final workoutId = response.data!.id;
         
-        // Create a new session with the actual ID from the API
-        final savedSession = WorkoutSession(
-          id: workoutId,
-          userId: session.userId,
-          planId: session.planId,
-          workoutDate: session.workoutDate,
-          startedAt: session.startedAt,
-          endedAt: session.endedAt,
-          exercises: session.exercises,
-          createdAt: session.createdAt,
-          updatedAt: session.updatedAt,
-        );
-        
-        emit(SessionSaved(session: savedSession));
-      } else {
-        emit(SessionError(message: response.message));
-      }
+      emit(SessionSaved(session: savedSession));
     } catch (e) {
       emit(SessionError(message: 'Failed to save session: $e'));
     }

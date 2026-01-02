@@ -1,23 +1,15 @@
 import '../../../core/models/workout_session.dart';
-import '../../../core/services/api_service.dart';
+import '../data_sources/workout_local_data_source.dart';
 
 class WorkoutRepository {
-  Future<Map<String, dynamic>> createWorkout({
+  final WorkoutLocalDataSource _localDataSource = WorkoutLocalDataSource();
+
+  Future<WorkoutSession> createWorkout({
     required String userId,
-    required Map<String, dynamic> workoutData,
+    required WorkoutSession workout,
   }) async {
     try {
-      final response = await ApiService.createWorkout(
-        userId: userId,
-        workoutData: workoutData,
-      );
-
-      
-      if (!response.success || response.data == null) {
-        throw Exception(response.message);
-      }
-
-      return _workoutResponseToMap(response.data!);
+      return await _localDataSource.createWorkout(workout);
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
@@ -27,82 +19,34 @@ class WorkoutRepository {
     required String userId,
   }) async {
     try {
-      final response = await ApiService.getWorkouts(userId: userId);
-
-      if (!response.success || response.data == null) {
-        throw Exception(response.message);
+      final workouts = await _localDataSource.getWorkouts(userId);
+      print('[REPO] getWorkouts: userId=$userId, found ${workouts.length} workouts');
+      for (var w in workouts) {
+        print('[REPO]   - Workout: id=${w.id}, date=${w.workoutDate}, exercises=${w.exercises.length}');
       }
-
-      
-      return response.data!.map((workoutResponse) {
-        return _convertWorkoutResponseToSession(workoutResponse);
-      }).toList();
+      return workouts;
     } catch (e) {
       rethrow;
     }
   }
 
-  WorkoutSession _convertWorkoutResponseToSession(WorkoutResponse response) {
-    // Convert WorkoutResponse directly to WorkoutSession
-    final exercises = response.exercises.map((exercise) {
-      final sets = exercise.sets.map((set) {
-        final segments = set.segments.map((segment) {
-          return SetSegment(
-            id: segment.id,
-            weight: segment.weight,
-            repsFrom: segment.repsFrom,
-            repsTo: segment.repsTo,
-            segmentOrder: segment.segmentOrder,
-            notes: segment.notes,
-          );
-        }).toList();
-        
-        return ExerciseSet(
-          id: set.id,
-          setNumber: set.setNumber,
-          segments: segments,
-        );
-      }).toList();
-      
-      return SessionExercise(
-        id: exercise.id,
-        name: exercise.name,
-        order: exercise.order,
-        skipped: exercise.skipped,
-        sets: sets,
-      );
-    }).toList();
-
-    return WorkoutSession(
-      id: response.id,
-      userId: response.userId,
-      planId: response.planId,
-      workoutDate: response.workoutDate,
-      startedAt: response.startedAt,
-      endedAt: response.endedAt,
-      exercises: exercises,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt,
-    );
-  }
-
-  Future<Map<String, dynamic>> updateWorkout({
-    required String userId,
+  Future<WorkoutSession> getWorkout({
     required String workoutId,
-    required Map<String, dynamic> workoutData,
   }) async {
     try {
-      final response = await ApiService.updateWorkout(
-        userId: userId,
-        workoutId: workoutId,
-        workoutData: workoutData,
-      );
+      return await _localDataSource.getWorkout(workoutId);
+    } catch (e) {
+      rethrow;
+    }
+  }
 
-      if (!response.success || response.data == null) {
-        throw Exception(response.message);
-      }
-
-      return _workoutResponseToMap(response.data!);
+  Future<WorkoutSession> updateWorkout({
+    required String userId,
+    required String workoutId,
+    required WorkoutSession workout,
+  }) async {
+    try {
+      return await _localDataSource.updateWorkout(workout);
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
@@ -113,14 +57,7 @@ class WorkoutRepository {
     required String workoutId,
   }) async {
     try {
-      final response = await ApiService.deleteWorkout(
-        userId: userId,
-        workoutId: workoutId,
-      );
-
-      if (!response.success) {
-        throw Exception(response.message);
-      }
+      await _localDataSource.deleteWorkout(workoutId);
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
@@ -131,48 +68,6 @@ class WorkoutRepository {
       return error.split('Exception:').last.trim();
     }
     return error;
-  }
-
-  Map<String, dynamic> _workoutResponseToMap(dynamic response) {
-    // If it's already a Map, return as-is
-    if (response is Map<String, dynamic>) {
-      return response;
-    }
-    
-    // Handle WorkoutResponse typed object
-    // Access properties directly, not with []
-    try {
-      final map = {
-        'id': response.id ?? '',
-        'userId': response.userId ?? '',
-        'planId': response.planId ?? '',
-        'workoutDate': response.date?.toIso8601String() ?? DateTime.now().toIso8601String(),
-        'startedAt': response.date?.toIso8601String(),
-        'endedAt': response.date?.toIso8601String(),
-        'exercises': [],
-        'createdAt': response.createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
-        'updatedAt': response.updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
-      };
-      return map;
-    } catch (e) {
-      
-      // Last resort - try to convert dynamically
-      try {
-        return {
-          'id': response.id.toString(),
-          'userId': response.userId.toString(),
-          'planId': response.planId.toString(),
-          'workoutDate': response.date.toIso8601String(),
-          'startedAt': response.date.toIso8601String(),
-          'endedAt': response.date.toIso8601String(),
-          'exercises': [],
-          'createdAt': response.createdAt.toIso8601String(),
-          'updatedAt': response.updatedAt.toIso8601String(),
-        };
-      } catch (e2) {
-        return {};
-      }
-    }
   }
 }
 

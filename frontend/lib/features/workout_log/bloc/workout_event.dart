@@ -51,7 +51,7 @@ class WorkoutDeleted extends WorkoutEvent {
 class WorkoutsFetched extends WorkoutEvent {
   final String userId;
 
-  const WorkoutsFetched({required this.userId});
+  const WorkoutsFetched({this.userId = '1'});
 
   @override
   List<Object?> get props => [userId];

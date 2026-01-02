@@ -7,7 +7,7 @@ import 'plan_state.dart';
 class PlanBloc extends Bloc<PlanEvent, PlanState> {
   final PlanRepository _planRepository;
   final List<WorkoutPlan> _plans = [];
-  String? _currentUserId;
+  static const String defaultUserId = '1';
 
   PlanBloc({required PlanRepository planRepository})
       : _planRepository = planRepository,
@@ -18,22 +18,13 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
     on<PlanDeleted>(_onPlanDeleted);
   }
 
-  void setCurrentUserId(String userId) {
-    _currentUserId = userId;
-  }
-
   Future<void> _onPlansFetchRequested(
     PlansFetchRequested event,
     Emitter<PlanState> emit,
   ) async {
     emit(const PlanLoading());
     try {
-      if (_currentUserId == null) {
-        emit(PlansLoaded(plans: _plans));
-        return;
-      }
-
-      final plans = await _planRepository.getPlans(userId: _currentUserId!);
+      final plans = await _planRepository.getPlans(userId: event.userId);
       _plans.clear();
       _plans.addAll(plans);
       emit(PlansLoaded(plans: _plans));
@@ -48,12 +39,8 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
   ) async {
     emit(const PlanLoading());
     try {
-      if (_currentUserId == null) {
-        throw Exception('User not authenticated');
-      }
-
       final newPlan = await _planRepository.createPlan(
-        userId: _currentUserId!,
+        userId: event.userId,
         name: event.name,
         description: event.description,
         exercises: event.exercises,
@@ -73,12 +60,8 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
   ) async {
     emit(const PlanLoading());
     try {
-      if (_currentUserId == null) {
-        throw Exception('User not authenticated');
-      }
-
       final updatedPlan = await _planRepository.updatePlan(
-        userId: _currentUserId!,
+        userId: event.userId,
         planId: event.planId,
         name: event.name,
         description: event.description,
@@ -103,12 +86,8 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
   ) async {
     emit(const PlanLoading());
     try {
-      if (_currentUserId == null) {
-        throw Exception('User not authenticated');
-      }
-
       await _planRepository.deletePlan(
-        userId: _currentUserId!,
+        userId: event.userId,
         planId: event.planId,
       );
 

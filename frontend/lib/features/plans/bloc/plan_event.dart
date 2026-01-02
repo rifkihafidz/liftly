@@ -8,31 +8,40 @@ abstract class PlanEvent extends Equatable {
 }
 
 class PlansFetchRequested extends PlanEvent {
-  const PlansFetchRequested();
+  final String userId;
+
+  const PlansFetchRequested({required this.userId});
+
+  @override
+  List<Object?> get props => [userId];
 }
 
 class PlanCreated extends PlanEvent {
+  final String userId;
   final String name;
   final String? description;
   final List<String> exercises;
 
   const PlanCreated({
+    required this.userId,
     required this.name,
     this.description,
     required this.exercises,
   });
 
   @override
-  List<Object?> get props => [name, description, exercises];
+  List<Object?> get props => [userId, name, description, exercises];
 }
 
 class PlanUpdated extends PlanEvent {
+  final String userId;
   final String planId;
   final String name;
   final String? description;
   final List<String> exercises;
 
   const PlanUpdated({
+    required this.userId,
     required this.planId,
     required this.name,
     this.description,
@@ -40,14 +49,18 @@ class PlanUpdated extends PlanEvent {
   });
 
   @override
-  List<Object?> get props => [planId, name, description, exercises];
+  List<Object?> get props => [userId, planId, name, description, exercises];
 }
 
 class PlanDeleted extends PlanEvent {
+  final String userId;
   final String planId;
 
-  const PlanDeleted({required this.planId});
+  const PlanDeleted({
+    required this.userId,
+    required this.planId,
+  });
 
   @override
-  List<Object?> get props => [planId];
+  List<Object?> get props => [userId, planId];
 }
