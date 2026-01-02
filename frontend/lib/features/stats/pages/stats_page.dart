@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../core/models/stats_filter.dart';
+import '../../../shared/widgets/shimmer_widgets.dart';
 import '../../workout_log/repositories/workout_repository.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 
@@ -73,22 +74,11 @@ class _StatsPageState extends State<StatsPage> {
       final startDate = filter.getStartDate();
       final endDate = filter.getEndDate();
 
-      // Debug log
-      print('[STATS] Loading workouts for period: $_selectedPeriod');
-      print('[STATS]   Reference date: $_referenceDate');
-      print('[STATS]   Filter start: $startDate');
-      print('[STATS]   Filter end: $endDate');
-
       // Load workouts from local repository
       final workoutRepository = WorkoutRepository();
       final allWorkouts = await workoutRepository.getWorkouts(
         userId: _userId.toString(),
       );
-
-      print('[STATS] Total workouts from repository: ${allWorkouts.length}');
-      for (var i = 0; i < allWorkouts.length; i++) {
-        print('[STATS]   Workout $i: date=${allWorkouts[i].workoutDate}, exercises=${allWorkouts[i].exercises.length}');
-      }
 
       // Filter workouts by date range
       final filteredWorkouts = allWorkouts.where((session) {
@@ -98,11 +88,8 @@ class _StatsPageState extends State<StatsPage> {
         final isBefore = session.workoutDate.isBefore(
           endDate.add(const Duration(days: 1)),
         );
-        print('[STATS]   Workout ${session.workoutDate}: isAfter=$isAfter, isBefore=$isBefore -> included=${isAfter && isBefore}');
         return isAfter && isBefore;
       }).toList();
-
-      print('[STATS] Filtered workouts: ${filteredWorkouts.length}');
 
       setState(() {
         _sessions = filteredWorkouts;
@@ -116,6 +103,83 @@ class _StatsPageState extends State<StatsPage> {
         if (showLoading) {
           _isLoading = false;
         }
+      });
+    }
+  }
+
+  /// Change period and load data atomically to avoid empty state flash
+  Future<void> _changePeriod(TimePeriod newPeriod) async {
+    // Fetch data with new period WITHOUT updating _selectedPeriod yet
+    try {
+      final filter = StatsFilter(
+        timePeriod: newPeriod,
+        referenceDate: DateTime.now(),
+      );
+      final startDate = filter.getStartDate();
+      final endDate = filter.getEndDate();
+
+      final workoutRepository = WorkoutRepository();
+      final allWorkouts = await workoutRepository.getWorkouts(
+        userId: _userId.toString(),
+      );
+
+      final filteredWorkouts = allWorkouts.where((session) {
+        final isAfter = session.workoutDate.isAfter(
+          startDate.subtract(const Duration(days: 1)),
+        );
+        final isBefore = session.workoutDate.isBefore(
+          endDate.add(const Duration(days: 1)),
+        );
+        return isAfter && isBefore;
+      }).toList();
+
+      // NOW update period and sessions atomically (no flash)
+      setState(() {
+        _selectedPeriod = newPeriod;
+        _referenceDate = DateTime.now();
+        _prCurrentPage = 0;
+        _sessions = filteredWorkouts;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error loading data: ${e.toString()}';
+      });
+    }
+  }
+
+  /// Change date and load data atomically to avoid empty state flash
+  Future<void> _changeDate(DateTime newDate) async {
+    try {
+      final filter = StatsFilter(
+        timePeriod: _selectedPeriod,
+        referenceDate: newDate,
+      );
+      final startDate = filter.getStartDate();
+      final endDate = filter.getEndDate();
+
+      final workoutRepository = WorkoutRepository();
+      final allWorkouts = await workoutRepository.getWorkouts(
+        userId: _userId.toString(),
+      );
+
+      final filteredWorkouts = allWorkouts.where((session) {
+        final isAfter = session.workoutDate.isAfter(
+          startDate.subtract(const Duration(days: 1)),
+        );
+        final isBefore = session.workoutDate.isBefore(
+          endDate.add(const Duration(days: 1)),
+        );
+        return isAfter && isBefore;
+      }).toList();
+
+      // NOW update date and sessions atomically (no flash)
+      setState(() {
+        _referenceDate = newDate;
+        _sessions = filteredWorkouts;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error loading data: ${e.toString()}';
       });
     }
   }
@@ -266,7 +330,7 @@ class _StatsPageState extends State<StatsPage> {
         AppDialogs.showErrorDialog(
           context: context,
           title: 'Capture Failed',
-          message: 'Gagal menangkap screenshot. Silakan coba lagi.',
+          message: 'Failed to capture screenshot. Please try again.',
         );
         return;
       }
@@ -299,7 +363,7 @@ class _StatsPageState extends State<StatsPage> {
       AppDialogs.showErrorDialog(
         context: context,
         title: 'Share Error',
-        message: 'Gagal membagikan. Error: ${e.toString()}',
+        message: 'Failed to share. Error: ${e.toString()}',
       );
     }
   }
@@ -327,7 +391,35 @@ class _StatsPageState extends State<StatsPage> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Statistics'), elevation: 0),
-        body: const Center(child: CircularProgressIndicator()),
+        body: SafeArea(
+          bottom: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Time period selector skeleton
+                const SizedBox(height: 16),
+                StatsCardShimmer(height: 50),
+                const SizedBox(height: 32),
+                // Personal records skeleton
+                TextLineShimmer(lineCount: 1, lineHeight: 24),
+                const SizedBox(height: 16),
+                StatsCardShimmer(height: 400),
+                const SizedBox(height: 32),
+                // Workout frequency skeleton
+                TextLineShimmer(lineCount: 1, lineHeight: 24),
+                const SizedBox(height: 16),
+                StatsCardShimmer(height: 300),
+                const SizedBox(height: 32),
+                // Volume trend skeleton
+                TextLineShimmer(lineCount: 1, lineHeight: 24),
+                const SizedBox(height: 16),
+                StatsCardShimmer(height: 300),
+              ],
+            ),
+          ),
+        ),
       );
     }
 
@@ -400,241 +492,20 @@ class _StatsPageState extends State<StatsPage> {
                       selectedPeriod: _selectedPeriod,
                       referenceDate: _referenceDate,
                       onPeriodChanged: (period) {
-                        setState(() {
-                          _selectedPeriod = period;
-                          _referenceDate = DateTime.now();
-                          _prCurrentPage = 0; // Reset pagination
-                        });
-                        // Reload data with new date range (no loading for local storage)
-                        _loadWorkoutData(showLoading: false);
+                        _changePeriod(period);
                       },
                       onDateChanged: (date) {
-                        setState(() {
-                          _referenceDate = date;
-                        });
-                        // Reload data with new date range (no loading for local storage)
-                        _loadWorkoutData(showLoading: false);
+                        _changeDate(date);
                       },
                     ),
-                    const SizedBox(height: 28),
-
-                    // ===== SUMMARY SECTION =====
-                    Text(
-                      'Overview',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    GridView.count(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        _StatBox(
-                          label: 'Workouts',
-                          value: filteredSessions.length.toString(),
-                          icon: Icons.fitness_center,
-                          color: AppColors.accent,
-                        ),
-                        _StatBox(
-                          label: 'Volume',
-                          value:
-                              '${_formatNumber(_calculateTotalVolume(filteredSessions))} kg',
-                          icon: Icons.scale,
-                          color: AppColors.success,
-                        ),
-                        _StatBox(
-                          label: 'Avg Time',
-                          value: _calculateAverageDuration(filteredSessions),
-                          icon: Icons.schedule,
-                          color: AppColors.warning,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-
-                    // ===== CHARTS SECTION =====
-                    if (filteredSessions.isNotEmpty) ...[
-                      Text(
-                        'Trends',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Volume Trend Chart
-                      _VolumeChartCard(sessions: filteredSessions),
-                      const SizedBox(height: 20),
-
-                      // Workout Frequency Chart
-                      _WorkoutFrequencyCard(
-                        sessions: filteredSessions,
-                        timePeriod: _selectedPeriod,
-                        referenceDate: _referenceDate,
-                      ),
-                      const SizedBox(height: 32),
-                    ] else ...[
-                      Text(
-                        'Trends',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      _EmptyStateCard(
-                        icon: Icons.show_chart,
-                        title: 'No Data Available',
-                        message:
-                            'No workouts recorded in this period.\nStart logging your workouts to see trends.',
-                      ),
-                      const SizedBox(height: 32),
-                    ],
-
-                    // ===== PERSONAL RECORDS SECTION =====
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Personal Records',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        if (_getPersonalRecords(
-                          filteredSessions,
-                        ).isNotEmpty) ...[
-                          IconButton(
-                            onPressed: () => _showPRFilterDialog(
-                              context,
-                              _getPersonalRecords(filteredSessions),
-                            ),
-                            icon: const Icon(Icons.tune),
-                            iconSize: 20,
-                            tooltip: 'Filter exercises',
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    if (_getPersonalRecords(filteredSessions).isNotEmpty) ...[
-                      Builder(
-                        builder: (context) {
-                          final allRecords = _getPersonalRecords(
-                            filteredSessions,
-                          ).entries.toList();
-
-                          // Apply filter if selected
-                          final filteredRecords = _prSelectedExercises.isEmpty
-                              ? allRecords
-                              : allRecords
-                                    .where(
-                                      (e) =>
-                                          _prSelectedExercises.contains(e.key),
-                                    )
-                                    .toList();
-
-                          if (filteredRecords.isEmpty) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              child: Text(
-                                'No exercises selected',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: AppColors.textSecondary),
-                              ),
-                            );
-                          }
-
-                          final itemsPerPage = 5;
-                          final totalPages =
-                              (filteredRecords.length / itemsPerPage).ceil();
-
-                          // Reset page if out of bounds
-                          if (_prCurrentPage >= totalPages) {
-                            _prCurrentPage = 0;
-                          }
-
-                          final startIdx = _prCurrentPage * itemsPerPage;
-                          final endIdx = (startIdx + itemsPerPage).clamp(
-                            0,
-                            filteredRecords.length,
-                          );
-                          final pageItems = filteredRecords.sublist(
-                            startIdx,
-                            endIdx,
-                          );
-
-                          return Column(
-                            children: [
-                              ...pageItems.map((entry) {
-                                return _PRCard(
-                                  exercise: entry.key,
-                                  maxWeight: entry.value,
-                                );
-                              }),
-                              if (totalPages > 1) ...[
-                                const SizedBox(height: 16),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    IconButton(
-                                      onPressed: _prCurrentPage > 0
-                                          ? () {
-                                              setState(() => _prCurrentPage--);
-                                            }
-                                          : null,
-                                      icon: const Icon(Icons.arrow_back),
-                                      iconSize: 20,
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                      ),
-                                      child: Text(
-                                        'Page ${_prCurrentPage + 1} of $totalPages',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: AppColors.textSecondary,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: _prCurrentPage < totalPages - 1
-                                          ? () {
-                                              setState(() => _prCurrentPage++);
-                                            }
-                                          : null,
-                                      icon: const Icon(Icons.arrow_forward),
-                                      iconSize: 20,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 32),
-                    ] else ...[
-                      _EmptyStateCard(
-                        icon: Icons.emoji_events,
-                        title: 'No Records Yet',
-                        message:
-                            'Log your first workout to see personal records.\nYour best lifts will appear here.',
-                      ),
-                      const SizedBox(height: 32),
-                    ],
+                    _buildOverview(context, filteredSessions),
+                    _buildDynamicContent(context, filteredSessions),
                   ],
                 ),
               ),
             ),
           ),
-          // Sticky Time Period Selector - Shows only when scrolled past original
+
           if (_showStickySelectorBar)
             Positioned(
               top: 0,
@@ -688,6 +559,282 @@ class _StatsPageState extends State<StatsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildOverview(
+    BuildContext context,
+    List<WorkoutSession> filteredSessions,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 28),
+
+        // ===== SUMMARY SECTION =====
+        Text(
+          'Overview',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        GridView.count(
+          crossAxisCount: 3,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _StatBox(
+              label: 'Workouts',
+              value: filteredSessions.length.toString(),
+              icon: Icons.fitness_center,
+              color: AppColors.accent,
+            ),
+            _StatBox(
+              label: 'Volume',
+              value:
+                  '${_formatNumber(_calculateTotalVolume(filteredSessions))} kg',
+              icon: Icons.scale,
+              color: AppColors.success,
+            ),
+            _StatBox(
+              label: 'Avg Time',
+              value: _calculateAverageDuration(filteredSessions),
+              icon: Icons.schedule,
+              color: AppColors.warning,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDynamicContent(
+    BuildContext context,
+    List<WorkoutSession> filteredSessions,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 32),
+
+        // ===== TRENDS SECTION =====
+        Text(
+          'Trends',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+
+        AnimatedCrossFade(
+          firstChild: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: Column(
+              key: ValueKey('trends-data-$_selectedPeriod-$_referenceDate'),
+              children: [
+                _VolumeChartCard(sessions: filteredSessions),
+                const SizedBox(height: 20),
+                _WorkoutFrequencyCard(
+                  sessions: filteredSessions,
+                  timePeriod: _selectedPeriod,
+                  referenceDate: _referenceDate,
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+          secondChild: Column(
+            key: const ValueKey('trends-empty'),
+            children: [
+              const SizedBox(height: 6),
+              _EmptyStateCard(
+                icon: Icons.show_chart,
+                title: 'No Data Available',
+                message:
+                    'No workouts recorded in this period.\nStart logging your workouts to see trends.',
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
+          crossFadeState: filteredSessions.isNotEmpty
+              ? CrossFadeState.showFirst
+              : CrossFadeState.showSecond,
+          duration: const Duration(milliseconds: 300),
+        ),
+
+        // ===== PERSONAL RECORDS SECTION =====
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Personal Records',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            if (_getPersonalRecords(filteredSessions).isNotEmpty) ...[
+              IconButton(
+                onPressed: () => _showPRFilterDialog(
+                  context,
+                  _getPersonalRecords(filteredSessions),
+                ),
+                icon: const Icon(Icons.tune),
+                iconSize: 20,
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        AnimatedCrossFade(
+          firstChild: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: KeyedSubtree(
+              key: ValueKey('pr-data-$_selectedPeriod-$_referenceDate'),
+              child: _buildPersonalRecordsGrid(
+                context,
+                _getPersonalRecords(filteredSessions),
+              ),
+            ),
+          ),
+          secondChild: KeyedSubtree(
+            key: ValueKey(
+              filteredSessions.isNotEmpty ? 'pr-norecords' : 'pr-empty',
+            ), // Stable key for empty state?
+            child: Column(
+              children: [
+                _EmptyStateCard(
+                  icon: Icons.emoji_events,
+                  title: 'No Records Yet',
+                  message: filteredSessions.isNotEmpty
+                      ? 'Keep pushing! Your personal records will appear here once you log them.'
+                      : 'Log your first workout to see personal records.\nYour best lifts will appear here.',
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+          // Logic:
+          // If Sessions NOT Empty AND PRs NOT Empty -> Show First (Grid)
+          // Else -> Show Second (Empty Card)
+          crossFadeState:
+              (filteredSessions.isNotEmpty &&
+                  _getPersonalRecords(filteredSessions).isNotEmpty)
+              ? CrossFadeState.showFirst
+              : CrossFadeState.showSecond,
+          duration: const Duration(milliseconds: 300),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPersonalRecordsGrid(
+    BuildContext context,
+    Map<String, double> records,
+  ) {
+    final prsList = records.entries.toList();
+    final itemsPerPage = 4;
+    final totalPages = (prsList.length / itemsPerPage).ceil();
+
+    // Ensure current page is valid
+    if (_prCurrentPage >= totalPages) {
+      _prCurrentPage = 0;
+    }
+
+    final startIndex = _prCurrentPage * itemsPerPage;
+    final endIndex = (startIndex + itemsPerPage < prsList.length)
+        ? startIndex + itemsPerPage
+        : prsList.length;
+
+    final currentPRs = prsList.sublist(startIndex, endIndex);
+
+    return Column(
+      children: [
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 1.5,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: currentPRs.length,
+          itemBuilder: (context, index) {
+            final entry = currentPRs[index];
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.cardBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.borderLight),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    entry.key,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_formatNumber(entry.value)} kg',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppColors.accent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        if (totalPages > 1) ...[
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: _prCurrentPage > 0
+                    ? () {
+                        setState(() => _prCurrentPage--);
+                      }
+                    : null,
+                icon: const Icon(Icons.arrow_back),
+                iconSize: 20,
+              ),
+              Text(
+                '${_prCurrentPage + 1} / $totalPages',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+              IconButton(
+                onPressed: _prCurrentPage < totalPages - 1
+                    ? () {
+                        setState(() => _prCurrentPage++);
+                      }
+                    : null,
+                icon: const Icon(Icons.arrow_forward),
+                iconSize: 20,
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 
@@ -1171,8 +1318,9 @@ class _WorkoutFrequencyCard extends StatelessWidget {
         final dayOfWeek = now.weekday;
         final mondayOfWeek = now.subtract(Duration(days: dayOfWeek - 1));
         final sundayOfWeek = mondayOfWeek.add(const Duration(days: 6));
-        
-        title = 'Workout Frequency (${DateFormat('MMM d').format(mondayOfWeek)} - ${DateFormat('MMM d').format(sundayOfWeek)})';
+
+        title =
+            'Workout Frequency (${DateFormat('MMM d').format(mondayOfWeek)} - ${DateFormat('MMM d').format(sundayOfWeek)})';
         frequencyData = List.filled(7, 0);
 
         final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -1197,7 +1345,7 @@ class _WorkoutFrequencyCard extends StatelessWidget {
         // Group by weeks in current month
         final firstDayOfMonth = DateTime(now.year, now.month, 1);
         final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
-        
+
         title = 'Workout Frequency (${DateFormat('MMMM yyyy').format(now)})';
 
         // Calculate weeks
@@ -1418,6 +1566,18 @@ class _TimePeriodSelector extends StatefulWidget {
 }
 
 class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
+  bool _isForwardAnimation = true;
+
+  @override
+  void didUpdateWidget(_TimePeriodSelector oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.referenceDate != oldWidget.referenceDate) {
+      _isForwardAnimation = widget.referenceDate.isAfter(
+        oldWidget.referenceDate,
+      );
+    }
+  }
+
   String _getDisplayValue(DateTime ref) {
     switch (widget.selectedPeriod) {
       case TimePeriod.week:
@@ -1433,8 +1593,18 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
 
   String _formatDate(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     // Add leading zero for single digit days
     final dayStr = date.day.toString().padLeft(2, '0');
@@ -1443,8 +1613,18 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
 
   String _monthName(int month) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return months[month - 1];
   }
@@ -1495,10 +1675,15 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
         // For weekly: next week must have started (weekStart <= today)
         final nextWeekStart = ref.add(const Duration(days: 7));
         final nowDate = DateTime(now.year, now.month, now.day);
-        final nextWeekStartDate = DateTime(nextWeekStart.year, nextWeekStart.month, nextWeekStart.day);
+        final nextWeekStartDate = DateTime(
+          nextWeekStart.year,
+          nextWeekStart.month,
+          nextWeekStart.day,
+        );
         return !nextWeekStartDate.isAfter(nowDate);
       case TimePeriod.month:
-        return (ref.month < now.month && ref.year == now.year) || ref.year < now.year;
+        return (ref.month < now.month && ref.year == now.year) ||
+            ref.year < now.year;
       case TimePeriod.year:
         return ref.year < now.year;
     }
@@ -1544,9 +1729,9 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Select Year',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
         content: SizedBox(
           height: 250,
@@ -1578,14 +1763,18 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
                       color: isSelected ? AppColors.accent : AppColors.inputBg,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: isSelected ? AppColors.accent : AppColors.borderLight,
+                        color: isSelected
+                            ? AppColors.accent
+                            : AppColors.borderLight,
                       ),
                     ),
                     child: Center(
                       child: Text(
                         year.toString(),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: isSelected ? Colors.white : AppColors.textPrimary,
+                          color: isSelected
+                              ? Colors.white
+                              : AppColors.textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1616,7 +1805,9 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
       children: [
         Text(
           'Time Period',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Container(
@@ -1676,13 +1867,55 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
                               break;
                           }
                         },
-                        child: Text(
-                          _getDisplayValue(ref),
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          transitionBuilder:
+                              (Widget child, Animation<double> animation) {
+                                final inAnimation = Tween<Offset>(
+                                  begin: Offset(
+                                    _isForwardAnimation ? 1.0 : -1.0,
+                                    0.0,
+                                  ),
+                                  end: Offset.zero,
+                                ).animate(animation);
+
+                                final outAnimation = Tween<Offset>(
+                                  begin: Offset(
+                                    _isForwardAnimation ? -1.0 : 1.0,
+                                    0.0,
+                                  ),
+                                  end: Offset.zero,
+                                ).animate(animation);
+
+                                if (child.key ==
+                                    ValueKey(_getDisplayValue(ref))) {
+                                  return SlideTransition(
+                                    position: inAnimation,
+                                    child: FadeTransition(
+                                      opacity: animation,
+                                      child: child,
+                                    ),
+                                  );
+                                } else {
+                                  return SlideTransition(
+                                    position: outAnimation,
+                                    child: FadeTransition(
+                                      opacity: animation,
+                                      child: child,
+                                    ),
+                                  );
+                                }
+                              },
+                          child: Text(
+                            _getDisplayValue(ref),
+                            key: ValueKey(_getDisplayValue(ref)),
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
                         ),
                       ),
                     ),
@@ -1764,11 +1997,12 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
                       return Center(
                         child: Text(
                           displayLabel,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.accent,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: AppColors.accent,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
                         ),
                       );
                     }).toList();
@@ -1807,11 +2041,11 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    
+
     // Handle cross-year weeks (e.g., Dec 29 - Jan 4)
     final ref = widget.referenceDate;
     _selectedYear = _determineYearForWeek(ref);
-    
+
     // Scroll to selected week after frame renders
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToSelectedWeek();
@@ -1823,7 +2057,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
   /// show the previous year
   int _determineYearForWeek(DateTime ref) {
     final refYear = ref.year;
-    
+
     // If in January, check if week starts in previous year
     if (ref.month == 1 && ref.day <= 10) {
       final refMonday = ref.subtract(Duration(days: ref.weekday - 1));
@@ -1832,7 +2066,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
         return refYear - 1;
       }
     }
-    
+
     return refYear;
   }
 
@@ -1846,11 +2080,11 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
     setState(() {
       _selectedYear = newYear;
     });
-    
+
     // Determine if this year should scroll to selected week
     final ref = widget.referenceDate;
     final shouldScrollToSelected = _yearContainsSelectedWeek(newYear, ref);
-    
+
     // Scroll based on whether the year contains the selected week
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (shouldScrollToSelected) {
@@ -1881,7 +2115,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
 
   void _scrollToSelectedWeek() {
     final ref = widget.referenceDate;
-    
+
     // Find first Monday of the year
     DateTime firstDay = DateTime(_selectedYear);
     while (firstDay.weekday != DateTime.monday) {
@@ -1892,7 +2126,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
     for (int weekNum = 1; ; weekNum++) {
       final weekDate = firstDay.add(Duration(days: (weekNum - 1) * 7));
       final weekEnd = weekDate.add(const Duration(days: 6));
-      
+
       // Check if this week contains the reference date
       if (ref.isAfter(weekDate.subtract(const Duration(days: 1))) &&
           ref.isBefore(weekEnd.add(const Duration(days: 1)))) {
@@ -1901,7 +2135,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
         final row = (weekNum - 1) ~/ 4;
         final itemHeight = 80.0; // Approximate height of each item
         final offset = row * itemHeight;
-        
+
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
             offset,
@@ -1911,7 +2145,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
         }
         break;
       }
-      
+
       // Stop if we've gone past the end of the year
       if (weekDate.month == 12 && weekDate.day > 25) break;
     }
@@ -2005,27 +2239,42 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
                 final weekEnd = weekDate.add(const Duration(days: 6));
                 // Compare dates ignoring time of day
                 final refDate = DateTime(ref.year, ref.month, ref.day);
-                final weekStartDate = DateTime(weekDate.year, weekDate.month, weekDate.day);
-                final weekEndDate = DateTime(weekEnd.year, weekEnd.month, weekEnd.day);
-                final isSelected = refDate.isAfter(weekStartDate.subtract(const Duration(days: 1))) &&
+                final weekStartDate = DateTime(
+                  weekDate.year,
+                  weekDate.month,
+                  weekDate.day,
+                );
+                final weekEndDate = DateTime(
+                  weekEnd.year,
+                  weekEnd.month,
+                  weekEnd.day,
+                );
+                final isSelected =
+                    refDate.isAfter(
+                      weekStartDate.subtract(const Duration(days: 1)),
+                    ) &&
                     refDate.isBefore(weekEndDate.add(const Duration(days: 1)));
 
                 // Check if week is in the past or present (can be selected)
                 final now = DateTime.now();
-                
+
                 // Can select if week has started (weekStart <= today)
                 final nowDate = DateTime(now.year, now.month, now.day);
                 final canSelectSimple = !weekStartDate.isAfter(nowDate);
 
                 return GestureDetector(
-                  onTap: canSelectSimple ? () {
-                    widget.onWeekSelected(weekDate);
-                  } : null,
+                  onTap: canSelectSimple
+                      ? () {
+                          widget.onWeekSelected(weekDate);
+                        }
+                      : null,
                   child: Opacity(
                     opacity: canSelectSimple ? 1.0 : 0.5,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.accent : AppColors.inputBg,
+                        color: isSelected
+                            ? AppColors.accent
+                            : AppColors.inputBg,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: isSelected
@@ -2036,12 +2285,13 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
                       child: Center(
                         child: Text(
                           'W$weekNum',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.textPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
                       ),
                     ),
@@ -2276,62 +2526,6 @@ class _StatBox extends StatelessWidget {
               fontSize: 10,
             ),
             textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PRCard extends StatelessWidget {
-  final String exercise;
-  final double maxWeight;
-
-  const _PRCard({required this.exercise, required this.maxWeight});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderLight, width: 1),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(exercise, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text(
-                'Personal Record',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: AppColors.accent.withValues(alpha: 0.4),
-                width: 1,
-              ),
-            ),
-            child: Text(
-              '${maxWeight.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (Match m) => ',')} kg',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.accent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
           ),
         ],
       ),

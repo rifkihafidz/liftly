@@ -57,7 +57,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
           if (state is PlanSuccess) {
             AppDialogs.showSuccessDialog(
               context: context,
-              title: 'Berhasil',
+              title: 'Success',
               message: state.message,
               onConfirm: () {
                 // Close dialog
@@ -70,7 +70,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
           if (state is PlanError) {
             AppDialogs.showErrorDialog(
               context: context,
-              title: 'Terjadi Kesalahan',
+              title: 'Error Occurred',
               message: state.message,
             );
           }
@@ -225,8 +225,8 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
     if (hasEmptyExercises) {
       AppDialogs.showErrorDialog(
         context: context,
-        title: 'Form Tidak Lengkap',
-        message: 'Ada exercise yang belum diisi. Silakan isi semua exercise atau hapus form yang tidak digunakan.',
+        title: 'Incomplete Form',
+        message: 'There are exercises that have not been filled in. Please fill in all exercises or delete the unused forms.',
       );
       return;
     }
@@ -244,7 +244,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
       AppDialogs.showErrorDialog(
         context: context,
         title: 'Plan Name Required',
-        message: 'Masukkan nama plan terlebih dahulu. Exercises sudah ditambahkan tapi nama plan masih kosong.',
+        message: 'Please enter a plan name first. Exercises have been added but the plan name is still empty.',
       );
       return;
     }
@@ -254,7 +254,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
       AppDialogs.showErrorDialog(
         context: context,
         title: 'Plan Name Required',
-        message: 'Masukkan nama plan terlebih dahulu.',
+        message: 'Please enter a plan name.',
       );
       return;
     }
@@ -264,7 +264,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
       AppDialogs.showErrorDialog(
         context: context,
         title: 'Exercises Required',
-        message: 'Tambahkan minimal satu exercise.',
+        message: 'Please add at least one exercise.',
       );
       return;
     }

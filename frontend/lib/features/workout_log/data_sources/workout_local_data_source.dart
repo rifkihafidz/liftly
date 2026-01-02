@@ -10,74 +10,75 @@ class WorkoutLocalDataSource {
       print('[WorkoutDB] $operation: $message');
     }
   }
+
   /// Create a new workout with exercises, sets, and segments
   Future<WorkoutSession> createWorkout(WorkoutSession workout) async {
     try {
-      _log('CREATE', 'Workout id=${workout.id}, userId=${workout.userId}, exercises=${workout.exercises.length}');
+      _log(
+        'CREATE',
+        'Workout id=${workout.id}, userId=${workout.userId}, exercises=${workout.exercises.length}',
+      );
       final database = SQLiteService.database;
 
       // Insert workout
       _log('INSERT', 'workouts table: id=${workout.id}');
-      await database.insert(
-        'workouts',
-        {
-          'id': workout.id,
-          'user_id': workout.userId,
-          'plan_id': workout.planId,
-          'workout_date': SQLiteService.formatDateTime(workout.workoutDate),
-          'started_at': workout.startedAt != null ? SQLiteService.formatDateTime(workout.startedAt!) : null,
-          'ended_at': workout.endedAt != null ? SQLiteService.formatDateTime(workout.endedAt!) : null,
-          'created_at': SQLiteService.formatDateTime(workout.createdAt),
-          'updated_at': SQLiteService.formatDateTime(workout.updatedAt),
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await database.insert('workouts', {
+        'id': workout.id,
+        'user_id': workout.userId,
+        'plan_id': workout.planId,
+        'workout_date': SQLiteService.formatDateTime(workout.workoutDate),
+        'started_at': workout.startedAt != null
+            ? SQLiteService.formatDateTime(workout.startedAt!)
+            : null,
+        'ended_at': workout.endedAt != null
+            ? SQLiteService.formatDateTime(workout.endedAt!)
+            : null,
+        'created_at': SQLiteService.formatDateTime(workout.createdAt),
+        'updated_at': SQLiteService.formatDateTime(workout.updatedAt),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
       _log('INSERT', 'workouts: SUCCESS');
 
       // Insert exercises with sets and segments
       for (final exercise in workout.exercises) {
-        _log('INSERT', 'workout_exercises: id=${exercise.id}, name=${exercise.name}');
-        await database.insert(
-          'workout_exercises',
-          {
-            'id': exercise.id,
-            'workout_id': workout.id,
-            'name': exercise.name,
-            'exercise_order': exercise.order,
-            'skipped': exercise.skipped ? 1 : 0,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
+        _log(
+          'INSERT',
+          'workout_exercises: id=${exercise.id}, name=${exercise.name}',
         );
+        await database.insert('workout_exercises', {
+          'id': exercise.id,
+          'workout_id': workout.id,
+          'name': exercise.name,
+          'exercise_order': exercise.order,
+          'skipped': exercise.skipped ? 1 : 0,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
 
         // Insert sets and segments for this exercise
         for (final set in exercise.sets) {
-          _log('INSERT', 'workout_sets: id=${set.id}, setNumber=${set.setNumber}');
-          await database.insert(
-            'workout_sets',
-            {
-              'id': set.id,
-              'exercise_id': exercise.id,
-              'set_number': set.setNumber,
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace,
+          _log(
+            'INSERT',
+            'workout_sets: id=${set.id}, setNumber=${set.setNumber}',
           );
+          await database.insert('workout_sets', {
+            'id': set.id,
+            'exercise_id': exercise.id,
+            'set_number': set.setNumber,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
 
           // Insert segments for this set
           for (final segment in set.segments) {
-            _log('INSERT', 'set_segments: id=${segment.id}, weight=${segment.weight}');
-            await database.insert(
-              'set_segments',
-              {
-                'id': segment.id,
-                'set_id': set.id,
-                'weight': segment.weight,
-                'reps_from': segment.repsFrom,
-                'reps_to': segment.repsTo,
-                'segment_order': segment.segmentOrder,
-                'notes': segment.notes,
-              },
-              conflictAlgorithm: ConflictAlgorithm.replace,
+            _log(
+              'INSERT',
+              'set_segments: id=${segment.id}, weight=${segment.weight}',
             );
+            await database.insert('set_segments', {
+              'id': segment.id,
+              'set_id': set.id,
+              'weight': segment.weight,
+              'reps_from': segment.repsFrom,
+              'reps_to': segment.repsTo,
+              'segment_order': segment.segmentOrder,
+              'notes': segment.notes,
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
           }
         }
       }
@@ -107,16 +108,19 @@ class WorkoutLocalDataSource {
       final result = await Future.wait(
         workouts.map((w) => _buildWorkoutFromRows(w['id'] as String)),
       );
-      
+
       // Log the result
       for (final workout in result) {
         int totalSets = 0;
         for (final ex in workout.exercises) {
           totalSets += ex.sets.length;
         }
-        _log('SELECT', 'Loaded workout ${workout.id}: ${workout.exercises.length} exercises, $totalSets total sets');
+        _log(
+          'SELECT',
+          'Loaded workout ${workout.id}: ${workout.exercises.length} exercises, $totalSets total sets',
+        );
       }
-      
+
       return result;
     } catch (e) {
       _log('SELECT', 'workouts: FAILED - $e');
@@ -164,7 +168,10 @@ class WorkoutLocalDataSource {
       if (exerciseRows.isNotEmpty) {
         for (int i = 0; i < exerciseRows.length; i++) {
           final row = exerciseRows[i];
-          _log('DEBUG', 'Exercise row $i: id=${row['id']}, name=${row['name']}, workoutId=${row['workout_id']}');
+          _log(
+            'DEBUG',
+            'Exercise row $i: id=${row['id']}, name=${row['name']}, workoutId=${row['workout_id']}',
+          );
         }
       }
       final List<SessionExercise> exercises = [];
@@ -181,14 +188,20 @@ class WorkoutLocalDataSource {
           orderBy: 'set_number ASC',
         );
 
-        _log('SELECT', 'workout_sets: Found ${setRows.length} records for exercise $exerciseId');
+        _log(
+          'SELECT',
+          'workout_sets: Found ${setRows.length} records for exercise $exerciseId',
+        );
         // Log set IDs for debugging - show each set row
         if (setRows.isNotEmpty) {
           final setIds = setRows.map((s) => s['id']).join(',');
           _log('DEBUG', 'Exercise $exerciseId has set IDs: $setIds');
           for (int i = 0; i < setRows.length; i++) {
             final row = setRows[i];
-            _log('DEBUG', 'Row $i: id=${row['id']}, setNumber=${row['set_number']}, exerciseId=${row['exercise_id']}');
+            _log(
+              'DEBUG',
+              'Row $i: id=${row['id']}, setNumber=${row['set_number']}, exerciseId=${row['exercise_id']}',
+            );
           }
         }
         final List<ExerciseSet> sets = [];
@@ -231,7 +244,10 @@ class WorkoutLocalDataSource {
               segments: segments,
             ),
           );
-          _log('DEBUG', 'Added set $setId with ${segments.length} segments to exercise');
+          _log(
+            'DEBUG',
+            'Added set $setId with ${segments.length} segments to exercise',
+          );
         }
 
         exercises.add(
@@ -250,7 +266,9 @@ class WorkoutLocalDataSource {
         id: workoutRow['id'] as String,
         userId: workoutRow['user_id'] as String,
         planId: workoutRow['plan_id'] as String?,
-        workoutDate: SQLiteService.parseDateTime(workoutRow['workout_date'] as String),
+        workoutDate: SQLiteService.parseDateTime(
+          workoutRow['workout_date'] as String,
+        ),
         startedAt: workoutRow['started_at'] != null
             ? SQLiteService.parseDateTime(workoutRow['started_at'] as String)
             : null,
@@ -258,17 +276,24 @@ class WorkoutLocalDataSource {
             ? SQLiteService.parseDateTime(workoutRow['ended_at'] as String)
             : null,
         exercises: exercises,
-        createdAt: SQLiteService.parseDateTime(workoutRow['created_at'] as String),
-        updatedAt: SQLiteService.parseDateTime(workoutRow['updated_at'] as String),
+        createdAt: SQLiteService.parseDateTime(
+          workoutRow['created_at'] as String,
+        ),
+        updatedAt: SQLiteService.parseDateTime(
+          workoutRow['updated_at'] as String,
+        ),
       );
-      
+
       // Log the final result
       int totalSets = 0;
       for (final ex in result.exercises) {
         totalSets += ex.sets.length;
       }
-      _log('SELECT', 'Built workout ${result.id}: ${result.exercises.length} exercises, $totalSets total sets');
-      
+      _log(
+        'SELECT',
+        'Built workout ${result.id}: ${result.exercises.length} exercises, $totalSets total sets',
+      );
+
       return result;
     } catch (e) {
       _log('SELECT', 'Build workout: FAILED - $e');
@@ -280,25 +305,23 @@ class WorkoutLocalDataSource {
   Future<WorkoutSession> updateWorkout(WorkoutSession workout) async {
     final database = SQLiteService.database;
 
-    print('[EDIT DEBUG] updateWorkout called for workout: ${workout.id}');
-    print('[EDIT DEBUG] Updating startedAt: ${workout.startedAt}');
-    print('[EDIT DEBUG] Updating endedAt: ${workout.endedAt}');
-
     // Update workout basic info
     await database.update(
       'workouts',
       {
         'plan_id': workout.planId,
         'workout_date': SQLiteService.formatDateTime(workout.workoutDate),
-        'started_at': workout.startedAt != null ? SQLiteService.formatDateTime(workout.startedAt!) : null,
-        'ended_at': workout.endedAt != null ? SQLiteService.formatDateTime(workout.endedAt!) : null,
+        'started_at': workout.startedAt != null
+            ? SQLiteService.formatDateTime(workout.startedAt!)
+            : null,
+        'ended_at': workout.endedAt != null
+            ? SQLiteService.formatDateTime(workout.endedAt!)
+            : null,
         'updated_at': SQLiteService.formatDateTime(workout.updatedAt),
       },
       where: 'id = ?',
       whereArgs: [workout.id],
     );
-
-    print('[EDIT DEBUG] Database update completed');
 
     // Fetch existing exercises for exercises that are skipped to preserve their sets
     final existingExercisesResult = await database.query(
@@ -306,7 +329,7 @@ class WorkoutLocalDataSource {
       where: 'workout_id = ?',
       whereArgs: [workout.id],
     );
-    
+
     final existingExercisesMap = <String, Map<String, dynamic>>{};
     for (final exRow in existingExercisesResult) {
       existingExercisesMap[exRow['id'].toString()] = exRow;
@@ -319,34 +342,27 @@ class WorkoutLocalDataSource {
       whereArgs: [workout.id],
     );
 
-    print('[EDIT DEBUG] Deleted existing exercises, now re-inserting ${workout.exercises.length} exercises');
-
     // Re-insert all exercises with their sets and segments
     for (final exercise in workout.exercises) {
-      print('[EDIT DEBUG] Inserting exercise: ${exercise.id} (${exercise.name}) with ${exercise.sets.length} sets, skipped: ${exercise.skipped}');
-      
-      await database.insert(
-        'workout_exercises',
-        {
-          'id': exercise.id,
-          'workout_id': workout.id,
-          'name': exercise.name,
-          'exercise_order': exercise.order,
-          'skipped': exercise.skipped ? 1 : 0,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await database.insert('workout_exercises', {
+        'id': exercise.id,
+        'workout_id': workout.id,
+        'name': exercise.name,
+        'exercise_order': exercise.order,
+        'skipped': exercise.skipped ? 1 : 0,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
 
       // If exercise is skipped and has no sets, preserve existing sets from database
       var setsToInsert = exercise.sets;
-      if (exercise.skipped && exercise.sets.isEmpty && existingExercisesMap.containsKey(exercise.id)) {
-        print('[EDIT DEBUG] Exercise ${exercise.id} is skipped with no sets, fetching existing sets from database');
+      if (exercise.skipped &&
+          exercise.sets.isEmpty &&
+          existingExercisesMap.containsKey(exercise.id)) {
         final existingSetsResult = await database.query(
           'workout_sets',
           where: 'exercise_id = ?',
           whereArgs: [exercise.id],
         );
-        
+
         // Reconstruct sets from database
         final reconstructedSets = <ExerciseSet>[];
         for (final setRow in existingSetsResult) {
@@ -356,60 +372,54 @@ class WorkoutLocalDataSource {
             where: 'set_id = ?',
             whereArgs: [setId],
           );
-          
+
           final segments = <SetSegment>[];
           for (final segRow in segmentsResult) {
-            segments.add(SetSegment(
-              id: segRow['id'].toString(),
-              weight: (segRow['weight'] as num?)?.toDouble() ?? 0,
-              repsFrom: segRow['reps_from'] as int? ?? 0,
-              repsTo: segRow['reps_to'] as int? ?? 0,
-              segmentOrder: segRow['segment_order'] as int? ?? 0,
-              notes: segRow['notes'] as String? ?? '',
-            ));
+            segments.add(
+              SetSegment(
+                id: segRow['id'].toString(),
+                weight: (segRow['weight'] as num?)?.toDouble() ?? 0,
+                repsFrom: segRow['reps_from'] as int? ?? 0,
+                repsTo: segRow['reps_to'] as int? ?? 0,
+                segmentOrder: segRow['segment_order'] as int? ?? 0,
+                notes: segRow['notes'] as String? ?? '',
+              ),
+            );
           }
-          
-          reconstructedSets.add(ExerciseSet(
-            id: setId,
-            setNumber: setRow['set_number'] as int? ?? 1,
-            segments: segments,
-          ));
+
+          reconstructedSets.add(
+            ExerciseSet(
+              id: setId,
+              setNumber: setRow['set_number'] as int? ?? 1,
+              segments: segments,
+            ),
+          );
         }
         setsToInsert = reconstructedSets;
-        print('[EDIT DEBUG] Preserved ${setsToInsert.length} sets for skipped exercise ${exercise.id}');
       }
 
       for (final set in setsToInsert) {
-        await database.insert(
-          'workout_sets',
-          {
-            'id': set.id,
-            'exercise_id': exercise.id,
-            'set_number': set.setNumber,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await database.insert('workout_sets', {
+          'id': set.id,
+          'exercise_id': exercise.id,
+          'set_number': set.setNumber,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
 
         for (final segment in set.segments) {
-          await database.insert(
-            'set_segments',
-            {
-              'id': segment.id,
-              'set_id': set.id,
-              'weight': segment.weight,
-              'reps_from': segment.repsFrom,
-              'reps_to': segment.repsTo,
-              'segment_order': segment.segmentOrder,
-              'notes': segment.notes,
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
+          await database.insert('set_segments', {
+            'id': segment.id,
+            'set_id': set.id,
+            'weight': segment.weight,
+            'reps_from': segment.repsFrom,
+            'reps_to': segment.repsTo,
+            'segment_order': segment.segmentOrder,
+            'notes': segment.notes,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
         }
       }
     }
 
     // Fetch and return the updated workout from database to ensure fresh data
-    print('[EDIT DEBUG] Fetching updated workout from database for id: ${workout.id}');
     try {
       // Query the updated workout directly from database using workout ID
       final workoutResult = await database.query(
@@ -419,16 +429,10 @@ class WorkoutLocalDataSource {
       );
 
       if (workoutResult.isEmpty) {
-        print('[EDIT DEBUG] ERROR: Workout not found after update!');
         throw Exception('Workout not found after update');
       }
 
       final workoutRow = workoutResult.first;
-      print('[EDIT DEBUG] Found workout in database');
-      print('[EDIT DEBUG] Database row data:');
-      print('[EDIT DEBUG]   started_at column: ${workoutRow['started_at']}');
-      print('[EDIT DEBUG]   ended_at column: ${workoutRow['ended_at']}');
-      print('[EDIT DEBUG]   updated_at column: ${workoutRow['updated_at']}');
 
       // Build exercises list from database
       final exercisesResult = await database.query(
@@ -438,7 +442,6 @@ class WorkoutLocalDataSource {
         orderBy: 'exercise_order ASC',
       );
 
-      print('[EDIT DEBUG] Found ${exercisesResult.length} exercises');
       final exercises = <SessionExercise>[];
 
       for (final exRow in exercisesResult) {
@@ -464,37 +467,45 @@ class WorkoutLocalDataSource {
           );
 
           for (final segRow in segmentsResult) {
-            segments.add(SetSegment(
-              id: segRow['id'].toString(),
-              weight: (segRow['weight'] as num?)?.toDouble() ?? 0,
-              repsFrom: segRow['reps_from'] as int? ?? 0,
-              repsTo: segRow['reps_to'] as int? ?? 0,
-              segmentOrder: segRow['segment_order'] as int? ?? 0,
-              notes: segRow['notes'] as String? ?? '',
-            ));
+            segments.add(
+              SetSegment(
+                id: segRow['id'].toString(),
+                weight: (segRow['weight'] as num?)?.toDouble() ?? 0,
+                repsFrom: segRow['reps_from'] as int? ?? 0,
+                repsTo: segRow['reps_to'] as int? ?? 0,
+                segmentOrder: segRow['segment_order'] as int? ?? 0,
+                notes: segRow['notes'] as String? ?? '',
+              ),
+            );
           }
 
-          sets.add(ExerciseSet(
-            id: setId,
-            setNumber: setRow['set_number'] as int? ?? 1,
-            segments: segments,
-          ));
+          sets.add(
+            ExerciseSet(
+              id: setId,
+              setNumber: setRow['set_number'] as int? ?? 1,
+              segments: segments,
+            ),
+          );
         }
 
-        exercises.add(SessionExercise(
-          id: exerciseId,
-          name: exRow['name'].toString(),
-          order: exRow['exercise_order'] as int? ?? 0,
-          skipped: ((exRow['skipped'] as int?) ?? 0) == 1,
-          sets: sets,
-        ));
+        exercises.add(
+          SessionExercise(
+            id: exerciseId,
+            name: exRow['name'].toString(),
+            order: exRow['exercise_order'] as int? ?? 0,
+            skipped: ((exRow['skipped'] as int?) ?? 0) == 1,
+            sets: sets,
+          ),
+        );
       }
 
       final updatedWorkout = WorkoutSession(
         id: workoutRow['id'].toString(),
         userId: workoutRow['user_id'].toString(),
         planId: workoutRow['plan_id'].toString(),
-        workoutDate: SQLiteService.parseDateTime(workoutRow['workout_date'] as String),
+        workoutDate: SQLiteService.parseDateTime(
+          workoutRow['workout_date'] as String,
+        ),
         startedAt: workoutRow['started_at'] != null
             ? SQLiteService.parseDateTime(workoutRow['started_at'] as String)
             : null,
@@ -502,18 +513,16 @@ class WorkoutLocalDataSource {
             ? SQLiteService.parseDateTime(workoutRow['ended_at'] as String)
             : null,
         exercises: exercises,
-        createdAt: SQLiteService.parseDateTime(workoutRow['created_at'] as String),
-        updatedAt: SQLiteService.parseDateTime(workoutRow['updated_at'] as String),
+        createdAt: SQLiteService.parseDateTime(
+          workoutRow['created_at'] as String,
+        ),
+        updatedAt: SQLiteService.parseDateTime(
+          workoutRow['updated_at'] as String,
+        ),
       );
 
-      print('[EDIT DEBUG] Fetched startedAt: ${updatedWorkout.startedAt}');
-      print('[EDIT DEBUG] Fetched endedAt: ${updatedWorkout.endedAt}');
-      
       return updatedWorkout;
     } catch (e) {
-      print('[EDIT DEBUG] Error fetching updated workout: $e');
-      // Fallback: return the original workout with updated fields
-      print('[EDIT DEBUG] Returning original workout as fallback');
       return workout;
     }
   }

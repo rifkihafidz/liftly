@@ -46,19 +46,14 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
   }
 
   void _handleBack() {
-    print(
-      '[NAV DEBUG] Detail back pressed - fromSession: ${widget.fromSession}',
-    );
     if (widget.fromSession) {
       // Replace detail with history (smooth transition, no Home flash)
-      print('[NAV DEBUG] Replacing detail with history');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const WorkoutHistoryPage()),
       );
     } else if (Navigator.canPop(context)) {
       // Normal back from other sources
-      print('[NAV DEBUG] Normal pop');
       Navigator.pop(context);
     }
   }
@@ -176,7 +171,6 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
         if (didPop) return;
         // Handle back button when fromSession is true
         if (widget.fromSession) {
-          print('[NAV DEBUG] PopScope back pressed - fromSession');
           _handleBack();
         }
       },
@@ -186,7 +180,6 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              print('[NAV DEBUG] AppBar back button pressed');
               _handleBack();
             },
           ),
@@ -194,26 +187,16 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () async {
-                print(
-                  '[EDIT DEBUG] Edit button pressed - workoutId: ${_currentWorkout['id']}',
-                );
-                print(
-                  '[EDIT DEBUG] Current data - startedAt: ${_currentWorkout['startedAt']}, endedAt: ${_currentWorkout['endedAt']}',
-                );
                 final updated = await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(
                     builder: (_) => WorkoutEditPage(workout: _currentWorkout),
                   ),
                 );
-                print('[EDIT DEBUG] Edit page returned - updated: $updated');
                 if (updated == true && context.mounted) {
                   // Reload workout data from server
                   const userId = '1'; // Default local user ID
                   // Fetch latest workouts to get updated data
-                  print(
-                    '[EDIT DEBUG] Triggering WorkoutsFetched to reload data',
-                  );
                   context.read<WorkoutBloc>().add(
                     const WorkoutsFetched(userId: userId),
                   );
@@ -232,9 +215,6 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
           listener: (context, state) {
             // Handle WorkoutsLoaded for both delete and refresh after edit
             if (state is WorkoutsLoaded) {
-              print(
-                '[EDIT DEBUG] WorkoutsLoaded received - workouts count: ${state.workouts.length}',
-              );
               if (_isDeleting && mounted) {
                 // Successfully deleted - close detail page and let history reload
                 _isDeleting = false; // Reset flag to prevent re-triggering
@@ -247,51 +227,33 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
 
                 AppDialogs.showSuccessDialog(
                   context: context,
-                  title: 'Berhasil',
-                  message: 'Workout berhasil dihapus.',
+                  title: 'Success',
+                  message: 'Workout deleted successfully.',
                 );
               } else if (!_isDeleting && mounted) {
                 // Refresh after update - find current workout in list and update
                 final workoutId = _currentWorkout['id'].toString();
-                print(
-                  '[EDIT DEBUG] Looking for workout: $workoutId in loaded workouts',
-                );
                 try {
                   final updatedWorkout = state.workouts.firstWhere((w) {
-                    print(
-                      '[EDIT DEBUG] Comparing - workout id: ${w.id} vs target: $workoutId',
-                    );
                     return w.id == workoutId;
                   });
-
-                  print(
-                    '[EDIT DEBUG] Found workout! startedAt: ${updatedWorkout.startedAt}, endedAt: ${updatedWorkout.endedAt}',
-                  );
 
                   if (context.mounted) {
                     setState(() {
                       // Update current workout with latest data from WorkoutSession
                       final newData = _convertSessionToMap(updatedWorkout);
-                      print(
-                        '[EDIT DEBUG] Updated data - startedAt: ${newData['startedAt']}, endedAt: ${newData['endedAt']}',
-                      );
                       _currentWorkout = newData;
                     });
-                    print('[EDIT DEBUG] setState completed - UI should update');
                   }
                 } catch (e) {
                   // Workout not found in list, keep current data
-                  print(
-                    '[EDIT DEBUG] ERROR: Workout not found in loaded list! $e',
-                  );
                 }
               }
             } else if (state is WorkoutError && mounted) {
-              print('[EDIT DEBUG] WorkoutError: ${state.message}');
               Navigator.pop(context); // Close loading dialog if still open
               AppDialogs.showErrorDialog(
                 context: context,
-                title: 'Terjadi Kesalahan',
+                title: 'Error Occurred',
                 message: state.message,
               );
             }
@@ -430,19 +392,19 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
         return AlertDialog(
           title: const Text('Delete Workout'),
           content: const Text(
-            'Apakah Anda yakin ingin menghapus workout ini? Tindakan ini tidak dapat dibatalkan.',
+            'Are you sure you want to delete this workout? This action cannot be undone.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal'),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
                 _deleteWorkout(context);
               },
-              child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
             ),
           ],
         );

@@ -1,5 +1,4 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter/foundation.dart';
 import '../../../core/models/workout_session.dart';
 import '../../workout_log/repositories/workout_repository.dart';
 import 'session_event.dart';
@@ -31,23 +30,14 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     try {
       final now = DateTime.now();
       final workoutDate = now; // Initial workout date is today
-      
+
       // Increment counter for unique ID generation
       _workoutIdCounter++;
-      
+
       // Generate unique ID based on workout date, current time, and counter
       // This ensures uniqueness even if app is restarted
-      final generatedId = '${workoutDate.millisecondsSinceEpoch}_${now.millisecondsSinceEpoch}_${_workoutIdCounter}';
-      
-      // DEBUG: Always log the generated ID to verify counter is incrementing
-      if (kDebugMode) {
-        print('[WorkoutDB] ⚡ SessionBloc._onSessionStarted: NEW SESSION ID GENERATED');
-        print('[WorkoutDB]   - Workout date timestamp: ${workoutDate.millisecondsSinceEpoch}');
-        print('[WorkoutDB]   - Current time timestamp: ${now.millisecondsSinceEpoch}');
-        print('[WorkoutDB]   - Counter value: $_workoutIdCounter');
-        print('[WorkoutDB]   - FINAL SESSION ID: $generatedId');
-      }
-      
+      final generatedId =
+          '${workoutDate.millisecondsSinceEpoch}_${now.millisecondsSinceEpoch}_$_workoutIdCounter';
       final timestamp = now.millisecondsSinceEpoch;
       final exercises = event.exerciseNames
           .asMap()
@@ -97,8 +87,10 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     if (state is! SessionInProgress) return;
 
     final currentState = state as SessionInProgress;
-    final exercises = List<SessionExercise>.from(currentState.session.exercises);
-    
+    final exercises = List<SessionExercise>.from(
+      currentState.session.exercises,
+    );
+
     if (event.exerciseIndex < exercises.length) {
       final exercise = exercises[event.exerciseIndex];
       exercises[event.exerciseIndex] = SessionExercise(
@@ -132,8 +124,10 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     if (state is! SessionInProgress) return;
 
     final currentState = state as SessionInProgress;
-    final exercises = List<SessionExercise>.from(currentState.session.exercises);
-    
+    final exercises = List<SessionExercise>.from(
+      currentState.session.exercises,
+    );
+
     if (event.exerciseIndex < exercises.length) {
       final exercise = exercises[event.exerciseIndex];
       exercises[event.exerciseIndex] = SessionExercise(
@@ -167,8 +161,10 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     if (state is! SessionInProgress) return;
 
     final currentState = state as SessionInProgress;
-    final exercises = List<SessionExercise>.from(currentState.session.exercises);
-    
+    final exercises = List<SessionExercise>.from(
+      currentState.session.exercises,
+    );
+
     if (event.exerciseIndex < exercises.length) {
       final exercise = exercises[event.exerciseIndex];
       final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -220,15 +216,17 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     if (state is! SessionInProgress) return;
 
     final currentState = state as SessionInProgress;
-    final exercises = List<SessionExercise>.from(currentState.session.exercises);
-    
+    final exercises = List<SessionExercise>.from(
+      currentState.session.exercises,
+    );
+
     if (event.exerciseIndex < exercises.length) {
       final exercise = exercises[event.exerciseIndex];
       final updatedSets = List<ExerciseSet>.from(exercise.sets);
-      
+
       if (event.setIndex < updatedSets.length) {
         updatedSets.removeAt(event.setIndex);
-        
+
         exercises[event.exerciseIndex] = SessionExercise(
           id: exercise.id,
           name: exercise.name,
@@ -249,7 +247,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
           updatedAt: DateTime.now(),
         );
 
-      emit(SessionInProgress(session: updatedSession));
+        emit(SessionInProgress(session: updatedSession));
       }
     }
   }
@@ -261,12 +259,14 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     if (state is! SessionInProgress) return;
 
     final currentState = state as SessionInProgress;
-    final exercises = List<SessionExercise>.from(currentState.session.exercises);
-    
+    final exercises = List<SessionExercise>.from(
+      currentState.session.exercises,
+    );
+
     if (event.exerciseIndex < exercises.length) {
       final exercise = exercises[event.exerciseIndex];
       final sets = List<ExerciseSet>.from(exercise.sets);
-      
+
       if (event.setIndex < sets.length) {
         final set = sets[event.setIndex];
         final segmentOrder = set.segments.length;
@@ -306,7 +306,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
           updatedAt: DateTime.now(),
         );
 
-      emit(SessionInProgress(session: updatedSession));
+        emit(SessionInProgress(session: updatedSession));
       }
     }
   }
@@ -318,20 +318,22 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     if (state is! SessionInProgress) return;
 
     final currentState = state as SessionInProgress;
-    final exercises = List<SessionExercise>.from(currentState.session.exercises);
-    
+    final exercises = List<SessionExercise>.from(
+      currentState.session.exercises,
+    );
+
     if (event.exerciseIndex < exercises.length) {
       final exercise = exercises[event.exerciseIndex];
       final sets = List<ExerciseSet>.from(exercise.sets);
-      
+
       if (event.setIndex < sets.length) {
         final set = sets[event.setIndex];
-        
+
         // Don't allow removing if it's the only segment
         if (set.segments.length > 1) {
           final updatedSegments = List<SetSegment>.from(set.segments);
           updatedSegments.removeAt(event.segmentIndex);
-          
+
           sets[event.setIndex] = ExerciseSet(
             id: set.id,
             segments: updatedSegments,
@@ -358,7 +360,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
             updatedAt: DateTime.now(),
           );
 
-      emit(SessionInProgress(session: updatedSession));
+          emit(SessionInProgress(session: updatedSession));
         }
       }
     }
@@ -383,7 +385,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       updatedAt: DateTime.now(),
     );
 
-      emit(SessionInProgress(session: updatedSession));
+    emit(SessionInProgress(session: updatedSession));
   }
 
   Future<void> _onSessionSaved(
@@ -401,7 +403,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         userId: session.userId,
         workout: session,
       );
-        
+
       emit(SessionSaved(session: savedSession));
     } catch (e) {
       emit(SessionError(message: 'Failed to save session: $e'));

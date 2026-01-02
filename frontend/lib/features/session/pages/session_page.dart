@@ -94,8 +94,8 @@ class _SessionPageState extends State<SessionPage> {
             if (state is SessionSaved) {
               AppDialogs.showSuccessDialog(
                 context: context,
-                title: 'Berhasil',
-                message: 'Workout berhasil disimpan.',
+                title: 'Success',
+                message: 'Workout saved successfully.',
                 onConfirm: () {
                   if (mounted) {
                     // Pop the dialog first
@@ -795,7 +795,7 @@ class _SessionPageState extends State<SessionPage> {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 AppDialogs.showErrorDialog(
                   context: context,
-                  title: 'Terjadi Kesalahan',
+                  title: 'Error Occurred',
                   message: state.message,
                 );
               });

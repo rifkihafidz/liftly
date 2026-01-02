@@ -104,10 +104,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     const userId = '1'; // Default local user ID
     final workoutId = _editedWorkout['id'].toString();
     
-    print('[EDIT DEBUG] _saveChanges called for workoutId: $workoutId');
-    print('[EDIT DEBUG] Current startedAt in _editedWorkout: ${_editedWorkout['startedAt']}');
-    print('[EDIT DEBUG] Current endedAt in _editedWorkout: ${_editedWorkout['endedAt']}');
-
     String? formatDate(dynamic dateValue) {
       if (dateValue == null) return null;
       final dt = dateValue is DateTime 
@@ -156,8 +152,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
       'startedAt': formatDateTime(_editedWorkout['startedAt'], workoutDateStr),
       'endedAt': formatDateTime(_editedWorkout['endedAt'], workoutDateStr),
     };
-    
-    print('[EDIT DEBUG] Formatted workoutDataToSave - startedAt: ${workoutDataToSave['startedAt']}, endedAt: ${workoutDataToSave['endedAt']}');
     
     final exercisesToSave = <Map<String, dynamic>>[];
     final originalExercises = (_editedWorkout['exercises'] as List<dynamic>?) ?? [];
@@ -212,12 +206,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     
     workoutDataToSave['exercises'] = exercisesToSave;
 
-    print('[EDIT DEBUG] About to call WorkoutUpdated event with:');
-    print('[EDIT DEBUG]   workoutId: $workoutId');
-    print('[EDIT DEBUG]   startedAt: ${workoutDataToSave['startedAt']}');
-    print('[EDIT DEBUG]   endedAt: ${workoutDataToSave['endedAt']}');
-    print('[EDIT DEBUG]   exercises count: ${exercisesToSave.length}');
-
     context.read<WorkoutBloc>().add(
 
       WorkoutUpdated(
@@ -226,8 +214,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
         workoutData: workoutDataToSave,
       ),
     );
-    
-    print('[EDIT DEBUG] WorkoutUpdated event sent to WorkoutBloc');
   }
 
   @override
@@ -256,8 +242,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
           if (state is WorkoutUpdatedSuccess) {
             AppDialogs.showSuccessDialog(
               context: context,
-              title: 'Berhasil',
-              message: 'Workout berhasil diupdate.',
+              title: 'Success',
+              message: 'Workout updated successfully.',
               onConfirm: () {
                 // Dialog sudah di-close oleh button di AppDialogs
                 // Tinggal pop edit page kembali ke detail
@@ -267,7 +253,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
           } else if (state is WorkoutError) {
             AppDialogs.showErrorDialog(
               context: context,
-              title: 'Terjadi Kesalahan',
+              title: 'Error Occurred',
               message: state.message,
             );
           }

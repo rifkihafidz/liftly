@@ -473,7 +473,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                       AppDialogs.showErrorDialog(
                         context: context,
                         title: 'Exercises Required',
-                        message: 'Pilih plan atau tambahkan exercises terlebih dahulu.',
+                        message: 'Select a plan or add exercises first.',
                       );
                       return;
                     }

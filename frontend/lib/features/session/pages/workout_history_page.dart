@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
+import '../../../shared/widgets/shimmer_widgets.dart';
 import '../../workout_log/bloc/workout_bloc.dart';
 import '../../workout_log/bloc/workout_event.dart';
 import '../../workout_log/bloc/workout_state.dart';
@@ -41,7 +42,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
       body: BlocBuilder<WorkoutBloc, WorkoutState>(
         builder: (context, state) {
           if (state is WorkoutLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const WorkoutListShimmer();
           }
 
           if (state is WorkoutError) {

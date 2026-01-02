@@ -45,14 +45,14 @@ class _PlansPageState extends State<PlansPage> {
           if (state is PlanError) {
             AppDialogs.showErrorDialog(
               context: context,
-              title: 'Terjadi Kesalahan',
+              title: 'Error Occurred',
               message: state.message,
             );
           }
           if (state is PlanSuccess) {
             AppDialogs.showSuccessDialog(
               context: context,
-              title: 'Berhasil',
+              title: 'Success',
               message: state.message,
             );
           }

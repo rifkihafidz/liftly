@@ -20,10 +20,6 @@ class WorkoutRepository {
   }) async {
     try {
       final workouts = await _localDataSource.getWorkouts(userId);
-      print('[REPO] getWorkouts: userId=$userId, found ${workouts.length} workouts');
-      for (var w in workouts) {
-        print('[REPO]   - Workout: id=${w.id}, date=${w.workoutDate}, exercises=${w.exercises.length}');
-      }
       return workouts;
     } catch (e) {
       rethrow;

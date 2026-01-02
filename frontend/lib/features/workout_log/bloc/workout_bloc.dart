@@ -134,7 +134,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
                 segments.add(
                   SetSegment(
                     id: (segMap['id'] as String?) ??
-                        '${timestamp}_ex${exIndex}_s${setIndex}_seg${segIndex}',
+                        '${timestamp}_ex${exIndex}_s${setIndex}_seg$segIndex',
                     weight: (segMap['weight'] as num?)?.toDouble() ?? 0.0,
                     repsFrom: segMap['repsFrom'] as int? ?? 0,
                     repsTo: segMap['repsTo'] as int? ?? 0,
@@ -148,7 +148,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
             sets.add(
               ExerciseSet(
                 id: (setMap['id'] as String?) ??
-                    '${timestamp}_ex${exIndex}_s${setIndex}',
+                    '${timestamp}_ex${exIndex}_s$setIndex',
                 setNumber: setMap['setNumber'] as int? ?? 0,
                 segments: segments,
               ),
@@ -159,7 +159,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
         exercises.add(
           SessionExercise(
             id: (exMap['id'] as String?) ??
-                '${timestamp}_ex${exIndex}',
+                '${timestamp}_ex$exIndex',
             name: exMap['name'] as String? ?? '',
             order: exMap['order'] as int? ?? 0,
             sets: sets,
@@ -205,7 +205,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
     
     return WorkoutSession(
       id: (data['id'] as String?) ??
-          '${workoutDate.millisecondsSinceEpoch}_${now.millisecondsSinceEpoch}_${_workoutIdCounter}',
+          '${workoutDate.millisecondsSinceEpoch}_${now.millisecondsSinceEpoch}_$_workoutIdCounter',
       userId: userId,
       planId: data['planId'] as String?,
       workoutDate: workoutDate,

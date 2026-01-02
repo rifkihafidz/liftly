@@ -4,6 +4,7 @@ import '../../session/pages/start_workout_page.dart';
 import '../../session/pages/workout_history_page.dart';
 import '../../plans/pages/plans_page.dart';
 import '../../stats/pages/stats_page.dart';
+import '../../settings/pages/settings_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -16,9 +17,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Liftly'),
-      ),
+      appBar: AppBar(title: const Text('Liftly')),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -92,6 +91,21 @@ class _HomePageState extends State<HomePage> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const StatsPage(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                // Settings Card
+                _MenuCard(
+                  title: 'Settings',
+                  subtitle: 'Manage data and preferences',
+                  icon: Icons.settings,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SettingsPage(),
                       ),
                     );
                   },

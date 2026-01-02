@@ -143,8 +143,8 @@ class AppDialogs {
     required BuildContext context,
     required String title,
     required String message,
-    String confirmText = 'Hapus',
-    String cancelText = 'Batal',
+    String confirmText = 'Delete',
+    String cancelText = 'Cancel',
     bool isDangerous = false,
   }) async {
     return showDialog<bool?>(
