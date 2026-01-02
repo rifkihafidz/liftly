@@ -1,4 +1,4 @@
-package com.example.liftly
+package com.pearce.liftly
 
 import io.flutter.embedding.android.FlutterActivity
 

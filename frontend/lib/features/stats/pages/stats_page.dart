@@ -23,14 +23,12 @@ class _StatsPageState extends State<StatsPage> {
   late List<WorkoutSession> _sessions;
   late TimePeriod _selectedPeriod;
   late ScrollController _scrollController;
-  bool _showStickySelectorBar = false;
   bool _isLoading = true;
   bool _isContentLoading = false;
   String? _errorMessage;
   late int _userId;
   int _prCurrentPage = 0; // Pagination for personal records
   Set<String> _prSelectedExercises = {}; // Filter exercises to show
-  late ScreenshotController _screenshotController;
   late ScreenshotController _sharePreviewController;
 
   // For period selection
@@ -43,8 +41,6 @@ class _StatsPageState extends State<StatsPage> {
     _selectedPeriod = TimePeriod.week;
     _referenceDate = DateTime.now();
     _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
-    _screenshotController = ScreenshotController();
     _sharePreviewController = ScreenshotController();
 
     // Default local user ID
@@ -54,7 +50,6 @@ class _StatsPageState extends State<StatsPage> {
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
   }
@@ -155,7 +150,7 @@ class _StatsPageState extends State<StatsPage> {
   }
 
   /// Change date and load data atomically to avoid empty state flash
-  Future<void> _changeDate(DateTime newDate) async {
+  void _changeDate(DateTime newDate) async {
     setState(() {
       _referenceDate = newDate;
       _isContentLoading = true;
@@ -196,13 +191,6 @@ class _StatsPageState extends State<StatsPage> {
         _isContentLoading = false;
       });
     }
-  }
-
-  void _onScroll() {
-    // Show sticky selector when scrolled past the original selector
-    setState(() {
-      _showStickySelectorBar = _scrollController.offset > 100;
-    });
   }
 
   // Helper function to format numbers with thousand separators
@@ -460,18 +448,20 @@ class _StatsPageState extends State<StatsPage> {
       ),
       body: Stack(
         children: [
-          SafeArea(
-            bottom: false,
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              child: Screenshot(
-                controller: _screenshotController,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ===== TIME PERIOD SELECTOR =====
-                    _TimePeriodSelector(
+          CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              // Sticky Header for Time Period
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _StickySelectorDelegate(
+                  child: Container(
+                    color: AppColors.darkBg,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: _TimePeriodSelector(
                       selectedPeriod: _selectedPeriod,
                       referenceDate: _referenceDate,
                       onPeriodChanged: (period) {
@@ -481,50 +471,37 @@ class _StatsPageState extends State<StatsPage> {
                         _changeDate(date);
                       },
                     ),
-                    if (_isContentLoading)
-                      const StatsContentShimmer() // I need to create this in stats_shimmer.dart first?
-                    // Or I can just manually put the widgets there.
-                    else ...[
-                      _buildOverview(context, filteredSessions),
-                      _buildDynamicContent(context, filteredSessions),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          if (_showStickySelectorBar)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                bottom: false,
-                child: Container(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  padding: const EdgeInsets.all(16),
-                  child: _TimePeriodSelector(
-                    selectedPeriod: _selectedPeriod,
-                    referenceDate: _referenceDate,
-                    onPeriodChanged: (period) {
-                      _changePeriod(period);
-                    },
-                    onDateChanged: (date) {
-                      _changeDate(date);
-                    },
                   ),
                 ),
               ),
-            ),
+
+              // Main Content
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    if (_isContentLoading)
+                      const StatsContentShimmer()
+                    else ...[
+                      _buildOverview(context, filteredSessions),
+                      _buildDynamicContent(context, filteredSessions),
+                      const SizedBox(
+                        height: 100,
+                      ), // Padding to avoid footer overlap
+                    ],
+                  ]),
+                ),
+              ),
+            ],
+          ),
+
           // Offscreen share preview widget for capture
           Positioned(
             left: -2000,
             top: 0,
             child: SizedBox(
-              width: 600, // Wider to fit all content with footer
-              height:
-                  1067, // 600 * 16/9 for perfect 9:16 aspect ratio with footer space
+              width: 720,
+              height: 1280,
               child: Screenshot(
                 controller: _sharePreviewController,
                 child: _StatsSharePreview(
@@ -920,119 +897,285 @@ class _StatsSharePreview extends StatelessWidget {
     final filteredSessions = sessions;
 
     return Container(
-      color: AppColors.cardBg,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        physics: const NeverScrollableScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Center(
-              child: Text(
-                'My Workout Stats',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+      width: 720,
+      height: 1280,
+      decoration: BoxDecoration(color: const Color(0xFF0B0F14)),
+      child: Center(
+        child: Container(
+          width: 640,
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+          decoration: BoxDecoration(
+            color: const Color(0xFF141A21),
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.05),
+              width: 1,
             ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                selectedPeriod.label,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.accent,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Overview - Same as app
-            Text(
-              'Overview',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 14),
-            GridView.count(
-              crossAxisCount: 3,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _StatBox(
-                  label: 'Workouts',
-                  value: filteredSessions.length.toString(),
-                  icon: Icons.fitness_center,
-                  color: AppColors.accent,
-                ),
-                _StatBox(
-                  label: 'Volume',
-                  value:
-                      '${_formatNumber(_calculateTotalVolume(filteredSessions))} kg',
-                  icon: Icons.scale,
-                  color: AppColors.success,
-                ),
-                _StatBox(
-                  label: 'Avg Time',
-                  value: _calculateAverageDuration(filteredSessions),
-                  icon: Icons.schedule,
-                  color: AppColors.warning,
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Trends - Same as app
-            if (filteredSessions.isNotEmpty) ...[
-              Text(
-                'Trends',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 14),
-              _VolumeChartCard(sessions: filteredSessions),
-              const SizedBox(height: 20),
-              _WorkoutFrequencyCard(
-                sessions: filteredSessions,
-                timePeriod: selectedPeriod,
-                referenceDate: referenceDate,
-              ),
-            ] else ...[
-              Text(
-                'Trends',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 14),
-              _EmptyStateCard(
-                icon: Icons.show_chart,
-                title: 'No Data Available',
-                message:
-                    'No workouts recorded in this period.\nStart logging your workouts to see trends.',
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 40,
+                offset: const Offset(0, 20),
               ),
             ],
-
-            const SizedBox(height: 20),
-            Center(
-              child: Text(
-                '✨ Built with Liftly ✨',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontStyle: FontStyle.italic,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ===== HEADER / BRANDING =====
+              Center(
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.fitness_center,
+                        color: AppColors.accent,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'LIFTLY',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 3,
+                            fontSize: 18,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Text(
+                        _getPeriodRange(
+                          selectedPeriod,
+                          referenceDate,
+                        ).toUpperCase(),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.accent,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.0,
+                          fontSize: 9,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ===== OVERVIEW SECTION =====
+              _buildSectionTitle(context, 'OVERVIEW'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _buildMiniStat(
+                    context,
+                    'WORKOUTS',
+                    filteredSessions.length.toString(),
+                    Icons.bolt,
+                    AppColors.accent,
+                  ),
+                  const SizedBox(width: 6),
+                  _buildMiniStat(
+                    context,
+                    'VOLUME',
+                    '${_formatNumber(_calculateTotalVolume(filteredSessions))}kg',
+                    Icons.fitness_center,
+                    AppColors.success,
+                  ),
+                  const SizedBox(width: 6),
+                  _buildMiniStat(
+                    context,
+                    'AVG TIME',
+                    _calculateAverageDuration(filteredSessions),
+                    Icons.timer,
+                    AppColors.warning,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              // ===== TRENDS SECTION =====
+              _buildSectionTitle(context, 'ACTIVITY TRENDS'),
+              const SizedBox(height: 8),
+              if (filteredSessions.isNotEmpty) ...[
+                _VolumeChartCard(sessions: filteredSessions, isCompact: true),
+                const SizedBox(height: 10),
+                _WorkoutFrequencyCard(
+                  sessions: filteredSessions,
+                  timePeriod: selectedPeriod,
+                  referenceDate: referenceDate,
+                  isCompact: true,
+                ),
+              ] else ...[
+                _EmptyStateCard(
+                  icon: Icons.show_chart,
+                  title: 'No Data',
+                  message: 'Log workouts to see your growth.',
+                ),
+              ],
+
+              const SizedBox(height: 24),
+              Divider(color: Colors.white.withValues(alpha: 0.05)),
+              const SizedBox(height: 16),
+              Center(
+                child: Column(
+                  children: [
+                    Text(
+                      'Track your progress with Liftly',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'liftly.app',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.accent.withValues(alpha: 0.7),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+        color: AppColors.textSecondary,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 2,
+        fontSize: 9,
+      ),
+    );
+  }
+
+  Widget _buildMiniStat(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: AppColors.textSecondary,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _getPeriodRange(TimePeriod period, DateTime ref) {
+    switch (period) {
+      case TimePeriod.week:
+        final weekStart = ref.subtract(Duration(days: ref.weekday - 1));
+        final weekEnd = weekStart.add(const Duration(days: 6));
+        return '${_formatDate(weekStart)} - ${_formatDate(weekEnd)}';
+      case TimePeriod.month:
+        return '${_monthName(ref.month)} ${ref.year}';
+      case TimePeriod.year:
+        return '${ref.year}';
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final dayStr = date.day.toString().padLeft(2, '0');
+    return '$dayStr ${months[date.month - 1]}';
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return months[month - 1];
   }
 }
 
@@ -1041,8 +1184,9 @@ class _StatsSharePreview extends StatelessWidget {
 /// Volume Trend Chart Card
 class _VolumeChartCard extends StatelessWidget {
   final List<WorkoutSession> sessions;
+  final bool isCompact;
 
-  const _VolumeChartCard({required this.sessions});
+  const _VolumeChartCard({required this.sessions, this.isCompact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1081,14 +1225,36 @@ class _VolumeChartCard extends StatelessWidget {
       return volume;
     }).toList();
 
-    final maxVolume = volumeData.isEmpty
+    final rawMax = volumeData.isEmpty
         ? 100.0
         : volumeData.reduce((a, b) => a > b ? a : b);
 
-    List<FlSpot> spots = [];
-    for (int i = 0; i < volumeData.length; i++) {
-      spots.add(FlSpot(i.toDouble(), volumeData[i]));
+    // Calculate a nice interval and max Y to prevent clashing labels and provide breathing room
+    double chartInterval = 100;
+    if (rawMax <= 0) {
+      chartInterval = 100;
+    } else {
+      double targetInterval = rawMax / 3;
+      if (targetInterval <= 10) {
+        chartInterval = 10;
+      } else if (targetInterval <= 25) {
+        chartInterval = 25;
+      } else if (targetInterval <= 50) {
+        chartInterval = 50;
+      } else if (targetInterval <= 100) {
+        chartInterval = 100;
+      } else if (targetInterval <= 250) {
+        chartInterval = 250;
+      } else if (targetInterval <= 500) {
+        chartInterval = 500;
+      } else {
+        chartInterval = (targetInterval / 100).ceil() * 100.0;
+      }
     }
+
+    // Set finalMaxY to a round multiple of the interval with at least 20% room at the top
+    double finalMaxY = ((rawMax * 1.2) / chartInterval).ceil() * chartInterval;
+    if (finalMaxY <= 0) finalMaxY = chartInterval;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1119,15 +1285,13 @@ class _VolumeChartCard extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           SizedBox(
-            height: 220,
+            height: isCompact ? 180 : 250,
             child: BarChart(
               BarChartData(
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  horizontalInterval: maxVolume > 0
-                      ? (maxVolume / 4).ceilToDouble()
-                      : 100,
+                  horizontalInterval: chartInterval,
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
                       color: AppColors.success.withValues(alpha: 0.08),
@@ -1155,6 +1319,7 @@ class _VolumeChartCard extends StatelessWidget {
                           return const SizedBox.shrink();
                         }
                         final date = sortedSessions[index].workoutDate;
+                        final dayStr = date.day.toString().padLeft(2, '0');
                         final monthName = [
                           'Jan',
                           'Feb',
@@ -1172,11 +1337,11 @@ class _VolumeChartCard extends StatelessWidget {
                         return Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
-                            '$monthName ${date.day}',
+                            '$dayStr $monthName',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
                                   color: AppColors.textSecondary,
-                                  fontSize: 10,
+                                  fontSize: isCompact ? 8 : 10,
                                 ),
                           ),
                         );
@@ -1187,10 +1352,11 @@ class _VolumeChartCard extends StatelessWidget {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      interval: maxVolume > 0
-                          ? (maxVolume / 3).ceilToDouble()
-                          : 100,
+                      interval: chartInterval,
                       getTitlesWidget: (double value, TitleMeta meta) {
+                        // Skip values higher than finalMaxY to prevent edge labels
+                        if (value > finalMaxY) return const SizedBox.shrink();
+
                         final formatted = value
                             .toInt()
                             .toString()
@@ -1238,12 +1404,12 @@ class _VolumeChartCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                maxY: maxVolume * 1.1,
+                maxY: finalMaxY,
                 alignment: BarChartAlignment.spaceAround,
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1252,6 +1418,7 @@ class _VolumeChartCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
+                  fontSize: isCompact ? 9 : 11,
                 ),
               ),
               Text(
@@ -1259,6 +1426,7 @@ class _VolumeChartCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.success,
                   fontWeight: FontWeight.w500,
+                  fontSize: isCompact ? 9 : 11,
                 ),
               ),
             ],
@@ -1274,16 +1442,32 @@ class _WorkoutFrequencyCard extends StatelessWidget {
   final List<WorkoutSession> sessions;
   final TimePeriod timePeriod;
   final DateTime referenceDate;
+  final bool isCompact;
 
   const _WorkoutFrequencyCard({
     required this.sessions,
     required this.timePeriod,
     required this.referenceDate,
+    this.isCompact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final now = referenceDate;
+    const monthsShort = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
 
     // Determine period range and labels based on timePeriod
     List<int> frequencyData = [];
@@ -1297,8 +1481,13 @@ class _WorkoutFrequencyCard extends StatelessWidget {
         final mondayOfWeek = now.subtract(Duration(days: dayOfWeek - 1));
         final sundayOfWeek = mondayOfWeek.add(const Duration(days: 6));
 
+        final dayStartStr = mondayOfWeek.day.toString().padLeft(2, '0');
+        final monthStartStr = monthsShort[mondayOfWeek.month - 1];
+        final dayEndStr = sundayOfWeek.day.toString().padLeft(2, '0');
+        final monthEndStr = monthsShort[sundayOfWeek.month - 1];
+
         title =
-            'Workout Frequency (${DateFormat('MMM d').format(mondayOfWeek)} - ${DateFormat('MMM d').format(sundayOfWeek)})';
+            'Workout Frequency ($dayStartStr $monthStartStr - $dayEndStr $monthEndStr)';
         frequencyData = List.filled(7, 0);
 
         final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -1393,6 +1582,117 @@ class _WorkoutFrequencyCard extends StatelessWidget {
         break;
     }
 
+    // If weekly, use a consistency tracker instead of a bar chart
+    if (timePeriod == TimePeriod.week) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.accent.withValues(alpha: 0.15),
+              AppColors.accent.withValues(alpha: 0.08),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.accent.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style:
+                  (isCompact
+                          ? Theme.of(context).textTheme.titleSmall
+                          : Theme.of(context).textTheme.titleMedium)
+                      ?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(7, (index) {
+                final isActive =
+                    index < frequencyData.length && frequencyData[index] > 0;
+                return Expanded(
+                  child: Column(
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        height: isCompact ? 32 : 40,
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? AppColors.accent
+                              : AppColors.accent.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isActive
+                                ? AppColors.accent
+                                : AppColors.accent.withValues(alpha: 0.1),
+                          ),
+                          boxShadow: isActive
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.accent.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            isActive
+                                ? Icons.check_circle
+                                : Icons.circle_outlined,
+                            size: isCompact ? 14 : 18,
+                            color: isActive
+                                ? Colors.white
+                                : AppColors.textSecondary.withValues(
+                                    alpha: 0.3,
+                                  ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        index < labels.length ? labels[index] : '',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isActive
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                          fontSize: isCompact ? 8 : 10,
+                          fontWeight: isActive
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final maxFreq =
+        (frequencyData.isEmpty
+                ? 0
+                : frequencyData.reduce((a, b) => a > b ? a : b))
+            .toDouble();
+    final double maxYValue = maxFreq < 3 ? 3 : maxFreq + 1;
+
     List<BarChartGroupData> barGroups = [];
     for (int i = 0; i < frequencyData.length; i++) {
       barGroups.add(
@@ -1406,9 +1706,7 @@ class _WorkoutFrequencyCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               backDrawRodData: BackgroundBarChartRodData(
                 show: true,
-                toY: sessions.length.toDouble() > 0
-                    ? sessions.length.toDouble()
-                    : 3,
+                toY: maxYValue,
                 color: AppColors.accent.withValues(alpha: 0.1),
               ),
             ),
@@ -1439,14 +1737,18 @@ class _WorkoutFrequencyCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.bold,
-            ),
+            style:
+                (isCompact
+                        ? Theme.of(context).textTheme.titleSmall
+                        : Theme.of(context).textTheme.titleLarge)
+                    ?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
           ),
           const SizedBox(height: 20),
           SizedBox(
-            height: 200,
+            height: isCompact ? 160 : 200,
             child: BarChart(
               BarChartData(
                 gridData: FlGridData(
@@ -1515,7 +1817,7 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: barGroups,
-                maxY: (sessions.isNotEmpty ? sessions.length : 3).toDouble(),
+                maxY: maxYValue,
               ),
             ),
           ),
@@ -1774,223 +2076,167 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final ref = widget.referenceDate;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Time Period',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBg.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+          width: 1,
         ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.accent.withValues(alpha: 0.15),
-                AppColors.accent.withValues(alpha: 0.08),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Period Selector (Pills)
+          Container(
+            height: 40,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppColors.darkBg,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                _buildPeriodTab(TimePeriod.week, 'Week'),
+                _buildPeriodTab(TimePeriod.month, 'Month'),
+                _buildPeriodTab(TimePeriod.year, 'Year'),
               ],
             ),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: AppColors.accent.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Left: Value with arrow controls
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    // Back arrow
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: IconButton(
-                        onPressed: _canNavigatePrevious(ref, now)
-                            ? () => _navigatePrevious(ref)
-                            : null,
-                        icon: const Icon(Icons.chevron_left),
-                        color: AppColors.accent,
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                        iconSize: 24,
-                      ),
-                    ),
-                    // Value
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          switch (widget.selectedPeriod) {
-                            case TimePeriod.week:
-                              _showWeekPicker(context);
-                              break;
-                            case TimePeriod.month:
-                              _showMonthPicker(context);
-                              break;
-                            case TimePeriod.year:
-                              _showYearPicker(context);
-                              break;
-                          }
-                        },
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          transitionBuilder:
-                              (Widget child, Animation<double> animation) {
-                                final inAnimation = Tween<Offset>(
-                                  begin: Offset(
-                                    _isForwardAnimation ? 1.0 : -1.0,
-                                    0.0,
-                                  ),
-                                  end: Offset.zero,
-                                ).animate(animation);
-
-                                final outAnimation = Tween<Offset>(
-                                  begin: Offset(
-                                    _isForwardAnimation ? -1.0 : 1.0,
-                                    0.0,
-                                  ),
-                                  end: Offset.zero,
-                                ).animate(animation);
-
-                                if (child.key ==
-                                    ValueKey(_getDisplayValue(ref))) {
-                                  return SlideTransition(
-                                    position: inAnimation,
-                                    child: FadeTransition(
-                                      opacity: animation,
-                                      child: child,
-                                    ),
-                                  );
-                                } else {
-                                  return SlideTransition(
-                                    position: outAnimation,
-                                    child: FadeTransition(
-                                      opacity: animation,
-                                      child: child,
-                                    ),
-                                  );
-                                }
-                              },
-                          child: Text(
-                            _getDisplayValue(ref),
-                            key: ValueKey(_getDisplayValue(ref)),
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
-                                ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Forward arrow
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: IconButton(
-                        onPressed: _canNavigateNext(ref, now)
-                            ? () => _navigateNext(ref, now)
-                            : null,
-                        icon: const Icon(Icons.chevron_right),
-                        color: AppColors.accent,
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                        iconSize: 24,
-                      ),
-                    ),
-                  ],
+          const SizedBox(height: 4),
+          // Date Navigator
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildNavButton(
+                  onPressed: _canNavigatePrevious(ref, now)
+                      ? () => _navigatePrevious(ref)
+                      : null,
+                  icon: Icons.chevron_left,
                 ),
-              ),
-              // Right: Dropdown period
-              Expanded(
-                child: DropdownButton<TimePeriod>(
-                  value: widget.selectedPeriod,
-                  onChanged: (TimePeriod? newValue) {
-                    if (newValue != null) {
-                      widget.onPeriodChanged(newValue);
-                    }
-                  },
-                  dropdownColor: AppColors.cardBg,
-                  elevation: 8,
-                  isExpanded: true,
-                  items: TimePeriod.values.map((TimePeriod period) {
-                    String displayLabel = '';
-                    switch (period) {
-                      case TimePeriod.week:
-                        displayLabel = 'Weekly';
-                        break;
-                      case TimePeriod.month:
-                        displayLabel = 'Monthly';
-                        break;
-                      case TimePeriod.year:
-                        displayLabel = 'Annually';
-                        break;
-                    }
-                    return DropdownMenuItem<TimePeriod>(
-                      value: period,
-                      child: Text(
-                        displayLabel,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                  underline: SizedBox.shrink(),
-                  icon: Icon(
-                    Icons.arrow_drop_down,
-                    color: AppColors.accent,
-                    size: 24,
-                  ),
-                  selectedItemBuilder: (BuildContext context) {
-                    return TimePeriod.values.map((TimePeriod period) {
-                      String displayLabel = '';
-                      switch (period) {
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      switch (widget.selectedPeriod) {
                         case TimePeriod.week:
-                          displayLabel = 'Weekly';
+                          _showWeekPicker(context);
                           break;
                         case TimePeriod.month:
-                          displayLabel = 'Monthly';
+                          _showMonthPicker(context);
                           break;
                         case TimePeriod.year:
-                          displayLabel = 'Annually';
+                          _showYearPicker(context);
                           break;
                       }
-                      return Center(
-                        child: Text(
-                          displayLabel,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: AppColors.accent,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                    },
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                            final offset =
+                                Tween<Offset>(
+                                  begin: Offset(
+                                    _isForwardAnimation ? 0.2 : -0.2,
+                                    0.0,
+                                  ),
+                                  end: Offset.zero,
+                                ).animate(
+                                  CurvedAnimation(
+                                    parent: animation,
+                                    curve: Curves.easeOutCubic,
+                                  ),
+                                );
+
+                            return FadeTransition(
+                              opacity: animation,
+                              child: SlideTransition(
+                                position: offset,
+                                child: child,
                               ),
+                            );
+                          },
+                      child: Text(
+                        _getDisplayValue(ref),
+                        key: ValueKey(
+                          '${widget.selectedPeriod}_${_getDisplayValue(ref)}',
                         ),
-                      );
-                    }).toList();
-                  },
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
                 ),
+                _buildNavButton(
+                  onPressed: _canNavigateNext(ref, now)
+                      ? () => _navigateNext(ref, now)
+                      : null,
+                  icon: Icons.chevron_right,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodTab(TimePeriod period, String label) {
+    final isSelected = widget.selectedPeriod == period;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => widget.onPeriodChanged(period),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.accent : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 12,
               ),
-            ],
+            ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildNavButton({VoidCallback? onPressed, required IconData icon}) {
+    final isEnabled = onPressed != null;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          child: Icon(
+            icon,
+            size: 20,
+            color: isEnabled
+                ? AppColors.accent
+                : AppColors.textTertiary.withValues(alpha: 0.3),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -2570,4 +2816,40 @@ class _EmptyStateCard extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Sticky Header Delegate for the Time Period Selector
+class _StickySelectorDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  _StickySelectorDelegate({required this.child});
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.darkBg.withValues(alpha: overlapsContent ? 0.95 : 1.0),
+        boxShadow: overlapsContent
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      child: SizedBox.expand(child: child),
+    );
+  }
+
+  @override
+  double get maxExtent => 112;
+  @override
+  double get minExtent => 112;
+  @override
+  bool shouldRebuild(covariant _StickySelectorDelegate oldDelegate) => true;
 }
