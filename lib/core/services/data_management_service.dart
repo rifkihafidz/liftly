@@ -28,7 +28,28 @@ class DataManagementService {
       // excel.delete('Sheet1'); // Excel package creates default Sheet1
 
       for (final table in _tables) {
-        final data = await db.query(table);
+        List<Map<String, dynamic>> data;
+
+        // Specialized queries to exclude drafts and their orphans
+        if (table == 'workouts') {
+          data = await db.query(table, where: 'is_draft = 0');
+        } else if (table == 'workout_exercises') {
+          data = await db.rawQuery(
+            'SELECT * FROM workout_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE is_draft = 0)',
+          );
+        } else if (table == 'workout_sets') {
+          data = await db.rawQuery(
+            'SELECT * FROM workout_sets WHERE exercise_id IN (SELECT id FROM workout_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE is_draft = 0))',
+          );
+        } else if (table == 'set_segments') {
+          data = await db.rawQuery(
+            'SELECT * FROM set_segments WHERE set_id IN (SELECT id FROM workout_sets WHERE exercise_id IN (SELECT id FROM workout_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE is_draft = 0)))',
+          );
+        } else {
+          // Default query for tables like 'plans' and 'plan_exercises'
+          data = await db.query(table);
+        }
+
         if (data.isNotEmpty) {
           final sheetObject = excel[table];
 
@@ -147,6 +168,12 @@ class DataManagementService {
                 }
 
                 if (rowMap.isNotEmpty && rowMap.containsKey('id')) {
+                  // Skip draft workouts during import
+                  if (table == 'workouts' &&
+                      (rowMap['is_draft'] == 1 || rowMap['is_draft'] == '1')) {
+                    continue;
+                  }
+
                   await txn.insert(
                     table,
                     rowMap,

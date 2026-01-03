@@ -9,16 +9,31 @@ class StatsPageShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Statistics'), elevation: 0),
-      body: SafeArea(
-        bottom: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Time Period Selector Shimmer
-              Container(
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            centerTitle: false,
+            backgroundColor: AppColors.darkBg,
+            surfaceTintColor: AppColors.darkBg,
+            title: Shimmer.fromColors(
+              baseColor: const Color(0xFF2A2A2A),
+              highlightColor: const Color(0xFF404040),
+              child: Container(
+                width: 150,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Container(
+              color: AppColors.darkBg,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
                   vertical: 12,
@@ -26,8 +41,10 @@ class StatsPageShimmer extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.cardBg,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.borderLight),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.05),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -53,7 +70,7 @@ class StatsPageShimmer extends StatelessWidget {
                               baseColor: const Color(0xFF2A2A2A),
                               highlightColor: const Color(0xFF404040),
                               child: Container(
-                                width: 50,
+                                width: 40,
                                 height: 14,
                                 decoration: BoxDecoration(
                                   color: Colors.white,
@@ -69,7 +86,7 @@ class StatsPageShimmer extends StatelessWidget {
                               baseColor: const Color(0xFF2A2A2A),
                               highlightColor: const Color(0xFF404040),
                               child: Container(
-                                width: 50,
+                                width: 40,
                                 height: 14,
                                 decoration: BoxDecoration(
                                   color: Colors.white,
@@ -122,12 +139,13 @@ class StatsPageShimmer extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // Use separate partial content shimmer
-              const StatsContentShimmer(),
-            ],
+            ),
           ),
-        ),
+          const SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverToBoxAdapter(child: StatsContentShimmer()),
+          ),
+        ],
       ),
     );
   }
@@ -143,8 +161,8 @@ class StatsContentShimmer extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(
-          height: 36,
-        ), // Added spacing here for consistent startup/partial load
+          height: 44,
+        ), // Matches the 44px top gap in the live page's _buildOverview
         // Overview Section Header
         Shimmer.fromColors(
           baseColor: const Color(0xFF2A2A2A),
@@ -158,7 +176,7 @@ class StatsContentShimmer extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
 
         // Overview Grid (3 small boxes) - Matches Aspect Ratio 1.0 roughly
         GridView.count(
@@ -166,6 +184,8 @@ class StatsContentShimmer extends StatelessWidget {
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
           shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          childAspectRatio: 0.85,
           physics: const NeverScrollableScrollPhysics(),
           children: [
             _buildAnalysisBoxShimmer(),
@@ -174,7 +194,7 @@ class StatsContentShimmer extends StatelessWidget {
           ],
         ),
 
-        const SizedBox(height: 32),
+        const SizedBox(height: 44),
 
         // Trends Section
         Shimmer.fromColors(
@@ -189,7 +209,7 @@ class StatsContentShimmer extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
 
         // Volume Chart Card Shimmer (Matches _VolumeChartCard structure)
         Container(
@@ -198,8 +218,8 @@ class StatsContentShimmer extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: AppColors.cardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.borderLight),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           child: Shimmer.fromColors(
             baseColor: const Color(0xFF2A2A2A),
@@ -248,8 +268,8 @@ class StatsContentShimmer extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: AppColors.cardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.borderLight),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           child: Shimmer.fromColors(
             baseColor: const Color(0xFF2A2A2A),
@@ -281,7 +301,7 @@ class StatsContentShimmer extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 32),
+        const SizedBox(height: 44),
 
         // Personal Records Section
         Row(
@@ -313,11 +333,21 @@ class StatsContentShimmer extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        // PR List Items
-        _buildPRCardShimmer(),
-        const SizedBox(height: 12),
-        _buildPRCardShimmer(),
+        const SizedBox(height: 10),
+        // PR Grid Shimmer
+        GridView.builder(
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 1.5,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: 4,
+          itemBuilder: (context, index) => _buildPRCardShimmer(),
+        ),
       ],
     );
   }
@@ -326,8 +356,8 @@ class StatsContentShimmer extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.cardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderLight),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       padding: const EdgeInsets.all(12),
       child: Shimmer.fromColors(
@@ -359,8 +389,8 @@ class StatsContentShimmer extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.cardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderLight),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Shimmer.fromColors(
         baseColor: const Color(0xFF2A2A2A),
@@ -368,13 +398,15 @@ class StatsContentShimmer extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(width: 100, height: 16, color: Colors.white),
-                const SizedBox(height: 4),
-                Container(width: 80, height: 12, color: Colors.white),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(width: 80, height: 16, color: Colors.white),
+                  const SizedBox(height: 4),
+                  Container(width: 60, height: 12, color: Colors.white),
+                ],
+              ),
             ),
             Container(
               width: 60,

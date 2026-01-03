@@ -4,12 +4,17 @@
 
 ## ✨ Features
 
+*   **📋 Workout Plans**: Create, edit, and organize reusable workout routines.
+*   **▶️ Smart Session Queue**: Start workouts from defined plans or queue exercises on the fly.
 *   **📈 Advanced Analytics**: Visualize your progress with interactive charts for workout frequency, volume, and intensity.
 *   **🏆 Personal Records**: Automatically track and highlight your PRs across different exercises.
+*   **📜 Workout History**: Detailed logs of past workouts with filtering and editing capabilities.
+*   **💪 Flexible Sets**: Support for Normal, Warmup, and Drop Sets with easy logging.
+*   **💬 Daily Motivation**: Random motivational quotes to keep you inspired.
 *   **📅 Dynamic Time Periods**: View stats by Week, Month, or Year with a sticky, intuitive date navigator.
 *   **📱 Cross-Platform**: Optimized for Android, iOS, macOS, Windows, and Linux.
-*   **🎨 Premium UI/UX**: Features a dark mode design with glassmorphism effects, smooth animations, and haptic feedback.
-*   **📤 Shareable Stats**: Export your workout summaries directly to Instagram Stories or other social media.
+*   **🎨 Premium UI/UX**: Features a consistent dark mode design, glassmorphism effects, and smooth animations.
+*   **📤 Shareable Stats**: Export your workout summaries as images to social media.
 
 ## 🚀 Getting Started
 
@@ -68,6 +73,3 @@ liftly/
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-*Built with ❤️ by Hafidz*

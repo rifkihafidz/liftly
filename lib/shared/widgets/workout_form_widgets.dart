@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/constants/colors.dart';
@@ -47,178 +48,130 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: AppColors.cardBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(
+          color: AppColors.borderLight.withValues(alpha: 0.5),
+          width: 1,
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.cardBg,
+              AppColors.cardBg.withValues(alpha: 0.95),
+            ],
+          ),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Set Workout Time',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.event_repeat_rounded,
+                    color: AppColors.accent,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Workout Timing',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            // Date Picker
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.inputBg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.borderDark),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Workout Date',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: selectedDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          selectedDate = picked;
-                        });
-                      }
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _formatDate(selectedDate),
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w500),
-                        ),
-                        Icon(
-                          Icons.calendar_today,
-                          size: 20,
-                          color: AppColors.accent,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(height: 24),
+
+            // Date Picker Section
+            _buildPickerSection(
+              context,
+              label: 'Workout Date',
+              value: _formatDate(selectedDate),
+              icon: Icons.calendar_month_rounded,
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: selectedDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2100),
+                );
+                if (picked != null) {
+                  setState(() => selectedDate = picked);
+                }
+              },
             ),
             const SizedBox(height: 16),
-            // Start Time Picker
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.inputBg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.borderDark),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Started At',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
+
+            // Time Row
+            Row(
+              children: [
+                Expanded(
+                  child: _buildPickerSection(
+                    context,
+                    label: 'Started At',
+                    value: startTime.format(context),
+                    icon: Icons.play_circle_outline_rounded,
                     onTap: () async {
                       final picked = await showTimePicker(
                         context: context,
                         initialTime: startTime,
                       );
                       if (picked != null) {
-                        setState(() {
-                          startTime = picked;
-                        });
+                        setState(() => startTime = picked);
                       }
                     },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          startTime.format(context),
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w500),
-                        ),
-                        Icon(
-                          Icons.access_time,
-                          size: 20,
-                          color: AppColors.accent,
-                        ),
-                      ],
-                    ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            // End Time Picker
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.inputBg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.borderDark),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Ended At',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildPickerSection(
+                    context,
+                    label: 'Ended At',
+                    value: endTime.format(context),
+                    icon: Icons.stop_circle_outlined,
                     onTap: () async {
                       final picked = await showTimePicker(
                         context: context,
                         initialTime: endTime,
                       );
                       if (picked != null) {
-                        setState(() {
-                          endTime = picked;
-                        });
+                        setState(() => endTime = picked);
                       }
                     },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          endTime.format(context),
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w500),
-                        ),
-                        Icon(
-                          Icons.access_time,
-                          size: 20,
-                          color: AppColors.accent,
-                        ),
-                      ],
-                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
+
             // Action Buttons
             Row(
               children: [
                 Expanded(
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      foregroundColor: AppColors.textSecondary,
+                    ),
                     child: const Text('Cancel'),
                   ),
                 ),
@@ -244,22 +197,76 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                       if (end.isBefore(start)) {
                         AppDialogs.showErrorDialog(
                           context: context,
-                          title: 'Invalid Time',
-                          message: 'End time cannot be before start time.',
+                          title: 'Invalid Timeline',
+                          message:
+                              'Workout end time cannot be earlier than the start time.',
                         );
                         return;
                       }
 
-                      final result = {
+                      Navigator.pop(context, {
                         'workoutDate': selectedDate,
                         'startedAt': start,
                         'endedAt': end,
-                      };
-                      Navigator.pop(context, result);
+                      });
                     },
-                    child: const Text('Save'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 4,
+                      shadowColor: AppColors.accent.withValues(alpha: 0.3),
+                    ),
+                    child: const Text('Confirm'),
                   ),
                 ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPickerSection(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.inputBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderDark, width: 1.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    value,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(icon, size: 20, color: AppColors.accent),
               ],
             ),
           ],
@@ -273,11 +280,13 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
 class WeightField extends StatefulWidget {
   final String initialValue;
   final Function(String) onChanged;
+  final bool autofocus;
 
   const WeightField({
     super.key,
     required this.initialValue,
     required this.onChanged,
+    this.autofocus = false,
   });
 
   @override
@@ -286,16 +295,34 @@ class WeightField extends StatefulWidget {
 
 class _WeightFieldState extends State<WeightField> {
   late TextEditingController controller;
+  final FocusNode focusNode = FocusNode();
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     controller = TextEditingController(text: widget.initialValue);
+    focusNode.addListener(() {
+      if (focusNode.hasFocus) {
+        controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: controller.text.length,
+        );
+      }
+    });
+
+    if (widget.autofocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        focusNode.requestFocus();
+      });
+    }
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     controller.dispose();
+    focusNode.dispose();
     super.dispose();
   }
 
@@ -303,7 +330,9 @@ class _WeightFieldState extends State<WeightField> {
   void didUpdateWidget(covariant WeightField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialValue != controller.text) {
-      controller.text = widget.initialValue;
+      if (!focusNode.hasFocus) {
+        controller.text = widget.initialValue;
+      }
     }
   }
 
@@ -321,12 +350,23 @@ class _WeightFieldState extends State<WeightField> {
         const SizedBox(height: 4),
         TextField(
           controller: controller,
+          focusNode: focusNode,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
             LengthLimitingTextInputFormatter(6),
           ],
-          onChanged: widget.onChanged,
+          onChanged: (v) {
+            if (_debounce?.isActive ?? false) _debounce!.cancel();
+            _debounce = Timer(const Duration(milliseconds: 500), () {
+              // Allow empty or single dot while typing
+              if (v.isEmpty || v == '.') {
+                widget.onChanged('0');
+              } else {
+                widget.onChanged(v);
+              }
+            });
+          },
           decoration: InputDecoration(
             hintText: '50',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
@@ -346,12 +386,14 @@ class NumberField extends StatefulWidget {
   final String label;
   final String initialValue;
   final Function(String) onChanged;
+  final bool autofocus;
 
   const NumberField({
     super.key,
     required this.label,
     required this.initialValue,
     required this.onChanged,
+    this.autofocus = false,
   });
 
   @override
@@ -360,16 +402,34 @@ class NumberField extends StatefulWidget {
 
 class _NumberFieldState extends State<NumberField> {
   late TextEditingController controller;
+  final FocusNode focusNode = FocusNode();
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     controller = TextEditingController(text: widget.initialValue);
+    focusNode.addListener(() {
+      if (focusNode.hasFocus) {
+        controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: controller.text.length,
+        );
+      }
+    });
+
+    if (widget.autofocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        focusNode.requestFocus();
+      });
+    }
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     controller.dispose();
+    focusNode.dispose();
     super.dispose();
   }
 
@@ -377,7 +437,9 @@ class _NumberFieldState extends State<NumberField> {
   void didUpdateWidget(covariant NumberField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialValue != controller.text) {
-      controller.text = widget.initialValue;
+      if (!focusNode.hasFocus) {
+        controller.text = widget.initialValue;
+      }
     }
   }
 
@@ -395,12 +457,18 @@ class _NumberFieldState extends State<NumberField> {
         const SizedBox(height: 4),
         TextField(
           controller: controller,
+          focusNode: focusNode,
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
             LengthLimitingTextInputFormatter(2),
           ],
-          onChanged: widget.onChanged,
+          onChanged: (v) {
+            if (_debounce?.isActive ?? false) _debounce!.cancel();
+            _debounce = Timer(const Duration(milliseconds: 500), () {
+              widget.onChanged(v.isEmpty ? '0' : v);
+            });
+          },
           decoration: InputDecoration(
             hintText: widget.label == 'From' ? '6' : '8',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
@@ -434,16 +502,28 @@ class ToField extends StatefulWidget {
 
 class _ToFieldState extends State<ToField> {
   late TextEditingController controller;
+  final FocusNode focusNode = FocusNode();
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     controller = TextEditingController(text: widget.initialValue);
+    focusNode.addListener(() {
+      if (focusNode.hasFocus) {
+        controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: controller.text.length,
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     controller.dispose();
+    focusNode.dispose();
     super.dispose();
   }
 
@@ -451,7 +531,9 @@ class _ToFieldState extends State<ToField> {
   void didUpdateWidget(covariant ToField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialValue != controller.text) {
-      controller.text = widget.initialValue;
+      if (!focusNode.hasFocus) {
+        controller.text = widget.initialValue;
+      }
     }
   }
 
@@ -482,12 +564,18 @@ class _ToFieldState extends State<ToField> {
         const SizedBox(height: 4),
         TextField(
           controller: controller,
+          focusNode: focusNode,
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
             LengthLimitingTextInputFormatter(2),
           ],
-          onChanged: widget.onChanged,
+          onChanged: (v) {
+            if (_debounce?.isActive ?? false) _debounce!.cancel();
+            _debounce = Timer(const Duration(milliseconds: 500), () {
+              widget.onChanged(v.isEmpty ? '0' : v);
+            });
+          },
           decoration: InputDecoration(
             hintText: '8',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),

@@ -259,7 +259,7 @@ class WorkoutLocalDataSource {
               .map(
                 (seg) => SetSegment(
                   id: seg['id'] as String,
-                  weight: seg['weight'] as double,
+                  weight: (seg['weight'] as num).toDouble(),
                   repsFrom: seg['reps_from'] as int,
                   repsTo: seg['reps_to'] as int,
                   segmentOrder: seg['segment_order'] as int,
@@ -288,6 +288,7 @@ class WorkoutLocalDataSource {
             order: exerciseRow['exercise_order'] as int,
             sets: sets,
             skipped: (exerciseRow['skipped'] as int) == 1,
+            isTemplate: (exerciseRow['is_template'] as int? ?? 0) == 1,
           ),
         );
         _log('DEBUG', 'Added exercise $exerciseId with ${sets.length} sets');
@@ -411,6 +412,7 @@ class WorkoutLocalDataSource {
         'name': exercise.name,
         'exercise_order': exercise.order,
         'skipped': exercise.skipped ? 1 : 0,
+        'is_template': exercise.isTemplate ? 1 : 0,
       }, conflictAlgorithm: ConflictAlgorithm.replace);
 
       // If exercise is skipped and has no sets, preserve existing sets from database
@@ -602,7 +604,7 @@ class WorkoutLocalDataSource {
         SELECT w.id, w.workout_date
         FROM workouts w
         JOIN workout_exercises we ON w.id = we.workout_id
-        WHERE w.user_id = ? AND we.name = ?
+        WHERE w.user_id = ? AND we.name = ? AND w.is_draft = 0
         ORDER BY w.workout_date DESC
         LIMIT 1
       ''',
@@ -691,7 +693,7 @@ class WorkoutLocalDataSource {
         JOIN workout_sets ws ON ss.set_id = ws.id
         JOIN workout_exercises we ON ws.exercise_id = we.id
         JOIN workouts w ON we.workout_id = w.id
-        WHERE w.user_id = ? AND we.name = ?
+        WHERE w.user_id = ? AND we.name = ? AND w.is_draft = 0
         ORDER BY ss.weight DESC, MAX(ss.reps_from, ss.reps_to) DESC
         LIMIT 1
       ''',

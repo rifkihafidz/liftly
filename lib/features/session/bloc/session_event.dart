@@ -23,19 +23,27 @@ class SessionStarted extends SessionEvent {
   List<Object?> get props => [planId, exerciseNames, userId];
 }
 
-class SessionExerciseSkipped extends SessionEvent {
-  final int exerciseIndex;
-
-  const SessionExerciseSkipped({required this.exerciseIndex});
+class SessionCheckDraftRequested extends SessionEvent {
+  final String userId;
+  const SessionCheckDraftRequested({required this.userId});
 
   @override
-  List<Object?> get props => [exerciseIndex];
+  List<Object?> get props => [userId];
 }
 
-class SessionExerciseUnskipped extends SessionEvent {
+class SessionExerciseAdded extends SessionEvent {
+  final String exerciseName;
+
+  const SessionExerciseAdded({required this.exerciseName});
+
+  @override
+  List<Object?> get props => [exerciseName];
+}
+
+class SessionExerciseSkipToggled extends SessionEvent {
   final int exerciseIndex;
 
-  const SessionExerciseUnskipped({required this.exerciseIndex});
+  const SessionExerciseSkipToggled({required this.exerciseIndex});
 
   @override
   List<Object?> get props => [exerciseIndex];
@@ -43,17 +51,19 @@ class SessionExerciseUnskipped extends SessionEvent {
 
 class SessionSetAdded extends SessionEvent {
   final int exerciseIndex;
-  final double weight;
-  final int repsFrom;
-  final int repsTo;
-  final String notes;
+
+  // Optional initial values
+  final double? weight;
+  final int? repsFrom;
+  final int? repsTo;
+  final String? notes;
 
   const SessionSetAdded({
     required this.exerciseIndex,
-    required this.weight,
-    required this.repsFrom,
-    required this.repsTo,
-    this.notes = '',
+    this.weight,
+    this.repsFrom,
+    this.repsTo,
+    this.notes,
   });
 
   @override
@@ -76,26 +86,14 @@ class SessionSetRemoved extends SessionEvent {
 class SessionSegmentAdded extends SessionEvent {
   final int exerciseIndex;
   final int setIndex;
-  final double weight;
-  final int repsFrom;
-  final int repsTo;
 
   const SessionSegmentAdded({
     required this.exerciseIndex,
     required this.setIndex,
-    required this.weight,
-    required this.repsFrom,
-    required this.repsTo,
   });
 
   @override
-  List<Object?> get props => [
-    exerciseIndex,
-    setIndex,
-    weight,
-    repsFrom,
-    repsTo,
-  ];
+  List<Object?> get props => [exerciseIndex, setIndex];
 }
 
 class SessionSegmentRemoved extends SessionEvent {
@@ -111,6 +109,46 @@ class SessionSegmentRemoved extends SessionEvent {
 
   @override
   List<Object?> get props => [exerciseIndex, setIndex, segmentIndex];
+}
+
+class SessionSegmentUpdated extends SessionEvent {
+  final int exerciseIndex;
+  final int setIndex;
+  final int segmentIndex;
+  final String field; // 'weight', 'repsFrom', 'repsTo', 'notes'
+  final dynamic value;
+
+  const SessionSegmentUpdated({
+    required this.exerciseIndex,
+    required this.setIndex,
+    required this.segmentIndex,
+    required this.field,
+    required this.value,
+  });
+
+  @override
+  List<Object?> get props => [
+    exerciseIndex,
+    setIndex,
+    segmentIndex,
+    field,
+    value,
+  ];
+}
+
+class SessionDateTimesUpdated extends SessionEvent {
+  final DateTime? workoutDate;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
+
+  const SessionDateTimesUpdated({
+    this.workoutDate,
+    this.startedAt,
+    this.endedAt,
+  });
+
+  @override
+  List<Object?> get props => [workoutDate, startedAt, endedAt];
 }
 
 class SessionEnded extends SessionEvent {
@@ -150,4 +188,47 @@ class SessionDraftResumed extends SessionEvent {
 
 class SessionSaveDraftRequested extends SessionEvent {
   const SessionSaveDraftRequested();
+}
+
+class SessionExerciseRemoved extends SessionEvent {
+  final int exerciseIndex;
+
+  const SessionExerciseRemoved({required this.exerciseIndex});
+
+  @override
+  List<Object?> get props => [exerciseIndex];
+}
+
+class SessionExerciseNameUpdated extends SessionEvent {
+  final int exerciseIndex;
+  final String newName;
+
+  const SessionExerciseNameUpdated({
+    required this.exerciseIndex,
+    required this.newName,
+  });
+
+  @override
+  List<Object?> get props => [exerciseIndex, newName];
+}
+
+class SessionDiscarded extends SessionEvent {
+  const SessionDiscarded();
+}
+
+class SessionExercisesReordered extends SessionEvent {
+  final int oldIndex;
+  final int newIndex;
+
+  const SessionExercisesReordered({
+    required this.oldIndex,
+    required this.newIndex,
+  });
+
+  @override
+  List<Object?> get props => [oldIndex, newIndex];
+}
+
+class SessionFocusCleared extends SessionEvent {
+  const SessionFocusCleared();
 }

@@ -23,7 +23,7 @@ class SQLiteService {
 
       _database = await openDatabase(
         path,
-        version: 4,
+        version: 5,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
         },
@@ -39,23 +39,36 @@ class SQLiteService {
           if (oldVersion < 4) {
             _log('INIT', 'Adding is_draft column to workouts table');
             try {
-              // Check if column exists first
               final columns = await db.rawQuery('PRAGMA table_info(workouts)');
               final hasIsDraft = columns.any((c) => c['name'] == 'is_draft');
-
               if (!hasIsDraft) {
                 await db.execute(
                   'ALTER TABLE workouts ADD COLUMN is_draft INTEGER DEFAULT 0',
                 );
-              } else {
-                _log(
-                  'INIT',
-                  'Column is_draft already exists, skipping ADD COLUMN',
-                );
               }
             } catch (e) {
               _log('INIT', 'Error migrate is_draft: $e');
-              // Ignore if it's strictly a duplicate column error just in case logic fails
+            }
+          }
+          if (oldVersion < 5) {
+            _log(
+              'INIT',
+              'Adding is_template column to workout_exercises table',
+            );
+            try {
+              final columns = await db.rawQuery(
+                'PRAGMA table_info(workout_exercises)',
+              );
+              final hasIsTemplate = columns.any(
+                (c) => c['name'] == 'is_template',
+              );
+              if (!hasIsTemplate) {
+                await db.execute(
+                  'ALTER TABLE workout_exercises ADD COLUMN is_template INTEGER DEFAULT 0',
+                );
+              }
+            } catch (e) {
+              _log('INIT', 'Error migrate is_template: $e');
             }
           }
         },
@@ -127,6 +140,7 @@ class SQLiteService {
         name TEXT NOT NULL,
         exercise_order INTEGER NOT NULL,
         skipped INTEGER NOT NULL DEFAULT 0,
+        is_template INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (workout_id) REFERENCES workouts(id) ON DELETE CASCADE
       )
     ''');
@@ -159,9 +173,9 @@ class SQLiteService {
   /// Check if SQLite is initialized
   static bool get isInitialized => _isInitialized;
 
-  /// Format DateTime to dd-MM-yyyy HH:mm:ss
+  /// Format DateTime to ISO 8601 for correct database sorting
   static String formatDateTime(DateTime dateTime) {
-    return '${dateTime.day.toString().padLeft(2, '0')}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}';
+    return dateTime.toIso8601String();
   }
 
   /// Parse DateTime from dd-MM-yyyy HH:mm:ss format or ISO 8601 format

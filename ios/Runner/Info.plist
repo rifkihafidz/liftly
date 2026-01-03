@@ -47,5 +47,9 @@
 	<true/>
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Liftly needs access to your photo library to save workout stats images.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Liftly needs access to your photo library to save workout stats images.</string>
 </dict>
 </plist>

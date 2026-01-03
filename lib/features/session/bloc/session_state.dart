@@ -16,19 +16,55 @@ class SessionLoading extends SessionState {
   const SessionLoading();
 }
 
+class SessionDraftCheckSuccess extends SessionState {
+  final WorkoutSession? draft;
+  final int timestamp; // Force unique state
+
+  SessionDraftCheckSuccess({this.draft})
+    : timestamp = DateTime.now().millisecondsSinceEpoch;
+
+  @override
+  List<Object?> get props => [draft, timestamp];
+}
+
 class SessionInProgress extends SessionState {
   final WorkoutSession session;
   final Map<String, SessionExercise> previousSessions;
   final Map<String, SetSegment> exercisePRs;
+  final int? focusedExerciseIndex;
+  final int? focusedSetIndex;
+  final int? focusedSegmentIndex;
+  final int timestamp; // Force unique state for focus resets
 
   const SessionInProgress({
     required this.session,
     this.previousSessions = const {},
     this.exercisePRs = const {},
+    this.focusedExerciseIndex,
+    this.focusedSetIndex,
+    this.focusedSegmentIndex,
+  }) : timestamp = 0;
+
+  const SessionInProgress.withFocus({
+    required this.session,
+    this.previousSessions = const {},
+    this.exercisePRs = const {},
+    this.focusedExerciseIndex,
+    this.focusedSetIndex,
+    this.focusedSegmentIndex,
+    required this.timestamp,
   });
 
   @override
-  List<Object?> get props => [session, previousSessions, exercisePRs];
+  List<Object?> get props => [
+    session,
+    previousSessions,
+    exercisePRs,
+    focusedExerciseIndex,
+    focusedSetIndex,
+    focusedSegmentIndex,
+    timestamp,
+  ];
 }
 
 class SessionSaved extends SessionState {

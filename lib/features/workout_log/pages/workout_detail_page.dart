@@ -4,15 +4,16 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../shared/widgets/app_dialogs.dart';
+
 import '../../session/pages/workout_history_page.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
 import 'workout_edit_page.dart';
+import '../widgets/workout_share_sheet.dart';
 
 class WorkoutDetailPage extends StatefulWidget {
-  final dynamic
-  workout; // Accept both WorkoutSession and Map<String, dynamic> for now
+  final WorkoutSession workout;
   final bool fromSession;
 
   const WorkoutDetailPage({
@@ -26,23 +27,14 @@ class WorkoutDetailPage extends StatefulWidget {
 }
 
 class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
-  late dynamic _currentWorkout;
+  late WorkoutSession _currentWorkout;
   bool _isDeleting = false;
+  static final _thousandSeparator = RegExp(r'\B(?=(\d{3})+(?!\d))');
 
   @override
   void initState() {
     super.initState();
-    // Handle both WorkoutSession and Map types
-    if (widget.workout is WorkoutSession) {
-      final session = widget.workout as WorkoutSession;
-      _currentWorkout = _convertSessionToMap(session);
-
-      // Don't fetch again if coming from session - we already have the data
-      // The data passed to us is the freshly saved workout from the database
-      // No need to call WorkoutsFetched which would cause redundant queries
-    } else {
-      _currentWorkout = widget.workout;
-    }
+    _currentWorkout = widget.workout;
   }
 
   void _handleBack() {
@@ -53,323 +45,29 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
         MaterialPageRoute(builder: (context) => const WorkoutHistoryPage()),
       );
     } else if (Navigator.canPop(context)) {
-      // Normal back from other sources
       Navigator.pop(context);
     }
   }
 
-  Map<String, dynamic> _convertSessionToMap(WorkoutSession session) {
-    return {
-      'id': session.id,
-      'userId': session.userId,
-      'planId': session.planId,
-      'workoutDate': session.workoutDate.toIso8601String(),
-      'startedAt': session.startedAt?.toIso8601String(),
-      'endedAt': session.endedAt?.toIso8601String(),
-      'exercises': session.exercises
-          .map(
-            (ex) => {
-              'id': ex.id,
-              'name': ex.name,
-              'order': ex.order,
-              'skipped': ex.skipped,
-              'sets': ex.sets
-                  .map(
-                    (set) => {
-                      'id': set.id,
-                      'setNumber': set.setNumber,
-                      'segments': set.segments
-                          .map(
-                            (seg) => {
-                              'id': seg.id,
-                              'weight': seg.weight,
-                              'repsFrom': seg.repsFrom,
-                              'repsTo': seg.repsTo,
-                              'segmentOrder': seg.segmentOrder,
-                              'notes': seg.notes,
-                            },
-                          )
-                          .toList(),
-                    },
-                  )
-                  .toList(),
-            },
-          )
-          .toList(),
-      'createdAt': session.createdAt.toIso8601String(),
-      'updatedAt': session.updatedAt.toIso8601String(),
-    };
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final workout = _currentWorkout;
-    final workoutDate = DateTime.parse(workout['workoutDate'] as String);
-    final startedAt = workout['startedAt'] != null
-        ? DateTime.parse(workout['startedAt'] as String)
-        : null;
-    final endedAt = workout['endedAt'] != null
-        ? DateTime.parse(workout['endedAt'] as String)
-        : null;
-
-    Duration? duration;
-    if (startedAt != null && endedAt != null) {
-      duration = endedAt.difference(startedAt);
+  String formatNumber(double number) {
+    String format;
+    if (number % 1 == 0) {
+      format = number.toInt().toString();
+    } else {
+      format = number.toStringAsFixed(1);
     }
 
-    final exercises = (workout['exercises'] as List<dynamic>?) ?? [];
+    // Add thousand separator
+    final parts = format.split('.');
+    final intPart = parts[0];
+    final decimalPart = parts.length > 1 ? parts[1] : '';
 
-    double calculateTotalVolume(List<dynamic> exercises) {
-      double totalVolume = 0;
-      for (final exercise in exercises) {
-        if (exercise['skipped'] == true) continue;
-        final sets = (exercise['sets'] as List<dynamic>?) ?? [];
-        for (final set in sets) {
-          final segments = (set['segments'] as List<dynamic>?) ?? [];
-          for (final segment in segments) {
-            final weight = (segment['weight'] as num?)?.toDouble() ?? 0;
-            final repsFrom = (segment['repsFrom'] as num?)?.toInt() ?? 0;
-            final repsTo = (segment['repsTo'] as num?)?.toInt() ?? 0;
-            final reps = repsTo - repsFrom + 1;
-            totalVolume += weight * reps;
-          }
-        }
-      }
-      return totalVolume;
-    }
-
-    int countNonSkippedExercises(List<dynamic> exercises) {
-      return exercises.where((ex) => ex['skipped'] != true).length;
-    }
-
-    final totalVolume = calculateTotalVolume(exercises);
-
-    String formatNumber(double number) {
-      String format;
-      if (number % 1 == 0) {
-        format = number.toInt().toString();
-      } else {
-        format = number.toStringAsFixed(1);
-      }
-
-      // Add thousand separator
-      final parts = format.split('.');
-      final intPart = parts[0];
-      final decimalPart = parts.length > 1 ? parts[1] : '';
-
-      final formattedInt = intPart.replaceAllMapped(
-        RegExp(r'\B(?=(\d{3})+(?!\d))'),
-        (match) => ',',
-      );
-
-      return decimalPart.isEmpty ? formattedInt : '$formattedInt.$decimalPart';
-    }
-
-    return PopScope(
-      canPop: !widget.fromSession,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        // Handle back button when fromSession is true
-        if (widget.fromSession) {
-          _handleBack();
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Workout Details'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              _handleBack();
-            },
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () async {
-                final updated = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => WorkoutEditPage(workout: _currentWorkout),
-                  ),
-                );
-                if (updated == true && context.mounted) {
-                  // Reload workout data from server
-                  const userId = '1'; // Default local user ID
-                  // Fetch latest workouts to get updated data
-                  context.read<WorkoutBloc>().add(
-                    const WorkoutsFetched(userId: userId),
-                  );
-                }
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () {
-                _showDeleteConfirmation(context);
-              },
-            ),
-          ],
-        ),
-        body: BlocListener<WorkoutBloc, WorkoutState>(
-          listener: (context, state) {
-            // Handle WorkoutsLoaded for both delete and refresh after edit
-            if (state is WorkoutsLoaded) {
-              if (_isDeleting && mounted) {
-                // Successfully deleted - close detail page and let history reload
-                _isDeleting = false; // Reset flag to prevent re-triggering
-
-                // Close loading dialog first
-                Navigator.pop(context);
-                
-                // Pop detail page to go back to history
-                Navigator.pop(context);
-
-                AppDialogs.showSuccessDialog(
-                  context: context,
-                  title: 'Success',
-                  message: 'Workout deleted successfully.',
-                );
-              } else if (!_isDeleting && mounted) {
-                // Refresh after update - find current workout in list and update
-                final workoutId = _currentWorkout['id'].toString();
-                try {
-                  final updatedWorkout = state.workouts.firstWhere((w) {
-                    return w.id == workoutId;
-                  });
-
-                  if (context.mounted) {
-                    setState(() {
-                      // Update current workout with latest data from WorkoutSession
-                      final newData = _convertSessionToMap(updatedWorkout);
-                      _currentWorkout = newData;
-                    });
-                  }
-                } catch (e) {
-                  // Workout not found in list, keep current data
-                }
-              }
-            } else if (state is WorkoutError && mounted) {
-              Navigator.pop(context); // Close loading dialog if still open
-              AppDialogs.showErrorDialog(
-                context: context,
-                title: 'Error Occurred',
-                message: state.message,
-              );
-            }
-          },
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header section
-                Container(
-                  color: AppColors.cardBg,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        DateFormat('EEEE, dd MMMM yyyy').format(workoutDate),
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 18,
-                            color: AppColors.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          if (startedAt != null && endedAt != null)
-                            Text(
-                              '${DateFormat('HH:mm').format(startedAt)} - ${DateFormat('HH:mm').format(endedAt)}',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: AppColors.textSecondary),
-                            )
-                          else
-                            Text(
-                              'Workout time not set yet',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                            ),
-                        ],
-                      ),
-                      if (duration != null) ...[
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.timer,
-                              size: 18,
-                              color: AppColors.accent,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Duration: ${_formatDuration(duration)}',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: AppColors.accent,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(Icons.scale, size: 18, color: AppColors.accent),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Total Volume: ${formatNumber(totalVolume)} kg',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: AppColors.accent,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                // Exercises section
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${countNonSkippedExercises(exercises)} Exercises',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 16),
-                      ...List.generate(exercises.length, (index) {
-                        final exercise =
-                            exercises[index] as Map<String, dynamic>;
-                        return _ExerciseCard(
-                          exercise: exercise,
-                          index: index,
-                          formatNumber: formatNumber,
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    final formattedInt = intPart.replaceAllMapped(
+      _thousandSeparator,
+      (match) => '.',
     );
+
+    return decimalPart.isEmpty ? formattedInt : '$formattedInt.$decimalPart';
   }
 
   String _formatDuration(Duration duration) {
@@ -385,48 +83,274 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
     return '${hours}h ${remainingMinutes}m';
   }
 
-  void _showDeleteConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext ctx) {
-        return AlertDialog(
-          title: const Text('Delete Workout'),
-          content: const Text(
-            'Are you sure you want to delete this workout? This action cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _deleteWorkout(context);
-              },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
+  @override
+  Widget build(BuildContext context) {
+    final workout = _currentWorkout;
+    final workoutDate = workout.workoutDate;
+    final startedAt = workout.startedAt;
+    final endedAt = workout.endedAt;
+
+    Duration? duration;
+    if (startedAt != null && endedAt != null) {
+      duration = endedAt.difference(startedAt);
+    }
+
+    final exercises = workout.exercises;
+    final nonSkippedExercises = exercises.where((ex) => !ex.skipped).length;
+
+    double calculateTotalVolume(List<SessionExercise> exercises) {
+      double totalVolume = 0;
+      for (final exercise in exercises) {
+        if (exercise.skipped) continue;
+        totalVolume += exercise.totalVolume;
+      }
+      return totalVolume;
+    }
+
+    final totalVolume = calculateTotalVolume(exercises);
+
+    return PopScope(
+      canPop: !widget.fromSession,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (widget.fromSession) {
+          _handleBack();
+        }
       },
+      child: Scaffold(
+        backgroundColor: AppColors.darkBg,
+        body: BlocListener<WorkoutBloc, WorkoutState>(
+          listener: (context, state) {
+            if (state is WorkoutsLoaded) {
+              if (_isDeleting && mounted) {
+                _isDeleting = false;
+                Navigator.pop(context); // Close dialog
+                Navigator.pop(context); // Close page
+                AppDialogs.showSuccessDialog(
+                  context: context,
+                  title: 'Success',
+                  message: 'Workout deleted successfully.',
+                );
+              } else if (!_isDeleting && mounted) {
+                final workoutId = _currentWorkout.id.toString();
+                try {
+                  final updatedWorkout = state.workouts.firstWhere((w) {
+                    return w.id == workoutId;
+                  });
+                  if (mounted) {
+                    setState(() {
+                      _currentWorkout = updatedWorkout;
+                    });
+                  }
+                } catch (e) {
+                  // Workout not found in list
+                }
+              }
+            } else if (state is WorkoutError && mounted) {
+              Navigator.pop(context); // Close dialog
+              AppDialogs.showErrorDialog(
+                context: context,
+                title: 'Error Occurred',
+                message: state.message,
+              );
+            }
+          },
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverAppBar(
+                    pinned: true,
+                    centerTitle: false,
+                    backgroundColor: AppColors.darkBg,
+                    surfaceTintColor: AppColors.darkBg,
+                    title: Text(
+                      'Workout Details',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    leading: IconButton(
+                      icon: const Icon(
+                        Icons.arrow_back,
+                        color: AppColors.textPrimary,
+                      ),
+                      onPressed: _handleBack,
+                    ),
+                    actions: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.share_rounded,
+                          color: AppColors.textPrimary,
+                        ),
+                        onPressed: () => _showShareSheet(context),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.edit_rounded,
+                          color: AppColors.textPrimary,
+                        ),
+                        onPressed: () async {
+                          final updated = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  WorkoutEditPage(workout: _currentWorkout),
+                            ),
+                          );
+                          if (updated == true && context.mounted) {
+                            context.read<WorkoutBloc>().add(
+                              const WorkoutsFetched(userId: '1'),
+                            );
+                          }
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.delete_rounded,
+                          color: AppColors.error,
+                        ),
+                        onPressed: () => _showDeleteConfirmation(context),
+                      ),
+                    ],
+                  ),
+                  SliverToBoxAdapter(
+                    child: Container(
+                      margin: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.cardBg,
+                            AppColors.cardBg.withValues(alpha: 0.8),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.05),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            DateFormat(
+                              'EEEE, dd MMMM yyyy',
+                            ).format(workoutDate),
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                  fontSize: 22,
+                                ),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              _DetailStatItem(
+                                icon: Icons.access_time_rounded,
+                                value: (startedAt != null && endedAt != null)
+                                    ? '${DateFormat('HH:mm').format(startedAt)} - ${DateFormat('HH:mm').format(endedAt)}'
+                                    : '-',
+                                label: 'Time',
+                                color: AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 24),
+                              _DetailStatItem(
+                                icon: Icons.timer_rounded,
+                                value: duration != null
+                                    ? _formatDuration(duration)
+                                    : '-',
+                                label: 'Duration',
+                                color: AppColors.accent,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              _DetailStatItem(
+                                icon: Icons.fitness_center_rounded,
+                                value: '$nonSkippedExercises',
+                                label: 'Exercises',
+                                color: const Color(0xFF6366F1),
+                              ),
+                              const SizedBox(width: 24),
+                              _DetailStatItem(
+                                icon: Icons.scale_rounded,
+                                value: formatNumber(totalVolume),
+                                label: 'Total Volume',
+                                color: const Color(0xFF10B981), // Emerald
+                                unit: 'kg',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final exercise = exercises[index];
+                        return _ExerciseCard(
+                          exercise: exercise,
+                          index: index,
+                          formatNumber: formatNumber,
+                        );
+                      }, childCount: exercises.length),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
+  void _showDeleteConfirmation(BuildContext context) {
+    AppDialogs.showConfirmationDialog(
+      context: context,
+      title: 'Delete Workout',
+      message:
+          'Are you sure you want to delete this workout? This action cannot be undone.',
+      confirmText: 'Delete',
+      isDangerous: true,
+    ).then((confirm) {
+      if (confirm == true && context.mounted) {
+        _deleteWorkout(context);
+      }
+    });
+  }
+
   void _deleteWorkout(BuildContext context) {
-    _isDeleting = true; // Set flag
-    const userId = '1'; // Default local user ID
-    final workoutId = _currentWorkout['id'].toString();
+    _isDeleting = true;
+    const userId = '1';
+    final workoutId = _currentWorkout.id.toString();
     final bloc = context.read<WorkoutBloc>();
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        content: const Row(
+        backgroundColor: AppColors.cardBg,
+        content: Row(
           children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Menghapus...'),
+            CircularProgressIndicator(color: AppColors.accent),
+            const SizedBox(width: 16),
+            const Text(
+              'Deleting...',
+              style: TextStyle(color: AppColors.textPrimary),
+            ),
           ],
         ),
       ),
@@ -434,10 +358,87 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
 
     bloc.add(WorkoutDeleted(userId: userId, workoutId: workoutId));
   }
+
+  void _showShareSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => WorkoutShareSheet(workout: _currentWorkout),
+    );
+  }
+}
+
+class _DetailStatItem extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+  final String? unit;
+
+  const _DetailStatItem({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+    this.unit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              if (unit != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: Text(
+                    unit!,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ExerciseCard extends StatefulWidget {
-  final Map<String, dynamic> exercise;
+  final SessionExercise exercise;
   final int index;
   final String Function(double) formatNumber;
 
@@ -456,29 +457,33 @@ class _ExerciseCardState extends State<_ExerciseCard> {
 
   @override
   Widget build(BuildContext context) {
-    final isSkipped = widget.exercise['skipped'] == true;
-    final sets = (widget.exercise['sets'] as List<dynamic>?) ?? [];
+    final isSkipped = widget.exercise.skipped;
+    final sets = widget.exercise.sets;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: AppColors.cardBg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isSkipped ? AppColors.borderDark : AppColors.borderLight,
+          color: isSkipped
+              ? Colors.transparent
+              : Colors.white.withValues(alpha: 0.05),
           width: 1,
         ),
       ),
       child: Column(
         children: [
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _isExpanded = !_isExpanded;
-              });
-            },
+          InkWell(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: BorderRadius.vertical(
+              top: const Radius.circular(20),
+              bottom: _isExpanded && !isSkipped
+                  ? Radius.zero
+                  : const Radius.circular(20),
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -488,18 +493,21 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              '${widget.index + 1}. ${widget.exercise['name']}',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: isSkipped
-                                        ? AppColors.textSecondary
-                                        : AppColors.textPrimary,
-                                    decoration: isSkipped
-                                        ? TextDecoration.lineThrough
-                                        : null,
-                                  ),
+                            Flexible(
+                              child: Text(
+                                '${widget.index + 1}. ${widget.exercise.name}',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: isSkipped
+                                          ? AppColors.textSecondary
+                                          : AppColors.textPrimary,
+                                      decoration: isSkipped
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                      decorationColor: AppColors.textSecondary,
+                                    ),
+                              ),
                             ),
                             if (isSkipped) ...[
                               const SizedBox(width: 8),
@@ -512,32 +520,39 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                                   color: AppColors.textSecondary.withValues(
                                     alpha: 0.2,
                                   ),
-                                  borderRadius: BorderRadius.circular(4),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
                                   'Skipped',
-                                  style: Theme.of(context).textTheme.labelSmall
-                                      ?.copyWith(
-                                        color: AppColors.textSecondary,
-                                      ),
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ],
                           ],
                         ),
-                        const SizedBox(height: 4),
                         if (!isSkipped)
-                          Text(
-                            '${sets.length} sets',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textSecondary),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              '${sets.length} sets',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                       ],
                     ),
                   ),
                   if (!isSkipped)
                     Icon(
-                      _isExpanded ? Icons.expand_less : Icons.expand_more,
+                      _isExpanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
                       color: AppColors.textSecondary,
                     ),
                 ],
@@ -547,193 +562,121 @@ class _ExerciseCardState extends State<_ExerciseCard> {
           if (_isExpanded && !isSkipped)
             Container(
               decoration: BoxDecoration(
-                color: AppColors.inputBg,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(12),
-                  bottomRight: Radius.circular(12),
+                color: Colors.black.withValues(alpha: 0.2),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(20),
                 ),
               ),
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ...List.generate(sets.length, (setIndex) {
-                    final set = sets[setIndex] as Map<String, dynamic>;
-                    final segments = (set['segments'] as List<dynamic>?) ?? [];
+                children: sets.asMap().entries.map((entry) {
+                  final setIndex = entry.key;
+                  final set = entry.value;
+                  final segments = set.segments;
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (setIndex > 0)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Divider(height: 1),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (setIndex > 0)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Divider(
+                            height: 1,
+                            color: Colors.white.withValues(alpha: 0.05),
                           ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  'Set ${set['setNumber']}',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.accent,
-                                      ),
-                                ),
-                                const SizedBox(width: 8),
-                                if (((set['segments'] as List<dynamic>?)
-                                            ?.length ??
-                                        0) >
-                                    1)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accent.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      'Drop Set',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelSmall
-                                          ?.copyWith(
-                                            color: AppColors.accent,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 10,
-                                          ),
-                                    ),
-                                  ),
-                              ],
+                        ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
                             ),
-                            if (segments.isNotEmpty &&
-                                ((segments.first['notes'] as String?) ?? '')
-                                    .isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  'Notes: ${segments.first['notes']}',
-                                  style: Theme.of(context).textTheme.labelSmall
-                                      ?.copyWith(
-                                        color: AppColors.textSecondary,
-                                        fontStyle: FontStyle.italic,
-                                      ),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'SET ${set.setNumber}',
+                              style: const TextStyle(
+                                color: AppColors.accent,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          if (segments.length > 1)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFFF59E0B,
+                                  ).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'DROP SET',
+                                  style: TextStyle(
+                                    color: Color(0xFFF59E0B),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                               ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        ...List.generate(segments.length, (segIndex) {
-                          final segment =
-                              segments[segIndex] as Map<String, dynamic>;
-                          final weight = segment['weight'];
-                          final repsFrom = segment['repsFrom'];
-                          final repsTo = segment['repsTo'];
-                          final isDropset = segments.length > 1;
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                if (isDropset)
-                                  Container(
-                                    width: 24,
-                                    height: 24,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accent.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '${segIndex + 1}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelSmall
-                                            ?.copyWith(
-                                              color: AppColors.accent,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  Container(
-                                    width: 24,
-                                    height: 24,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accent.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.check,
-                                        size: 12,
-                                        color: AppColors.accent,
-                                      ),
-                                    ),
-                                  ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  '${weight}kg × $repsFrom-$repsTo reps',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodySmall
-                                                      ?.copyWith(
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          Text(
-                                            'Vol: ${widget.formatNumber(weight * (repsTo - repsFrom + 1))} kg',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .labelSmall
-                                                ?.copyWith(
-                                                  color:
-                                                      AppColors.textSecondary,
-                                                ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
                             ),
-                          );
-                        }),
-                      ],
-                    );
-                  }),
-                ],
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (segments.isNotEmpty &&
+                          segments.first.notes.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            'Notes: ${segments.first.notes}',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontStyle: FontStyle.italic,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ...segments.map((segment) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${segment.weight}kg × ${segment.repsFrom}-${segment.repsTo}',
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                'Vol: ${widget.formatNumber(segment.weight * (segment.repsTo - segment.repsFrom + 1))}kg',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  );
+                }).toList(),
               ),
             ),
         ],

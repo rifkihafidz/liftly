@@ -23,7 +23,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   @override
   void initState() {
     super.initState();
-    // Load workouts from API
     _loadWorkouts();
   }
 
@@ -32,24 +31,21 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   }
 
   void _showFilterDialog(List<WorkoutSession> allWorkouts) {
-    // Extract unique plan names, defaulting to '-' for nulls
-    // Use Set to ensure uniqueness, remove nulls/empty if desired, but here we explicitly track '-'
     final planNames = allWorkouts
         .map((w) => w.planName ?? '-')
         .toSet()
         .toList();
-    // Sort alphabetically
     planNames.sort();
 
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.cardBg,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return Container(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,7 +56,8 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                   Text(
                     'Filter by Plan',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   if (_selectedPlanName != null)
@@ -71,21 +68,29 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                         });
                         Navigator.pop(context);
                       },
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                      ),
                       child: const Text('Clear Filter'),
                     ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               if (planNames.isEmpty ||
                   (planNames.length == 1 && planNames.first == '-'))
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(child: Text('No plans available to filter.')),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Text(
+                      'No plans available to filter.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
                 )
               else
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 12,
+                  runSpacing: 12,
                   children: planNames.map((name) {
                     final isSelected = _selectedPlanName == name;
                     return FilterChip(
@@ -98,28 +103,32 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                         Navigator.pop(context);
                       },
                       backgroundColor: AppColors.inputBg,
-                      selectedColor: AppColors.accent.withValues(alpha: 0.2),
-                      checkmarkColor: AppColors.accent,
+                      selectedColor: AppColors.accent,
+                      checkmarkColor: Colors.white,
                       labelStyle: TextStyle(
                         color: isSelected
-                            ? AppColors.accent
+                            ? Colors.white
                             : AppColors.textPrimary,
                         fontWeight: isSelected
-                            ? FontWeight.w600
+                            ? FontWeight.bold
                             : FontWeight.normal,
                       ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
                           color: isSelected
                               ? AppColors.accent
-                              : AppColors.borderLight,
+                              : Colors.transparent,
                         ),
                       ),
                     );
                   }).toList(),
                 ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
             ],
           ),
         );
@@ -130,45 +139,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Workout History'),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _sortDescending ? Icons.arrow_downward : Icons.arrow_upward,
-            ),
-            tooltip: _sortDescending ? 'Newest First' : 'Oldest First',
-            onPressed: () {
-              setState(() {
-                _sortDescending = !_sortDescending;
-              });
-            },
-          ),
-          BlocBuilder<WorkoutBloc, WorkoutState>(
-            builder: (context, state) {
-              if (state is WorkoutsLoaded) {
-                return IconButton(
-                  icon: Icon(
-                    _selectedPlanName != null
-                        ? Icons.filter_list_alt
-                        : Icons.filter_list,
-                    color: _selectedPlanName != null ? AppColors.accent : null,
-                  ),
-                  tooltip: 'Filter by Plan',
-                  onPressed: () => _showFilterDialog(state.workouts),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-        ],
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
+      backgroundColor: AppColors.darkBg,
       body: BlocBuilder<WorkoutBloc, WorkoutState>(
         builder: (context, state) {
           if (state is WorkoutLoading) {
@@ -181,27 +152,42 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.error_outline,
+                    Icons.error_outline_rounded,
                     size: 64,
-                    color: Colors.red.withValues(alpha: 0.5),
+                    color: AppColors.error,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   Text(
                     'Error loading workouts',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     state.message,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
                     textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton(
+                  FilledButton(
                     onPressed: _loadWorkouts,
-                    child: const Text('Retry'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.all(16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Retry',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -209,7 +195,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
           }
 
           if (state is WorkoutsLoaded) {
-            // Apply filtering
             var workouts = List<WorkoutSession>.from(state.workouts);
             if (_selectedPlanName != null) {
               workouts = workouts
@@ -217,7 +202,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                   .toList();
             }
 
-            // Apply sorting
             workouts.sort((a, b) {
               if (_sortDescending) {
                 return b.workoutDate.compareTo(a.workoutDate);
@@ -226,158 +210,172 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
               }
             });
 
-            if (workouts.isEmpty) {
-              // If filtering resulted in empty list, show message
-              if (_selectedPlanName != null) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.filter_list_off,
-                        size: 48,
-                        color: AppColors.textSecondary.withValues(alpha: 0.5),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No workouts found for plan',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '"$_selectedPlanName"',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.accent,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _selectedPlanName = null;
-                          });
-                        },
-                        child: const Text('Clear Filter'),
-                      ),
-                    ],
+            return CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverAppBar(
+                  pinned: true,
+                  centerTitle: false,
+                  backgroundColor: AppColors.darkBg,
+                  surfaceTintColor: AppColors.darkBg,
+                  title: Text(
+                    'Workout History',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
                   ),
-                );
-              }
-              return _buildEmptyState(context);
-            }
 
-            // Group workouts by month
-            final groupedWorkouts = <String, List<WorkoutSession>>{};
-            for (final workout in workouts) {
-              final monthYear = DateFormat(
-                'MMMM yyyy',
-              ).format(workout.workoutDate);
-              if (!groupedWorkouts.containsKey(monthYear)) {
-                groupedWorkouts[monthYear] = [];
-              }
-              groupedWorkouts[monthYear]!.add(workout);
-            }
-
-            return SafeArea(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                itemCount: groupedWorkouts.length,
-                itemBuilder: (context, index) {
-                  final monthYear = groupedWorkouts.keys.elementAt(index);
-                  final monthWorkouts = groupedWorkouts[monthYear]!;
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                          horizontal: 4,
-                        ),
-                        child: Text(
-                          monthYear,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.1,
-                              ),
-                        ),
+                  actions: [
+                    IconButton(
+                      icon: Icon(
+                        _sortDescending
+                            ? Icons.arrow_downward_rounded
+                            : Icons.arrow_upward_rounded,
+                        color: AppColors.textPrimary,
                       ),
-                      ...monthWorkouts.map((session) {
-                        return _WorkoutHistoryCard(
-                          session: session,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => WorkoutDetailPage(
-                                  workout: session,
-                                  fromSession: false,
-                                ),
-                              ),
-                            ).then((_) {
-                              _loadWorkouts();
-                            });
-                          },
-                        );
-                      }),
-                    ],
-                  );
-                },
-              ),
+                      tooltip: _sortDescending
+                          ? 'Newest First'
+                          : 'Oldest First',
+                      onPressed: () =>
+                          setState(() => _sortDescending = !_sortDescending),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        _selectedPlanName != null
+                            ? Icons.filter_list_alt
+                            : Icons.filter_list_rounded,
+                        color: _selectedPlanName != null
+                            ? AppColors.accent
+                            : AppColors.textPrimary,
+                      ),
+                      tooltip: 'Filter by Plan',
+                      onPressed: () => _showFilterDialog(state.workouts),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                ),
+                if (workouts.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildEmptyState(context),
+                  )
+                else
+                  _buildWorkoutList(workouts),
+              ],
             );
           }
 
-          return const Center(child: Text('Unknown state'));
+          return const Center(child: CircularProgressIndicator());
         },
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.cardBg,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.accent.withValues(alpha: 0.1),
-                  width: 2,
+  Widget _buildWorkoutList(List<WorkoutSession> workouts) {
+    final groupedWorkouts = <String, List<WorkoutSession>>{};
+    for (final workout in workouts) {
+      final monthYear = DateFormat('MMMM yyyy').format(workout.workoutDate);
+      if (!groupedWorkouts.containsKey(monthYear)) {
+        groupedWorkouts[monthYear] = [];
+      }
+      groupedWorkouts[monthYear]!.add(workout);
+    }
+
+    final sortedMonthKeys = groupedWorkouts.keys.toList();
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final monthYear = sortedMonthKeys[index];
+          final monthWorkouts = groupedWorkouts[monthYear]!;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  monthYear.toUpperCase(),
+                  style: TextStyle(
+                    color: AppColors.accent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    letterSpacing: 1.5,
+                  ),
                 ),
               ),
-              child: Icon(
-                Icons.history_rounded,
-                size: 48,
-                color: AppColors.accent.withValues(alpha: 0.8),
+              ...monthWorkouts.map(
+                (session) => _WorkoutHistoryCard(
+                  session: session,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => WorkoutDetailPage(
+                          workout: session,
+                          fromSession: false,
+                        ),
+                      ),
+                    ).then((_) => _loadWorkouts());
+                  },
+                ),
+              ),
+            ],
+          );
+        }, childCount: sortedMonthKeys.length),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.cardBg,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _selectedPlanName != null
+                  ? Icons.filter_list_off_rounded
+                  : Icons.history_rounded,
+              size: 48,
+              color: AppColors.accent.withValues(alpha: 0.5),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            _selectedPlanName != null ? 'No workouts found' : 'No workouts yet',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _selectedPlanName != null
+                ? 'Try clearing the filter or selecting a different plan.'
+                : 'Complete your first workout to see it here.',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          ),
+          if (_selectedPlanName != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 24),
+              child: TextButton(
+                onPressed: () => setState(() => _selectedPlanName = null),
+                child: const Text('Clear Filter'),
               ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'No workouts yet',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Start logging your workouts to build your history and track your progress.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-                height: 1.5,
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -391,150 +389,105 @@ class _WorkoutHistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final exercises = session.exercises.where((e) => !e.skipped).toList();
-    int setCount = 0;
-    double totalVolume = 0;
-
-    for (final exercise in exercises) {
-      setCount += exercise.sets.length;
-      for (final set in exercise.sets) {
-        for (final segment in set.segments) {
-          totalVolume += segment.volume;
-        }
-      }
-    }
-
+    final totalSets = exercises.fold(0, (sum, e) => sum + e.sets.length);
+    final volume = session.totalVolume;
     final planName = session.planName ?? '-';
 
-    // Format volume (e.g., 1.2k kg)
-    String formattedVolume = '${totalVolume.toInt()} kg';
-    if (totalVolume >= 1000) {
-      formattedVolume = '${(totalVolume / 1000).toStringAsFixed(1)}k kg';
+    String formattedVolume = '${volume.toInt()}';
+    if (volume >= 1000) {
+      formattedVolume = '${(volume / 1000).toStringAsFixed(1)}k';
     }
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.cardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.borderLight, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              offset: const Offset(0, 2),
-              blurRadius: 8,
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: AppColors.cardBg,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              DateFormat(
-                                'EEEE, dd MMMM yyyy',
-                              ).format(session.workoutDate),
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            DateFormat(
+                              'EEEE, d MMM',
+                            ).format(session.workoutDate),
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.access_time_rounded,
-                                  size: 12,
-                                  color: AppColors.textSecondary,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  session.formattedDuration,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            session.formattedDuration,
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
                             ),
-                          ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (planName != '-')
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          planName,
+                          style: TextStyle(
+                            color: AppColors.accent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      if (planName != '-') ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.accent.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.accent.withValues(alpha: 0.2),
-                            ),
-                          ),
-                          constraints: const BoxConstraints(maxWidth: 120),
-                          child: Text(
-                            planName,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: AppColors.accent,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                  ],
                 ),
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: AppColors.textSecondary.withValues(alpha: 0.3),
-                  size: 16,
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _StatBadge(
+                      icon: Icons.fitness_center_rounded,
+                      label: '${exercises.length} Exercises',
+                      color: const Color(0xFF6366F1), // Indigo
+                    ),
+                    const SizedBox(width: 8),
+                    _StatBadge(
+                      icon: Icons.repeat_rounded,
+                      label: '$totalSets Sets',
+                      color: const Color(0xFF10B981), // Emerald
+                    ),
+                    const SizedBox(width: 8),
+                    _StatBadge(
+                      icon: Icons.scale_rounded,
+                      label: '$formattedVolume kg',
+                      color: const Color(0xFFF59E0B), // Amber
+                    ),
+                  ],
                 ),
               ],
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Divider(height: 1),
-            ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _StatBadge(
-                  icon: Icons.list_alt_rounded,
-                  label: '${exercises.length} Exercises',
-                  color: AppColors.accent,
-                ),
-                _StatBadge(
-                  icon: Icons.fitness_center_rounded,
-                  label: '$setCount Sets',
-                  color: AppColors.success,
-                ),
-                _StatBadge(
-                  icon: Icons.bar_chart_rounded,
-                  label: formattedVolume,
-                  color: AppColors.warning,
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -555,7 +508,7 @@ class _StatBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
@@ -564,12 +517,12 @@ class _StatBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
               color: color,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),

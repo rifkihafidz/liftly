@@ -11,6 +11,13 @@ import '../../workout_log/pages/workout_detail_page.dart';
 import '../bloc/session_bloc.dart';
 import '../bloc/session_event.dart';
 import '../bloc/session_state.dart';
+import '../widgets/session_exercise_history_sheet.dart';
+import '../../../shared/widgets/shimmer_widgets.dart';
+
+import '../../workout_log/repositories/workout_repository.dart';
+import '../../plans/bloc/plan_bloc.dart';
+import '../../plans/bloc/plan_event.dart';
+import '../../plans/bloc/plan_state.dart';
 
 class SessionPage extends StatefulWidget {
   final List<String> exerciseNames;
@@ -29,8 +36,7 @@ class SessionPage extends StatefulWidget {
 }
 
 class _SessionPageState extends State<SessionPage> {
-  late Map<String, dynamic> _editedSession;
-  bool _sessionInitialized = false;
+  late SessionBloc _sessionBloc;
 
   @override
   void initState() {
@@ -38,13 +44,13 @@ class _SessionPageState extends State<SessionPage> {
     initializeDateFormatting('id_ID');
 
     // Start session with actual exercises or resume draft
-    final bloc = context.read<SessionBloc>();
+    _sessionBloc = context.read<SessionBloc>();
     const userId = '1'; // Default local user ID
 
     if (widget.draftSession != null) {
-      bloc.add(SessionDraftResumed(draftSession: widget.draftSession!));
+      _sessionBloc.add(SessionDraftResumed(draftSession: widget.draftSession!));
     } else {
-      bloc.add(
+      _sessionBloc.add(
         SessionStarted(
           planId: widget.planId,
           exerciseNames: widget.exerciseNames,
@@ -56,6 +62,10 @@ class _SessionPageState extends State<SessionPage> {
 
   @override
   void dispose() {
+    // Safety net: If page is closed but session is still in progress (not saved/drafted), discard it.
+    if (_sessionBloc.state is SessionInProgress) {
+      _sessionBloc.add(const SessionDiscarded());
+    }
     super.dispose();
   }
 
@@ -65,82 +75,10 @@ class _SessionPageState extends State<SessionPage> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        showDialog(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            backgroundColor: AppColors.cardBg,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Text('Unsaved Changes'),
-            content: const Text(
-              'You have unsaved progress. What would you like to do?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext); // Close dialog
-                  Navigator.pop(context); // Close page (Discard)
-                },
-                style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                child: const Text('Discard'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext); // Close dialog
-                  context.read<SessionBloc>().add(
-                    const SessionSaveDraftRequested(),
-                  );
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.accent,
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                child: const Text('Save Draft'),
-              ),
-            ],
-          ),
-        );
+        _showUnsavedChangesDialog(context);
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            widget.draftSession != null ? 'Resume Workout' : 'Log Workout',
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.class_outlined),
-              tooltip: 'Save as Draft',
-              onPressed: () async {
-                final confirm = await AppDialogs.showConfirmationDialog(
-                  context: context,
-                  title: 'Save Draft',
-                  message:
-                      'Save current progress as draft? You can resume it later.',
-                  confirmText: 'Save',
-                );
-
-                if (confirm == true) {
-                  if (context.mounted) {
-                    context.read<SessionBloc>().add(
-                      const SessionSaveDraftRequested(),
-                    );
-                  }
-                }
-              },
-            ),
-          ],
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
-        ),
+        backgroundColor: AppColors.darkBg,
         body: BlocListener<SessionBloc, SessionState>(
           listenWhen: (previous, current) =>
               current is SessionSaved || current is SessionDraftSaved,
@@ -152,7 +90,7 @@ class _SessionPageState extends State<SessionPage> {
                 message: 'Your workout draft has been saved.',
                 onConfirm: () {
                   if (mounted) {
-                    Navigator.pop(context); // Pop session page
+                    Navigator.of(context).popUntil((route) => route.isFirst);
                   }
                 },
               );
@@ -181,388 +119,434 @@ class _SessionPageState extends State<SessionPage> {
           child: BlocBuilder<SessionBloc, SessionState>(
             builder: (context, state) {
               if (state is SessionLoading) {
-                return const Center(child: CircularProgressIndicator());
+                return const SessionPageShimmer();
               }
 
               if (state is SessionSaved) {
-                // Don't show anything for SessionSaved - listener handles dialog
                 return const SizedBox.shrink();
               }
 
               if (state is SessionInProgress) {
-                // Initialize _editedSession only once from the bloc state
-                if (!_sessionInitialized) {
-                  final session = state.session;
-                  _editedSession = {
-                    'workoutDate': session.workoutDate,
-                    'startedAt': session.startedAt,
-                    'endedAt': session.endedAt,
-                    'planId': session.planId,
-                    'exercises': session.exercises.map((ex) {
-                      // If exercise has no sets, create 1 default set
-                      final sets = ex.sets.isEmpty
-                          ? [
-                              {
-                                'id':
-                                    'set_${DateTime.now().millisecondsSinceEpoch}_${ex.id}',
-                                'setNumber': 1,
-                                'segments': [
-                                  {
-                                    'id':
-                                        'seg_${DateTime.now().millisecondsSinceEpoch}_${ex.id}_0',
-                                    'weight': 0.0,
-                                    'repsFrom': 1,
-                                    'repsTo': 12,
-                                    'notes': '',
-                                    'segmentOrder': 0,
-                                  },
-                                ],
-                              },
-                            ]
-                          : ex.sets.map((set) {
-                              return {
-                                'id': set.id,
-                                'setNumber': set.setNumber,
-                                'segments': set.segments.map((seg) {
-                                  return {
-                                    'id': seg.id,
-                                    'weight': seg.weight,
-                                    'repsFrom': seg.repsFrom,
-                                    'repsTo': seg.repsTo,
-                                    'notes': seg.notes,
-                                    'segmentOrder': seg.segmentOrder,
-                                  };
-                                }).toList(),
-                              };
-                            }).toList();
+                final session = state.session;
+                final exercises = session.exercises;
 
-                      return {
-                        'name': ex.name,
-                        'id': ex.id,
-                        'order': ex.order,
-                        'skipped': ex.skipped,
-                        'sets': sets,
-                      };
-                    }).toList(),
-                  };
-                  _sessionInitialized = true;
-                }
-
-                final exercises =
-                    (_editedSession['exercises'] as List<dynamic>? ?? []);
-
-                return SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header with date and times
-                        Card(
-                          color: AppColors.cardBg,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 800),
+                    child: CustomScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      slivers: [
+                        SliverAppBar(
+                          expandedHeight: 0,
+                          pinned: true,
+                          floating: true,
+                          backgroundColor: AppColors.darkBg,
+                          elevation: 0,
+                          surfaceTintColor: AppColors.darkBg,
+                          leading: IconButton(
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: AppColors.textPrimary,
+                            ),
+                            onPressed: () => Navigator.maybePop(context),
                           ),
+                          title: Text(
+                            widget.draftSession != null
+                                ? 'Resume Workout'
+                                : 'Log Workout',
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          actions: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.save_as_outlined,
+                                color: AppColors.textPrimary,
+                              ),
+                              tooltip: 'Save as Draft',
+                              onPressed: () async {
+                                final confirm =
+                                    await AppDialogs.showConfirmationDialog(
+                                      context: context,
+                                      title: 'Save Draft',
+                                      message:
+                                          'Save current progress as draft? You can resume it later.',
+                                      confirmText: 'Save',
+                                    );
+
+                                if (confirm == true && context.mounted) {
+                                  context.read<SessionBloc>().add(
+                                    const SessionSaveDraftRequested(),
+                                  );
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.reorder_rounded,
+                                color: AppColors.textPrimary,
+                              ),
+                              tooltip: 'Reorder Exercises',
+                              onPressed: _showReorderExercisesSheet,
+                            ),
+                          ],
+                        ),
+                        SliverToBoxAdapter(
                           child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Workout Date: ${DateFormat('EEEE, dd MMMM yyyy').format(_editedSession['workoutDate'] as DateTime)}',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(fontWeight: FontWeight.w600),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 24,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: AppColors.cardBg,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.05),
                                 ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: DateTimeInput(
-                                        label: 'Started At',
-                                        dateTime:
-                                            _editedSession['startedAt']
-                                                as DateTime?,
-                                        onTap: () async {
-                                          final result =
-                                              await showDialog<
-                                                Map<String, DateTime?>
-                                              >(
-                                                context: context,
-                                                builder: (context) =>
-                                                    WorkoutDateTimeDialog(
-                                                      initialWorkoutDate:
-                                                          _editedSession['workoutDate']
-                                                              as DateTime? ??
-                                                          DateTime.now(),
-                                                      initialStartedAt:
-                                                          _editedSession['startedAt']
-                                                              as DateTime?,
-                                                      initialEndedAt:
-                                                          _editedSession['endedAt']
-                                                              as DateTime?,
-                                                    ),
-                                              );
-                                          if (result != null) {
-                                            setState(() {
-                                              _editedSession['workoutDate'] =
-                                                  result['workoutDate'] ??
-                                                  _editedSession['workoutDate'];
-                                              _editedSession['startedAt'] =
-                                                  result['startedAt'];
-                                              _editedSession['endedAt'] =
-                                                  result['endedAt'];
-                                            });
-                                          }
-                                        },
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.calendar_today_rounded,
+                                        size: 16,
+                                        color: AppColors.accent,
                                       ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: DateTimeInput(
-                                        label: 'Ended At',
-                                        dateTime:
-                                            _editedSession['endedAt']
-                                                as DateTime?,
-                                        onTap: () async {
-                                          final result =
-                                              await showDialog<
-                                                Map<String, DateTime?>
-                                              >(
-                                                context: context,
-                                                builder: (context) =>
-                                                    WorkoutDateTimeDialog(
-                                                      initialWorkoutDate:
-                                                          _editedSession['workoutDate']
-                                                              as DateTime? ??
-                                                          DateTime.now(),
-                                                      initialStartedAt:
-                                                          _editedSession['startedAt']
-                                                              as DateTime?,
-                                                      initialEndedAt:
-                                                          _editedSession['endedAt']
-                                                              as DateTime?,
-                                                    ),
-                                              );
-                                          if (result != null) {
-                                            setState(() {
-                                              _editedSession['workoutDate'] =
-                                                  result['workoutDate'] ??
-                                                  _editedSession['workoutDate'];
-                                              _editedSession['startedAt'] =
-                                                  result['startedAt'];
-                                              _editedSession['endedAt'] =
-                                                  result['endedAt'];
-                                            });
-                                          }
-                                        },
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        DateFormat(
+                                          'EEEE, dd MMMM yyyy',
+                                        ).format(session.workoutDate),
+                                        style: const TextStyle(
+                                          color: AppColors.textPrimary,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: DateTimeInput(
+                                          label: 'Started At',
+                                          dateTime: session.startedAt,
+                                          onTap: () async {
+                                            final result =
+                                                await showDialog<
+                                                  Map<String, DateTime?>
+                                                >(
+                                                  context: context,
+                                                  builder: (context) =>
+                                                      WorkoutDateTimeDialog(
+                                                        initialWorkoutDate:
+                                                            session.workoutDate,
+                                                        initialStartedAt:
+                                                            session.startedAt,
+                                                        initialEndedAt:
+                                                            session.endedAt,
+                                                      ),
+                                                );
+                                            if (result != null &&
+                                                context.mounted) {
+                                              context.read<SessionBloc>().add(
+                                                SessionDateTimesUpdated(
+                                                  workoutDate:
+                                                      result['workoutDate'],
+                                                  startedAt:
+                                                      result['startedAt'],
+                                                  endedAt: result['endedAt'],
+                                                ),
+                                              );
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: DateTimeInput(
+                                          label: 'Ended At',
+                                          dateTime: session.endedAt,
+                                          onTap: () async {
+                                            final result =
+                                                await showDialog<
+                                                  Map<String, DateTime?>
+                                                >(
+                                                  context: context,
+                                                  builder: (context) =>
+                                                      WorkoutDateTimeDialog(
+                                                        initialWorkoutDate:
+                                                            session.workoutDate,
+                                                        initialStartedAt:
+                                                            session.startedAt,
+                                                        initialEndedAt:
+                                                            session.endedAt,
+                                                      ),
+                                                );
+                                            if (result != null &&
+                                                context.mounted) {
+                                              context.read<SessionBloc>().add(
+                                                SessionDateTimesUpdated(
+                                                  workoutDate:
+                                                      result['workoutDate'],
+                                                  startedAt:
+                                                      result['startedAt'],
+                                                  endedAt: result['endedAt'],
+                                                ),
+                                              );
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
-
-                        // Exercises
-                        Text(
-                          '${exercises.length} Exercises',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 16),
-                        ...exercises.asMap().entries.map((entry) {
-                          final exerciseIndex = entry.key;
-                          final exercise = entry.value as Map<String, dynamic>;
-                          final sets =
-                              (exercise['sets'] as List<dynamic>? ?? []);
-
-                          return SessionExerciseCard(
-                            exercise: exercise,
-                            exerciseIndex: exerciseIndex,
-                            history: state.previousSessions[exercise['name']],
-                            pr: state.exercisePRs[exercise['name']],
-                            onSkipToggle: () {
-                              setState(() {
-                                exercise['skipped'] =
-                                    !(exercise['skipped'] as bool? ?? false);
-                              });
-                            },
-                            onHistoryTap: () {
-                              _showExerciseHistory(
+                        if (exercises.isEmpty)
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            sliver: SliverToBoxAdapter(
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(32),
+                                  child: Text(
+                                    'No exercises added yet.',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate((
                                 context,
-                                exercise['name'] as String,
-                                state.previousSessions[exercise['name']],
-                                state.exercisePRs[exercise['name']],
-                              );
-                            },
-                            onAddSet: () {
-                              setState(() {
-                                final newSet = {
-                                  'id':
-                                      'set_${DateTime.now().millisecondsSinceEpoch}',
-                                  'setNumber': sets.length + 1,
-                                  'segments': [
-                                    {
-                                      'weight': 0.0,
-                                      'repsFrom': 1,
-                                      'repsTo': 12,
-                                      'notes': '',
-                                      'segmentOrder': 0,
-                                    },
-                                  ],
-                                };
-                                sets.add(newSet);
-                              });
-                            },
-                            onRemoveSet: (setIndex) {
-                              setState(() {
-                                sets.removeAt(setIndex);
-                                for (int i = 0; i < sets.length; i++) {
-                                  sets[i]['setNumber'] = i + 1;
-                                }
-                              });
-                            },
-                            onAddDropSet: (setIndex) {
-                              setState(() {
-                                final segments =
-                                    (sets[setIndex]['segments']
-                                        as List<dynamic>);
-                                segments.add({
-                                  'weight': 0.0,
-                                  'repsFrom': 1,
-                                  'repsTo': 12,
-                                  'notes': '',
-                                  'segmentOrder': segments.length,
-                                });
-                              });
-                            },
-                            onRemoveDropSet: (setIndex, segmentIndex) {
-                              setState(() {
-                                final segments =
-                                    (sets[setIndex]['segments']
-                                        as List<dynamic>);
-                                segments.removeAt(segmentIndex);
-                                for (int i = 0; i < segments.length; i++) {
-                                  segments[i]['segmentOrder'] = i;
-                                }
-                              });
-                            },
-                            onUpdateSegment:
-                                (setIndex, segmentIndex, field, value) {
-                                  setState(() {
-                                    final segments =
-                                        (sets[setIndex]['segments']
-                                            as List<dynamic>);
-                                    segments[segmentIndex][field] = value;
-                                  });
-                                },
-                          );
-                        }),
-                        const SizedBox(height: 4),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              // Convert _editedSession back to WorkoutSession and update bloc state
-                              final exercises =
-                                  (_editedSession['exercises']
-                                      as List<dynamic>? ??
-                                  []);
-                              final sessionExercises = exercises.map((ex) {
-                                final isSkipped =
-                                    ex['skipped'] as bool? ?? false;
-                                final sets = isSkipped
-                                    ? []
-                                    : (ex['sets'] as List<dynamic>? ?? []);
-                                return SessionExercise(
-                                  id:
-                                      (ex['id'] as String?) ??
-                                      'ex_${DateTime.now().millisecondsSinceEpoch}',
-                                  name: ex['name'] as String? ?? '',
-                                  order: ex['order'] as int? ?? 0,
-                                  skipped: isSkipped,
-                                  sets: sets.map((set) {
-                                    final segments =
-                                        (set['segments'] as List<dynamic>? ??
-                                        []);
-                                    return ExerciseSet(
-                                      id:
-                                          (set['id'] as String?) ??
-                                          'set_${DateTime.now().millisecondsSinceEpoch}',
-                                      setNumber: set['setNumber'] as int? ?? 0,
-                                      segments: segments.map((seg) {
-                                        return SetSegment(
-                                          id:
-                                              (seg['id'] as String?) ??
-                                              'seg_${DateTime.now().millisecondsSinceEpoch}',
-                                          weight:
-                                              seg['weight'] as double? ?? 0.0,
-                                          repsFrom:
-                                              seg['repsFrom'] as int? ?? 0,
-                                          repsTo: seg['repsTo'] as int? ?? 0,
-                                          segmentOrder:
-                                              seg['segmentOrder'] as int? ?? 0,
-                                          notes: seg['notes'] as String? ?? '',
-                                        );
-                                      }).toList(),
-                                    );
-                                  }).toList(),
+                                index,
+                              ) {
+                                final exIndex =
+                                    index; // Direct mapping now since header is separate
+                                final exercise = exercises[exIndex];
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: Column(
+                                    children: [
+                                      if (exIndex == 0)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 16,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Text(
+                                                'EXERCISES (${exercises.length})',
+                                                style: TextStyle(
+                                                  color: AppColors.accent,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12,
+                                                  letterSpacing: 1.5,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      RepaintBoundary(
+                                        child: SessionExerciseCard(
+                                          key: ValueKey(exercise.id),
+                                          exercise: exercise,
+                                          exerciseIndex: exIndex,
+                                          history: state
+                                              .previousSessions[exercise.name],
+                                          pr: state.exercisePRs[exercise.name],
+                                          focusedSetIndex:
+                                              state.focusedExerciseIndex ==
+                                                  exIndex
+                                              ? state.focusedSetIndex
+                                              : null,
+                                          focusedSegmentIndex:
+                                              state.focusedExerciseIndex ==
+                                                  exIndex
+                                              ? state.focusedSegmentIndex
+                                              : null,
+                                          onSkipToggle: () {
+                                            context.read<SessionBloc>().add(
+                                              SessionExerciseSkipToggled(
+                                                exerciseIndex: exIndex,
+                                              ),
+                                            );
+                                          },
+                                          onHistoryTap: () {
+                                            _showExerciseHistory(
+                                              context,
+                                              exercise.name,
+                                              state.previousSessions[exercise
+                                                  .name],
+                                              state.exercisePRs[exercise.name],
+                                            );
+                                          },
+                                          onAddSet: () {
+                                            context.read<SessionBloc>().add(
+                                              SessionSetAdded(
+                                                exerciseIndex: exIndex,
+                                              ),
+                                            );
+                                          },
+                                          onRemoveSet: (setIndex) {
+                                            context.read<SessionBloc>().add(
+                                              SessionSetRemoved(
+                                                exerciseIndex: exIndex,
+                                                setIndex: setIndex,
+                                              ),
+                                            );
+                                          },
+                                          onAddDropSet: (setIndex) {
+                                            context.read<SessionBloc>().add(
+                                              SessionSegmentAdded(
+                                                exerciseIndex: exIndex,
+                                                setIndex: setIndex,
+                                              ),
+                                            );
+                                          },
+                                          onRemoveDropSet:
+                                              (setIndex, segmentIndex) {
+                                                context.read<SessionBloc>().add(
+                                                  SessionSegmentRemoved(
+                                                    exerciseIndex: exIndex,
+                                                    setIndex: setIndex,
+                                                    segmentIndex: segmentIndex,
+                                                  ),
+                                                );
+                                              },
+                                          onUpdateSegment:
+                                              (
+                                                setIndex,
+                                                segmentIndex,
+                                                field,
+                                                value,
+                                              ) {
+                                                context.read<SessionBloc>().add(
+                                                  SessionSegmentUpdated(
+                                                    exerciseIndex: exIndex,
+                                                    setIndex: setIndex,
+                                                    segmentIndex: segmentIndex,
+                                                    field: field,
+                                                    value: value,
+                                                  ),
+                                                );
+                                              },
+                                          onEditName: exercise.isTemplate
+                                              ? null
+                                              : () => _showEditNameDialog(
+                                                  context,
+                                                  exIndex,
+                                                  exercise.name,
+                                                ),
+                                          onDelete: exercise.isTemplate
+                                              ? null
+                                              : () => _confirmDeleteExercise(
+                                                  context,
+                                                  exIndex,
+                                                  exercise.name,
+                                                ),
+                                        ),
+                                      ),
+                                      // Clear focus flags after rendering
+                                      if (state.focusedExerciseIndex != null &&
+                                          state.focusedExerciseIndex == exIndex)
+                                        Builder(
+                                          builder: (context) {
+                                            WidgetsBinding.instance
+                                                .addPostFrameCallback((_) {
+                                                  context.read<SessionBloc>().add(
+                                                    const SessionFocusCleared(),
+                                                  );
+                                                });
+                                            return const SizedBox.shrink();
+                                          },
+                                        ),
+                                    ],
+                                  ),
                                 );
-                              }).toList();
+                              }, childCount: exercises.length),
+                            ),
+                          ),
 
-                              final workoutDate =
-                                  _editedSession['workoutDate'] as DateTime? ??
-                                  DateTime.now();
-                              final now = DateTime.now();
-                              // Keep the original session ID - don't create a new one!
-                              // The session already has a unique ID from when it was started
-                              final originalSessionId = (state).session.id;
-                              final updatedSession = WorkoutSession(
-                                id: originalSessionId,
-                                userId: (state)
-                                    .session
-                                    .userId, // Get from current session state
-                                planId: _editedSession['planId'] as String?,
-                                workoutDate: workoutDate,
-                                startedAt:
-                                    _editedSession['startedAt'] as DateTime?,
-                                endedAt: _editedSession['endedAt'] as DateTime?,
-                                exercises: sessionExercises,
-                                createdAt: now,
-                                updatedAt: now,
-                              );
-
-                              // Update bloc with the final session data, then save
-                              context.read<SessionBloc>().add(
-                                SessionRecovered(session: updatedSession),
-                              );
-
-                              // Give bloc time to update state, then save
-                              Future.delayed(
-                                const Duration(milliseconds: 50),
-                                () {
-                                  if (mounted && context.mounted) {
-                                    context.read<SessionBloc>().add(
-                                      const SessionSaveRequested(),
-                                    );
-                                  }
-                                },
-                              );
-                            },
-                            child: const Text('Finish Workout'),
+                        // Footer Actions
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 48),
+                          sliver: SliverToBoxAdapter(
+                            child: Column(
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _showAddExerciseDialog(context),
+                                    icon: const Icon(Icons.add_rounded),
+                                    label: const Text('Add Exercise'),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
+                                      side: BorderSide(
+                                        color: AppColors.accent.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                      ),
+                                      foregroundColor: AppColors.accent,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton(
+                                    onPressed: () => _onFinishWorkout(context),
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
+                                      backgroundColor: AppColors.accent,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Finish Workout',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 );
-              }
-
-              if (state is SessionSaved) {
-                // Handled by BlocListener above, don't show anything here
-                return const SizedBox.shrink();
               }
 
               if (state is SessionError) {
@@ -573,8 +557,7 @@ class _SessionPageState extends State<SessionPage> {
                     message: state.message,
                   );
                 });
-                // Return to the InProgress state view
-                return const Center(child: CircularProgressIndicator());
+                return const SessionPageShimmer();
               }
 
               return const Center(child: Text('No session'));
@@ -595,124 +578,294 @@ class _SessionPageState extends State<SessionPage> {
       context: context,
       backgroundColor: AppColors.cardBg,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                exerciseName,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 24),
-              if (history != null) ...[
-                Text(
-                  'Last Session',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ...history.sets.map((s) {
-                  if (s.segments.isEmpty) return const SizedBox.shrink();
-                  final seg = s.segments.first;
-                  final weight = seg.weight == seg.weight.toInt()
-                      ? seg.weight.toInt()
-                      : seg.weight;
+        return SessionExerciseHistorySheet(
+          exerciseName: exerciseName,
+          history: history,
+          pr: pr,
+        );
+      },
+    );
+  }
 
-                  String reps;
-                  if (seg.repsFrom != seg.repsTo && seg.repsTo > 0) {
-                    reps = '${seg.repsFrom}-${seg.repsTo}';
-                  } else if (seg.repsFrom <= 1 && seg.repsTo > 1) {
-                    reps = '${seg.repsTo}';
-                  } else {
-                    reps = '${seg.repsFrom}';
-                  }
-
-                  String notesStr = '';
-                  if (seg.notes.isNotEmpty) {
-                    notesStr = ' (${seg.notes})';
-                  }
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: AppColors.textSecondary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          '$weight kg × $reps$notesStr',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                const SizedBox(height: 24),
-              ],
-              if (pr != null) ...[
-                Text(
-                  'Personal Record (PR)',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.accent,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Builder(
-                  builder: (context) {
-                    final weight = pr.weight == pr.weight.toInt()
-                        ? pr.weight.toInt()
-                        : pr.weight;
-
-                    final repsCount = (pr.repsTo > pr.repsFrom)
-                        ? pr.repsTo
-                        : pr.repsFrom;
-                    final reps = '$repsCount';
-
-                    String notesStr = '';
-                    if (pr.notes.isNotEmpty) {
-                      notesStr = ' (${pr.notes})';
-                    }
-
-                    return Row(
-                      children: [
-                        const Icon(
-                          Icons.emoji_events_outlined,
-                          size: 20,
-                          color: AppColors.accent,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$weight kg - $reps reps$notesStr',
-                          style: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(
-                                color: AppColors.accent,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-              ],
-            ],
+  void _showUnsavedChangesDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.cardBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Unsaved Changes',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: const Text(
+          'You have unsaved progress. What would you like to do?',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext); // Close dialog
+              context.read<SessionBloc>().add(const SessionDiscarded());
+              Navigator.pop(context); // Close page (Discard)
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Discard'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext); // Close dialog
+              context.read<SessionBloc>().add(
+                const SessionSaveDraftRequested(),
+              );
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.accent,
+              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            child: const Text('Save Draft'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showEditNameDialog(
+    BuildContext context,
+    int index,
+    String currentName,
+  ) async {
+    final WorkoutRepository workoutRepository = WorkoutRepository();
+    List<String> availableExercises = [];
+
+    // Load suggestions
+    try {
+      // 1. Load from history
+      const userId = '1';
+      final historyWorkouts = await workoutRepository.getWorkouts(
+        userId: userId,
+      );
+      final historyNames = historyWorkouts
+          .expand((w) => w.exercises)
+          .map((e) => e.name)
+          .toSet();
+
+      if (!context.mounted) return;
+
+      // 2. Load from plans
+      final currentPlanState = context.read<PlanBloc>().state;
+      if (currentPlanState is PlansLoaded) {
+        final planNames = currentPlanState.plans
+            .expand((p) => p.exercises)
+            .map((e) => e.name)
+            .toSet();
+        historyNames.addAll(planNames);
+      }
+
+      availableExercises = historyNames.toList()..sort();
+    } catch (e) {
+      debugPrint('Error loading suggestions: $e');
+    }
+
+    if (!context.mounted) return;
+
+    AppDialogs.showExerciseEntryDialog(
+      context: context,
+      title: 'Rename Exercise',
+      initialValue: currentName,
+      suggestions: availableExercises,
+      onConfirm: (newName) {
+        context.read<SessionBloc>().add(
+          SessionExerciseNameUpdated(exerciseIndex: index, newName: newName),
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteExercise(BuildContext context, int index, String name) {
+    AppDialogs.showConfirmationDialog(
+      context: context,
+      title: 'Remove Exercise',
+      message: 'Are you sure you want to remove "$name"?',
+      confirmText: 'Remove',
+      isDangerous: true,
+    ).then((confirm) {
+      if (confirm == true && context.mounted) {
+        context.read<SessionBloc>().add(
+          SessionExerciseRemoved(exerciseIndex: index),
+        );
+      }
+    });
+  }
+
+  Future<void> _showAddExerciseDialog(BuildContext context) async {
+    final WorkoutRepository workoutRepository = WorkoutRepository();
+    List<String> availableExercises = [];
+    // Load suggestions
+    try {
+      // 1. Load from history
+      const userId = '1';
+      final historyWorkouts = await workoutRepository.getWorkouts(
+        userId: userId,
+      );
+      final historyNames = historyWorkouts
+          .expand((w) => w.exercises)
+          .map((e) => e.name)
+          .toSet();
+
+      if (!context.mounted) return;
+
+      // 2. Load from plans
+      final currentPlanState = context.read<PlanBloc>().state;
+      if (currentPlanState is PlansLoaded) {
+        final planNames = currentPlanState.plans
+            .expand((p) => p.exercises)
+            .map((e) => e.name)
+            .toSet();
+        historyNames.addAll(planNames);
+      } else {
+        context.read<PlanBloc>().add(const PlansFetchRequested(userId: userId));
+      }
+
+      availableExercises = historyNames.toList()..sort();
+    } catch (e) {
+      debugPrint('Error loading suggestions: $e');
+    }
+
+    if (!context.mounted) return;
+
+    AppDialogs.showExerciseEntryDialog(
+      context: context,
+      title: 'Add Exercise',
+      hintText: 'Exercise Name (e.g. Bench Press)',
+      suggestions: availableExercises,
+      onConfirm: (exerciseName) {
+        context.read<SessionBloc>().add(
+          SessionExerciseAdded(exerciseName: exerciseName),
+        );
+      },
+    );
+  }
+
+  void _onFinishWorkout(BuildContext context) {
+    AppDialogs.showConfirmationDialog(
+      context: context,
+      title: 'Finish Workout',
+      message: 'Are you sure you want to finish this workout?',
+      confirmText: 'Finish',
+    ).then((confirm) {
+      if (confirm == true && context.mounted) {
+        context.read<SessionBloc>().add(const SessionEnded());
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (context.mounted) {
+            context.read<SessionBloc>().add(const SessionSaveRequested());
+          }
+        });
+      }
+    });
+  }
+
+  void _showReorderExercisesSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.cardBg,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return BlocBuilder<SessionBloc, SessionState>(
+          builder: (context, state) {
+            if (state is! SessionInProgress) return const SizedBox.shrink();
+            final exercises = state.session.exercises;
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.6,
+              minChildSize: 0.4,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Reorder Exercises',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Done'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: ReorderableListView.builder(
+                        scrollController: scrollController,
+                        itemCount: exercises.length,
+                        onReorder: (oldIndex, newIndex) {
+                          _sessionBloc.add(
+                            SessionExercisesReordered(
+                              oldIndex: oldIndex,
+                              newIndex: newIndex,
+                            ),
+                          );
+                        },
+                        itemBuilder: (context, index) {
+                          final ex = exercises[index];
+                          return ListTile(
+                            key: ValueKey(ex.id),
+                            leading: Container(
+                              width: 32,
+                              height: 32,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: AppColors.accent.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '${index + 1}',
+                                style: const TextStyle(
+                                  color: AppColors.accent,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              ex.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            trailing: const Icon(
+                              Icons.drag_handle_rounded,
+                              color: AppColors.textSecondary,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
         );
       },
     );

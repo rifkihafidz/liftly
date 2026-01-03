@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'dart:typed_data';
 import 'package:fl_chart/fl_chart.dart';
@@ -8,8 +9,10 @@ import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../core/models/stats_filter.dart';
 
-import '../../workout_log/repositories/workout_repository.dart';
 import '../../../shared/widgets/app_dialogs.dart';
+import '../bloc/stats_bloc.dart';
+import '../bloc/stats_event.dart';
+import '../bloc/stats_state.dart';
 import 'stats_shimmer.dart';
 
 class StatsPage extends StatefulWidget {
@@ -20,32 +23,15 @@ class StatsPage extends StatefulWidget {
 }
 
 class _StatsPageState extends State<StatsPage> {
-  late List<WorkoutSession> _sessions;
-  late TimePeriod _selectedPeriod;
   late ScrollController _scrollController;
-  bool _isLoading = true;
-  bool _isContentLoading = false;
-  String? _errorMessage;
-  late int _userId;
   int _prCurrentPage = 0; // Pagination for personal records
-  Set<String> _prSelectedExercises = {}; // Filter exercises to show
   late ScreenshotController _sharePreviewController;
-
-  // For period selection
-  late DateTime _referenceDate;
 
   @override
   void initState() {
     super.initState();
-    _sessions = [];
-    _selectedPeriod = TimePeriod.week;
-    _referenceDate = DateTime.now();
     _scrollController = ScrollController();
     _sharePreviewController = ScreenshotController();
-
-    // Default local user ID
-    _userId = 1;
-    _loadWorkoutData();
   }
 
   @override
@@ -54,267 +40,47 @@ class _StatsPageState extends State<StatsPage> {
     super.dispose();
   }
 
-  Future<void> _loadWorkoutData({bool showLoading = true}) async {
-    try {
-      if (showLoading) {
-        setState(() {
-          _isLoading = true;
-          _errorMessage = null;
-        });
-      }
-
-      // Get date range based on selected period with reference date
-      final filter = StatsFilter(
-        timePeriod: _selectedPeriod,
-        referenceDate: _referenceDate,
-      );
-      final startDate = filter.getStartDate();
-      final endDate = filter.getEndDate();
-
-      // Load workouts from local repository
-      final workoutRepository = WorkoutRepository();
-      final allWorkouts = await workoutRepository.getWorkouts(
-        userId: _userId.toString(),
-      );
-
-      // Filter workouts by date range
-      final filteredWorkouts = allWorkouts.where((session) {
-        final isAfter = session.workoutDate.isAfter(
-          startDate.subtract(const Duration(days: 1)),
-        );
-        final isBefore = session.workoutDate.isBefore(
-          endDate.add(const Duration(days: 1)),
-        );
-        return isAfter && isBefore;
-      }).toList();
-
-      setState(() {
-        _sessions = filteredWorkouts;
-        if (showLoading) {
-          _isLoading = false;
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error loading data: ${e.toString()}';
-        if (showLoading) {
-          _isLoading = false;
-        }
-      });
-    }
-  }
-
-  /// Change period and load data atomically to avoid empty state flash
-  Future<void> _changePeriod(TimePeriod newPeriod) async {
-    setState(() {
-      _selectedPeriod = newPeriod;
-      _referenceDate = DateTime.now();
-      _isContentLoading = true;
-    });
-
-    try {
-      final filter = StatsFilter(
-        timePeriod: newPeriod,
-        referenceDate: DateTime.now(),
-      );
-      final startDate = filter.getStartDate();
-      final endDate = filter.getEndDate();
-
-      final workoutRepository = WorkoutRepository();
-      final allWorkouts = await workoutRepository.getWorkouts(
-        userId: _userId.toString(),
-      );
-
-      final filteredWorkouts = allWorkouts.where((session) {
-        final isAfter = session.workoutDate.isAfter(
-          startDate.subtract(const Duration(days: 1)),
-        );
-        final isBefore = session.workoutDate.isBefore(
-          endDate.add(const Duration(days: 1)),
-        );
-        return isAfter && isBefore;
-      }).toList();
-
-      if (!mounted) return;
-      setState(() {
-        _sessions = filteredWorkouts;
-        _isContentLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Error loading data: ${e.toString()}';
-        _isContentLoading = false;
-      });
-    }
-  }
-
-  /// Change date and load data atomically to avoid empty state flash
-  void _changeDate(DateTime newDate) async {
-    setState(() {
-      _referenceDate = newDate;
-      _isContentLoading = true;
-    });
-
-    try {
-      final filter = StatsFilter(
-        timePeriod: _selectedPeriod,
-        referenceDate: newDate,
-      );
-      final startDate = filter.getStartDate();
-      final endDate = filter.getEndDate();
-
-      final workoutRepository = WorkoutRepository();
-      final allWorkouts = await workoutRepository.getWorkouts(
-        userId: _userId.toString(),
-      );
-
-      final filteredWorkouts = allWorkouts.where((session) {
-        final isAfter = session.workoutDate.isAfter(
-          startDate.subtract(const Duration(days: 1)),
-        );
-        final isBefore = session.workoutDate.isBefore(
-          endDate.add(const Duration(days: 1)),
-        );
-        return isAfter && isBefore;
-      }).toList();
-
-      if (!mounted) return;
-      setState(() {
-        _sessions = filteredWorkouts;
-        _isContentLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Error loading data: ${e.toString()}';
-        _isContentLoading = false;
-      });
-    }
-  }
+  static final _thousandSeparator = RegExp(r'\B(?=(\d{3})+(?!\d))');
 
   // Helper function to format numbers with thousand separators
   String _formatNumber(double num) {
     return num.toStringAsFixed(
       0,
-    ).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (Match m) => ',');
+    ).replaceAllMapped(_thousandSeparator, (Match m) => ',');
   }
 
   /// Show filter dialog for personal records
   void _showPRFilterDialog(
     BuildContext context,
     Map<String, double> allRecords,
+    Set<String> currentSelections,
   ) {
-    final exercisesList = allRecords.keys.toList();
-    final selectedExercises = Set<String>.from(
-      _prSelectedExercises.isEmpty ? exercisesList : _prSelectedExercises,
-    );
-
+    final statsBloc = context.read<StatsBloc>();
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 500),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Filter Exercises',
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.close),
-                            iconSize: 20,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: exercisesList.length,
-                        itemBuilder: (context, index) {
-                          final exercise = exercisesList[index];
-                          final weight = allRecords[exercise] ?? 0;
-                          return CheckboxListTile(
-                            title: Text(exercise),
-                            subtitle: Text('${weight.toStringAsFixed(1)} kg'),
-                            value: selectedExercises.contains(exercise),
-                            onChanged: (bool? value) {
-                              setState(() {
-                                if (value == true) {
-                                  selectedExercises.add(exercise);
-                                } else {
-                                  selectedExercises.remove(exercise);
-                                }
-                              });
-                            },
-                            dense: true,
-                          );
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          TextButton(
-                            onPressed: () {
-                              setState(() => selectedExercises.clear());
-                            },
-                            child: const Text('Clear All'),
-                          ),
-                          Row(
-                            children: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Cancel'),
-                              ),
-                              const SizedBox(width: 8),
-                              ElevatedButton(
-                                onPressed: selectedExercises.isEmpty
-                                    ? null
-                                    : () {
-                                        this.setState(() {
-                                          _prSelectedExercises =
-                                              selectedExercises;
-                                          _prCurrentPage =
-                                              0; // Reset pagination
-                                        });
-                                        Navigator.pop(context);
-                                      },
-                                child: const Text('Apply'),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+        return BlocProvider.value(
+          value: statsBloc,
+          child: _ExerciseFilterDialog(
+            allRecords: allRecords,
+            currentSelections: currentSelections,
+            onApply: (selected) {
+              statsBloc.add(StatsPRFiltered(selectedExercises: selected));
+              setState(() {
+                _prCurrentPage = 0; // Reset pagination
+              });
+            },
+          ),
         );
       },
     );
   }
 
   /// Share stats as Instagram story image (9:16 aspect ratio: 1080x1920)
-  Future<void> _shareAsStoryImage() async {
+  Future<void> _shareAsStoryImage(
+    BuildContext context,
+    StatsLoaded state,
+  ) async {
     try {
       // Show loading
       if (!mounted) return;
@@ -328,7 +94,7 @@ class _StatsPageState extends State<StatsPage> {
       );
 
       if (image == null) {
-        if (!mounted) return;
+        if (!context.mounted) return;
         AppDialogs.showErrorDialog(
           context: context,
           title: 'Capture Failed',
@@ -354,14 +120,14 @@ class _StatsPageState extends State<StatsPage> {
         // Fallback to simple text share if file sharing fails
         final shareText =
             'Check out my workout stats! 💪\n\n'
-            'Period: ${_selectedPeriod.label}\n'
-            'Workouts: ${_getFilteredSessions().length}';
+            'Period: ${state.timePeriod.label}\n'
+            'Workouts: ${state.filteredSessions.length}';
 
         // ignore: deprecated_member_use
         await Share.share(shareText);
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       AppDialogs.showErrorDialog(
         context: context,
         title: 'Share Error',
@@ -377,142 +143,170 @@ class _StatsPageState extends State<StatsPage> {
     return imageData;
   }
 
-  List<WorkoutSession> _getFilteredSessions() {
-    final filter = StatsFilter(
-      timePeriod: _selectedPeriod,
-      referenceDate: _referenceDate,
-    );
-    return _sessions
-        .where((session) => filter.isInPeriod(session.workoutDate))
-        .toList();
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Show loading state
-    if (_isLoading) {
-      return const StatsPageShimmer(); // Full page shimmer
-    }
+    return BlocProvider(
+      create: (context) => StatsBloc()..add(const StatsFetched(userId: '1')),
+      child: BlocBuilder<StatsBloc, StatsState>(
+        builder: (context, state) {
+          if (state is StatsLoading) {
+            return const StatsPageShimmer();
+          }
 
-    // Show error state
-    if (_errorMessage != null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Statistics'), elevation: 0),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: AppColors.error),
-              const SizedBox(height: 16),
-              Text(
-                'Error',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(color: AppColors.error),
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Text(
-                  _errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+          if (state is StatsError) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Statistics'), elevation: 0),
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleLarge?.copyWith(color: AppColors.error),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        state.message,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: () {
+                        context.read<StatsBloc>().add(
+                          const StatsFetched(userId: '1'),
+                        );
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.all(16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text(
+                        'Retry',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _loadWorkoutData,
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+            );
+          }
 
-    final filteredSessions = _getFilteredSessions();
+          if (state is StatsLoaded) {
+            final filteredSessions = state.filteredSessions;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Statistics'),
-        elevation: 0,
-        actions: [
-          IconButton(
-            onPressed: _shareAsStoryImage,
-            icon: const Icon(Icons.share),
-            tooltip: 'Share as story',
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              // Sticky Header for Time Period
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _StickySelectorDelegate(
-                  child: Container(
-                    color: AppColors.darkBg,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: _TimePeriodSelector(
-                      selectedPeriod: _selectedPeriod,
-                      referenceDate: _referenceDate,
-                      onPeriodChanged: (period) {
-                        _changePeriod(period);
-                      },
-                      onDateChanged: (date) {
-                        _changeDate(date);
-                      },
-                    ),
-                  ),
-                ),
-              ),
+            return Scaffold(
+              body: Stack(
+                children: [
+                  CustomScrollView(
+                    controller: _scrollController,
+                    slivers: [
+                      SliverAppBar(
+                        pinned: true,
+                        centerTitle: false,
+                        backgroundColor: AppColors.darkBg,
+                        surfaceTintColor: AppColors.darkBg,
+                        elevation: 0,
+                        title: Text(
+                          'Statistics',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        actions: [
+                          IconButton(
+                            onPressed: () => _shareAsStoryImage(context, state),
+                            icon: const Icon(Icons.share),
+                            tooltip: 'Share as story',
+                          ),
+                        ],
+                      ),
+                      // Sticky Header for Time Period
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _StickySelectorDelegate(
+                          child: Container(
+                            color: AppColors.darkBg,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            child: _TimePeriodSelector(
+                              selectedPeriod: state.timePeriod,
+                              referenceDate: state.referenceDate,
+                              onPeriodChanged: (period) {
+                                context.read<StatsBloc>().add(
+                                  StatsPeriodChanged(timePeriod: period),
+                                );
+                              },
+                              onDateChanged: (date) {
+                                context.read<StatsBloc>().add(
+                                  StatsDateChanged(date: date),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
 
-              // Main Content
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    if (_isContentLoading)
-                      const StatsContentShimmer()
-                    else ...[
-                      _buildOverview(context, filteredSessions),
-                      _buildDynamicContent(context, filteredSessions),
-                      const SizedBox(
-                        height: 100,
-                      ), // Padding to avoid footer overlap
+                      // Main Content
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            _buildOverview(context, filteredSessions),
+                            _buildDynamicContent(context, state),
+                            const SizedBox(
+                              height: 100,
+                            ), // Padding to avoid footer overlap
+                          ]),
+                        ),
+                      ),
                     ],
-                  ]),
-                ),
-              ),
-            ],
-          ),
+                  ),
 
-          // Offscreen share preview widget for capture
-          Positioned(
-            left: -2000,
-            top: 0,
-            child: SizedBox(
-              width: 720,
-              height: 1280,
-              child: Screenshot(
-                controller: _sharePreviewController,
-                child: _StatsSharePreview(
-                  selectedPeriod: _selectedPeriod,
-                  sessions: _getFilteredSessions(),
-                  referenceDate: _referenceDate,
-                ),
+                  // Offscreen share preview widget for capture
+                  Positioned(
+                    left: -2000,
+                    top: 0,
+                    child: SizedBox(
+                      width: 720,
+                      height: 1280,
+                      child: Screenshot(
+                        controller: _sharePreviewController,
+                        child: _StatsSharePreview(
+                          selectedPeriod: state.timePeriod,
+                          sessions: filteredSessions,
+                          referenceDate: state.referenceDate,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ),
-        ],
+            );
+          }
+
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
@@ -524,7 +318,7 @@ class _StatsPageState extends State<StatsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 28),
+        const SizedBox(height: 44),
 
         // ===== SUMMARY SECTION =====
         Text(
@@ -533,47 +327,52 @@ class _StatsPageState extends State<StatsPage> {
             context,
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 8),
-        GridView.count(
-          crossAxisCount: 3,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            _StatBox(
-              label: 'Workouts',
-              value: filteredSessions.length.toString(),
-              icon: Icons.fitness_center,
-              color: AppColors.accent,
-            ),
-            _StatBox(
-              label: 'Volume',
-              value:
-                  '${_formatNumber(_calculateTotalVolume(filteredSessions))} kg',
-              icon: Icons.scale,
-              color: AppColors.success,
-            ),
-            _StatBox(
-              label: 'Avg Time',
-              value: _calculateAverageDuration(filteredSessions),
-              icon: Icons.schedule,
-              color: AppColors.warning,
-            ),
-          ],
+        const SizedBox(height: 10),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final crossAxisCount = constraints.maxWidth > 500 ? 5 : 3;
+            return GridView.count(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              childAspectRatio: 0.85,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _StatBox(
+                  label: 'Workouts',
+                  value: filteredSessions.length.toString(),
+                  icon: Icons.fitness_center,
+                  color: AppColors.accent,
+                ),
+                _StatBox(
+                  label: 'Total Volume',
+                  value: _formatNumber(_calculateTotalVolume(filteredSessions)),
+                  unit: 'kg',
+                  icon: Icons.scale,
+                  color: AppColors.success,
+                ),
+                _StatBox(
+                  label: 'Avg Time',
+                  value: _calculateAverageDuration(filteredSessions),
+                  icon: Icons.timer_outlined,
+                  color: AppColors.warning,
+                ),
+              ],
+            );
+          },
         ),
       ],
     );
   }
 
-  Widget _buildDynamicContent(
-    BuildContext context,
-    List<WorkoutSession> filteredSessions,
-  ) {
+  Widget _buildDynamicContent(BuildContext context, StatsLoaded state) {
+    final filteredSessions = state.filteredSessions;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 32),
+        const SizedBox(height: 44),
 
         // ===== TRENDS SECTION =====
         Text(
@@ -582,38 +381,54 @@ class _StatsPageState extends State<StatsPage> {
             context,
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
 
         AnimatedCrossFade(
-          firstChild: AnimatedSwitcher(
+          firstChild: AnimatedSize(
             duration: const Duration(milliseconds: 300),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            child: Column(
-              key: ValueKey('trends-data-$_selectedPeriod-$_referenceDate'),
-              children: [
-                _VolumeChartCard(sessions: filteredSessions),
-                const SizedBox(height: 20),
-                _WorkoutFrequencyCard(
-                  sessions: filteredSessions,
-                  timePeriod: _selectedPeriod,
-                  referenceDate: _referenceDate,
+            alignment: Alignment.topCenter,
+            curve: Curves.easeInOut,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              layoutBuilder: (currentChild, previousChildren) {
+                return Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    ...previousChildren.map(
+                      (child) =>
+                          Positioned(top: 0, left: 0, right: 0, child: child),
+                    ),
+                    if (currentChild != null) currentChild,
+                  ],
+                );
+              },
+              child: Column(
+                key: ValueKey(
+                  'trends-data-${state.timePeriod}-${state.referenceDate}',
                 ),
-                const SizedBox(height: 32),
-              ],
+                children: [
+                  _VolumeChartCard(sessions: filteredSessions),
+                  const SizedBox(height: 20),
+                  _WorkoutFrequencyCard(
+                    sessions: filteredSessions,
+                    timePeriod: state.timePeriod,
+                    referenceDate: state.referenceDate,
+                  ),
+                ],
+              ),
             ),
           ),
           secondChild: Column(
             key: const ValueKey('trends-empty'),
             children: [
-              const SizedBox(height: 6),
               _EmptyStateCard(
                 icon: Icons.show_chart,
                 title: 'No Data Available',
                 message:
                     'No workouts recorded in this period.\nStart logging your workouts to see trends.',
               ),
-              const SizedBox(height: 32),
             ],
           ),
           crossFadeState: filteredSessions.isNotEmpty
@@ -621,6 +436,8 @@ class _StatsPageState extends State<StatsPage> {
               : CrossFadeState.showSecond,
           duration: const Duration(milliseconds: 300),
         ),
+
+        const SizedBox(height: 44),
 
         // ===== PERSONAL RECORDS SECTION =====
         Row(
@@ -632,29 +449,36 @@ class _StatsPageState extends State<StatsPage> {
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
-            if (_getPersonalRecords(filteredSessions).isNotEmpty) ...[
+            if (state.personalRecords.isNotEmpty) ...[
               IconButton(
                 onPressed: () => _showPRFilterDialog(
                   context,
-                  _getPersonalRecords(filteredSessions),
+                  state.personalRecords,
+                  state.prFilter ?? {},
                 ),
                 icon: const Icon(Icons.tune),
                 iconSize: 20,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
             ],
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         AnimatedCrossFade(
           firstChild: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             switchInCurve: Curves.easeOut,
             switchOutCurve: Curves.easeIn,
             child: KeyedSubtree(
-              key: ValueKey('pr-data-$_selectedPeriod-$_referenceDate'),
+              key: ValueKey(
+                'pr-data-${state.timePeriod}-${state.referenceDate}',
+              ),
               child: _buildPersonalRecordsGrid(
                 context,
-                _getPersonalRecords(filteredSessions),
+                state.personalRecords,
+                state.prFilter,
               ),
             ),
           ),
@@ -679,8 +503,8 @@ class _StatsPageState extends State<StatsPage> {
           // If Sessions NOT Empty AND PRs NOT Empty -> Show First (Grid)
           // Else -> Show Second (Empty Card)
           crossFadeState:
-              (filteredSessions.isNotEmpty &&
-                  _getPersonalRecords(filteredSessions).isNotEmpty)
+              (state.filteredSessions.isNotEmpty &&
+                  state.personalRecords.isNotEmpty)
               ? CrossFadeState.showFirst
               : CrossFadeState.showSecond,
           duration: const Duration(milliseconds: 300),
@@ -692,13 +516,12 @@ class _StatsPageState extends State<StatsPage> {
   Widget _buildPersonalRecordsGrid(
     BuildContext context,
     Map<String, double> records,
+    Set<String>? filter,
   ) {
     // Apply filter
-    final prsList = _prSelectedExercises.isEmpty
+    final prsList = (filter == null || filter.isEmpty)
         ? records.entries.toList()
-        : records.entries
-              .where((e) => _prSelectedExercises.contains(e.key))
-              .toList();
+        : records.entries.where((e) => filter.contains(e.key)).toList();
     final itemsPerPage = 4;
     final totalPages = (prsList.length / itemsPerPage).ceil();
 
@@ -716,94 +539,102 @@ class _StatsPageState extends State<StatsPage> {
 
     return Column(
       children: [
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 1.5,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: currentPRs.length,
-          itemBuilder: (context, index) {
-            final entry = currentPRs[index];
-            return Container(
-              decoration: BoxDecoration(
-                color: AppColors.cardBg,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-                border: Border.all(
-                  color: AppColors.accent.withValues(alpha: 0.15),
-                  width: 1,
-                ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                childAspectRatio: 1.5,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
               ),
-              clipBehavior: Clip.hardEdge,
-              child: Stack(
-                children: [
-                  // Decorative watermark
-                  Positioned(
-                    right: -10,
-                    bottom: -10,
-                    child: Icon(
-                      Icons.emoji_events_rounded,
-                      size: 64,
-                      color: AppColors.accent.withValues(alpha: 0.05),
+              padding: EdgeInsets.zero,
+              itemCount: currentPRs.length,
+              itemBuilder: (context, index) {
+                final entry = currentPRs[index];
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBg,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: AppColors.accent.withValues(alpha: 0.15),
+                      width: 1,
                     ),
                   ),
-                  // Content
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          entry.key.toUpperCase(),
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.5,
-                              ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                  clipBehavior: Clip.hardEdge,
+                  child: Stack(
+                    children: [
+                      // Decorative watermark
+                      Positioned(
+                        right: -10,
+                        bottom: -10,
+                        child: Icon(
+                          Icons.emoji_events_rounded,
+                          size: 64,
+                          color: AppColors.accent.withValues(alpha: 0.05),
                         ),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
+                      ),
+                      // Content
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              _formatNumber(entry.value),
-                              style: Theme.of(context).textTheme.headlineMedium
+                              entry.key.toUpperCase(),
+                              style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    height: 1,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
                                   ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'kg',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: AppColors.accent,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  _formatNumber(entry.value),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineMedium
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1,
+                                      ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'kg',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: AppColors.accent,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         ),
@@ -846,13 +677,7 @@ class _StatsPageState extends State<StatsPage> {
   double _calculateTotalVolume(List<WorkoutSession> sessions) {
     double total = 0;
     for (var session in sessions) {
-      for (var exercise in session.exercises) {
-        for (var set in exercise.sets) {
-          for (var segment in set.segments) {
-            total += segment.volume;
-          }
-        }
-      }
+      total += session.totalVolume;
     }
     return total;
   }
@@ -868,31 +693,13 @@ class _StatsPageState extends State<StatsPage> {
     final totalMinutes = durations.fold<int>(0, (sum, d) => sum + d.inMinutes);
     final avgMinutes = totalMinutes ~/ durations.length;
 
-    return '${avgMinutes}m';
-  }
+    final hours = avgMinutes ~/ 60;
+    final minutes = avgMinutes % 60;
 
-  Map<String, double> _getPersonalRecords(List<WorkoutSession> sessions) {
-    final records = <String, double>{};
-
-    for (var session in sessions) {
-      for (var exercise in session.exercises) {
-        // Skip exercises that were marked as skipped
-        if (exercise.skipped) continue;
-
-        for (var set in exercise.sets) {
-          for (var segment in set.segments) {
-            final current = records[exercise.name] ?? 0;
-            records[exercise.name] = segment.weight > current
-                ? segment.weight
-                : current;
-          }
-        }
-      }
+    if (hours > 0) {
+      return '${hours}h ${minutes}m';
     }
-
-    return Map.fromEntries(
-      records.entries.toList()..sort((a, b) => b.value.compareTo(a.value)),
-    );
+    return '${minutes}m';
   }
 }
 
@@ -911,13 +718,7 @@ class _StatsSharePreview extends StatelessWidget {
   double _calculateTotalVolume(List<WorkoutSession> sessions) {
     double total = 0;
     for (var session in sessions) {
-      for (var exercise in session.exercises) {
-        for (var set in exercise.sets) {
-          for (var segment in set.segments) {
-            total += segment.volume;
-          }
-        }
-      }
+      total += session.totalVolume;
     }
     return total;
   }
@@ -933,7 +734,13 @@ class _StatsSharePreview extends StatelessWidget {
     final totalMinutes = durations.fold<int>(0, (sum, d) => sum + d.inMinutes);
     final avgMinutes = totalMinutes ~/ durations.length;
 
-    return '${avgMinutes}m';
+    final hours = avgMinutes ~/ 60;
+    final minutes = avgMinutes % 60;
+
+    if (hours > 0) {
+      return '${hours}h ${minutes}m';
+    }
+    return '${minutes}m';
   }
 
   String _formatNumber(double num) {
@@ -1033,7 +840,7 @@ class _StatsSharePreview extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // ===== OVERVIEW SECTION =====
               _buildSectionTitle(context, 'OVERVIEW'),
@@ -1066,7 +873,7 @@ class _StatsSharePreview extends StatelessWidget {
                 ],
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 32),
 
               // ===== TRENDS SECTION =====
               _buildSectionTitle(context, 'ACTIVITY TRENDS'),
@@ -1142,34 +949,47 @@ class _StatsSharePreview extends StatelessWidget {
   ) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          color: AppColors.cardBg,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [color.withValues(alpha: 0.15), Colors.transparent],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(height: 8),
             Text(
               value,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.textPrimary,
+                color: Colors.white,
                 fontWeight: FontWeight.w900,
-                fontSize: 18,
+                fontSize: 20,
               ),
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: AppColors.textSecondary,
                 fontSize: 9,
                 fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
               ),
             ),
           ],
@@ -1264,15 +1084,7 @@ class _VolumeChartCard extends StatelessWidget {
       ..sort((a, b) => a.workoutDate.compareTo(b.workoutDate));
 
     final volumeData = sortedSessions.map((session) {
-      double volume = 0;
-      for (var exercise in session.exercises) {
-        for (var set in exercise.sets) {
-          for (var segment in set.segments) {
-            volume += segment.volume;
-          }
-        }
-      }
-      return volume;
+      return session.totalVolume;
     }).toList();
 
     final rawMax = volumeData.isEmpty
@@ -2133,7 +1945,7 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.cardBg.withValues(alpha: 0.8),
+        color: AppColors.cardBg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.1),
@@ -2762,10 +2574,12 @@ class _StatBox extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final String? unit;
 
   const _StatBox({
     required this.label,
     required this.value,
+    this.unit,
     required this.icon,
     required this.color,
   });
@@ -2776,28 +2590,67 @@ class _StatBox extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.cardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color.withValues(alpha: 0.1), Colors.transparent],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.15), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
             ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+              if (unit != null) ...[
+                const SizedBox(width: 2),
+                Text(
+                  unit!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 4),
           Text(
-            label,
+            label.toUpperCase(),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppColors.textSecondary,
               fontSize: 10,
+              letterSpacing: 0.5,
+              fontWeight: FontWeight.w600,
             ),
             textAlign: TextAlign.center,
           ),
@@ -2881,7 +2734,7 @@ class _StickySelectorDelegate extends SliverPersistentHeaderDelegate {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.darkBg.withValues(alpha: overlapsContent ? 0.95 : 1.0),
+        color: AppColors.darkBg,
         boxShadow: overlapsContent
             ? [
                 BoxShadow(
@@ -2902,4 +2755,282 @@ class _StickySelectorDelegate extends SliverPersistentHeaderDelegate {
   double get minExtent => 112;
   @override
   bool shouldRebuild(covariant _StickySelectorDelegate oldDelegate) => true;
+}
+
+class _ExerciseFilterDialog extends StatefulWidget {
+  final Map<String, double> allRecords;
+  final Set<String> currentSelections;
+  final Function(Set<String>) onApply;
+
+  const _ExerciseFilterDialog({
+    required this.allRecords,
+    required this.currentSelections,
+    required this.onApply,
+  });
+
+  @override
+  State<_ExerciseFilterDialog> createState() => _ExerciseFilterDialogState();
+}
+
+class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
+  late Set<String> _selectedExercises;
+  late TextEditingController _searchController;
+  int _currentPage = 0;
+  static const int _itemsPerPage = 8;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedExercises = Set.from(
+      widget.currentSelections.isEmpty
+          ? widget.allRecords.keys
+          : widget.currentSelections,
+    );
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<String> get _filteredExercises {
+    final query = _searchController.text.toLowerCase();
+    final allExercises = widget.allRecords.keys.toList();
+    if (query.isEmpty) return allExercises;
+    return allExercises.where((e) => e.toLowerCase().contains(query)).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredList = _filteredExercises;
+    final totalPages = (filteredList.length / _itemsPerPage).ceil();
+
+    // Ensure current page is valid
+    if (_currentPage >= totalPages && totalPages > 0) {
+      _currentPage = 0;
+    }
+
+    final startIndex = _currentPage * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage < filteredList.length)
+        ? startIndex + _itemsPerPage
+        : filteredList.length;
+
+    final currentItems = filteredList.isEmpty
+        ? <String>[]
+        : filteredList.sublist(startIndex, endIndex);
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: AppColors.cardBg,
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 600, maxWidth: 400),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Filter Exercises',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  iconSize: 20,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Search Bar
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search exercises...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: AppColors.inputBg,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              onChanged: (_) {
+                setState(() {
+                  _currentPage = 0; // Reset pagination on search
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Selection Controls
+            Row(
+              children: [
+                if (filteredList.isNotEmpty)
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        // Select all currently filtered visible items?
+                        // Or all filtered? Let's do all filtered for convenience
+                        _selectedExercises.addAll(_filteredExercises);
+                      });
+                    },
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(50, 30),
+                      alignment: Alignment.centerLeft,
+                    ),
+                    child: const Text('Select All'),
+                  ),
+                const SizedBox(width: 16),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedExercises.clear();
+                    });
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(50, 30),
+                    alignment: Alignment.centerLeft,
+                    foregroundColor: AppColors.error,
+                  ),
+                  child: const Text('Clear All'),
+                ),
+                const Spacer(),
+                Text(
+                  '${_selectedExercises.length} selected',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(),
+
+            // List
+            Expanded(
+              child: currentItems.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No exercises found',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: currentItems.length,
+                      itemBuilder: (context, index) {
+                        final exercise = currentItems[index];
+                        final weight = widget.allRecords[exercise] ?? 0;
+                        final isSelected = _selectedExercises.contains(
+                          exercise,
+                        );
+
+                        return CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            exercise,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            'PR: ${weight.toStringAsFixed(1)} kg',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                          value: isSelected,
+                          activeColor: AppColors.accent,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              if (value == true) {
+                                _selectedExercises.add(exercise);
+                              } else {
+                                _selectedExercises.remove(exercise);
+                              }
+                            });
+                          },
+                          dense: true,
+                        );
+                      },
+                    ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Pagination Controls
+            if (totalPages > 1)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: _currentPage > 0
+                        ? () => setState(() => _currentPage--)
+                        : null,
+                    icon: const Icon(Icons.chevron_left),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      '${_currentPage + 1} / $totalPages',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _currentPage < totalPages - 1
+                        ? () => setState(() => _currentPage++)
+                        : null,
+                    icon: const Icon(Icons.chevron_right),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+
+            const SizedBox(height: 16),
+
+            // Footer Actions
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _selectedExercises.isEmpty
+                      ? null
+                      : () {
+                          widget.onApply(_selectedExercises);
+                          Navigator.pop(context);
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Apply'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

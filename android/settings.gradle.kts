@@ -1,4 +1,5 @@
 pluginManagement {
+    rootProject.name = "liftly_android"
     val flutterSdkPath =
         run {
             val properties = java.util.Properties()

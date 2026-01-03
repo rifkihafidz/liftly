@@ -10,9 +10,13 @@ import '../../../shared/widgets/session_exercise_card.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
+import '../../plans/bloc/plan_bloc.dart';
+import '../../plans/bloc/plan_event.dart';
+import '../../plans/bloc/plan_state.dart';
+import '../../session/widgets/session_exercise_history_sheet.dart';
 
 class WorkoutEditPage extends StatefulWidget {
-  final Map<String, dynamic> workout;
+  final WorkoutSession workout;
 
   const WorkoutEditPage({super.key, required this.workout});
 
@@ -21,125 +25,29 @@ class WorkoutEditPage extends StatefulWidget {
 }
 
 class _WorkoutEditPageState extends State<WorkoutEditPage> {
-  late Map<String, dynamic> _editedWorkout;
+  late WorkoutSession _editedWorkout;
   final _workoutRepository = WorkoutRepository();
   final Map<String, SessionExercise> _previousSessions = {};
   final Map<String, SetSegment> _exercisePRs = {};
 
+  int? _focusedExerciseIndex;
+  int? _focusedSetIndex;
+  int? _focusedSegmentIndex;
+
   @override
   void initState() {
     super.initState();
-    _editedWorkout = _deepCopyWorkout(widget.workout);
+    _editedWorkout = widget.workout;
     _loadHistoryAndPRs();
   }
 
   Future<void> _loadHistoryAndPRs() async {
-    final exercises = (_editedWorkout['exercises'] as List<dynamic>?) ?? [];
-    final userId = '1'; // Default local user ID
+    final exercises = _editedWorkout.exercises;
 
     for (final exercise in exercises) {
-      final name = exercise['name'] as String;
-
-      // Load Last Log
-      final lastLog = await _workoutRepository.getLastExerciseLog(
-        userId: userId,
-        exerciseName: name,
-      );
-      if (lastLog != null) {
-        if (mounted) {
-          setState(() {
-            _previousSessions[name] = lastLog;
-          });
-        }
-      }
-
-      // Load PR
-      final pr = await _workoutRepository.getExercisePR(
-        userId: userId,
-        exerciseName: name,
-      );
-      if (pr != null) {
-        if (mounted) {
-          setState(() {
-            _exercisePRs[name] = pr;
-          });
-        }
-      }
+      final name = exercise.name;
+      _loadHistoryAndPRsRecursive(name);
     }
-  }
-
-  Map<String, dynamic> _deepCopyWorkout(Map<String, dynamic> original) {
-    return {
-      ...original,
-      'exercises':
-          (original['exercises'] as List<dynamic>?)?.map((ex) {
-            return {
-              ...ex,
-              'sets':
-                  (ex['sets'] as List<dynamic>?)?.map((set) {
-                    return {
-                      ...set,
-                      'segments':
-                          (set['segments'] as List<dynamic>?)?.map((seg) {
-                            final segMap = seg as Map<dynamic, dynamic>;
-                            return <String, dynamic>{
-                              ...segMap.cast<String, dynamic>(),
-                            };
-                          }).toList() ??
-                          [],
-                    };
-                  }).toList() ??
-                  [],
-            };
-          }).toList() ??
-          [],
-    };
-  }
-
-  void _updateSegment(
-    int exIndex,
-    int setIndex,
-    int segIndex,
-    String field,
-    dynamic value,
-  ) {
-    setState(() {
-      final exercises = _editedWorkout['exercises'] as List<dynamic>;
-      final sets = exercises[exIndex]['sets'] as List<dynamic>;
-      final segments = sets[setIndex]['segments'] as List<dynamic>;
-      segments[segIndex][field] = value;
-    });
-  }
-
-  DateTime? _parseDateTime(dynamic value) {
-    if (value == null) return null;
-    if (value is DateTime) return value;
-    if (value is String) {
-      // Try to parse dd-MM-yyyy HH:mm:ss format first
-      try {
-        final parts = value.split(' ');
-        if (parts.length == 2) {
-          final dateParts = parts[0].split('-');
-          final timeParts = parts[1].split(':');
-          return DateTime(
-            int.parse(dateParts[2]),
-            int.parse(dateParts[1]),
-            int.parse(dateParts[0]),
-            int.parse(timeParts[0]),
-            int.parse(timeParts[1]),
-            timeParts.length > 2 ? int.parse(timeParts[2]) : 0,
-          );
-        }
-      } catch (_) {
-        // Fall back to DateTime.parse()
-      }
-      try {
-        return DateTime.parse(value);
-      } catch (_) {
-        return null;
-      }
-    }
-    return null;
   }
 
   String _formatDate(DateTime date) {
@@ -147,141 +55,36 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
   }
 
   void _saveChanges() {
-    const userId = '1'; // Default local user ID
-    final workoutId = _editedWorkout['id'].toString();
+    AppDialogs.showConfirmationDialog(
+      context: context,
+      title: 'Save Changes',
+      message: 'Are you sure you want to save these changes?',
+      confirmText: 'Save',
+    ).then((confirm) {
+      if (confirm == true && mounted) {
+        const userId = '1';
+        final workoutId = _editedWorkout.id;
 
-    String? formatDate(dynamic dateValue) {
-      if (dateValue == null) return null;
-      final dt = dateValue is DateTime ? dateValue : _parseDateTime(dateValue);
-      if (dt == null) return null;
-      // Format as YYYY-MM-DD
-      return '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-    }
-
-    String? formatDateTime(dynamic dateValue, String workoutDateStr) {
-      if (dateValue == null) return null;
-
-      DateTime dt;
-      if (dateValue is DateTime) {
-        dt = dateValue;
-      } else if (dateValue is String) {
-        // If it's just a time string like "15:18:00", combine with workout date
-        if (dateValue.length <= 8) {
-          // HH:mm:ss format
-          final workoutDate = DateTime.parse(workoutDateStr);
-          final timeParts = dateValue.split(':');
-          dt = DateTime(
-            workoutDate.year,
-            workoutDate.month,
-            workoutDate.day,
-            int.parse(timeParts[0]),
-            int.parse(timeParts[1]),
-            timeParts.length > 2 ? int.parse(timeParts[2]) : 0,
-          );
-        } else {
-          dt = DateTime.parse(dateValue);
-        }
-      } else {
-        return null;
+        context.read<WorkoutBloc>().add(
+          WorkoutUpdated(
+            userId: userId,
+            workoutId: workoutId,
+            workoutData: _editedWorkout.toMap(),
+          ),
+        );
       }
-
-      // Format as dd-MM-yyyy HH:mm:ss (matching SQLiteService format)
-      return '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
-    }
-
-    final workoutDateStr = formatDate(_editedWorkout['workoutDate']) ?? '';
-    final workoutDataToSave = <String, dynamic>{
-      'id': _editedWorkout['id'],
-      'planId': _editedWorkout['planId'],
-      'workoutDate': workoutDateStr,
-      'startedAt': formatDateTime(_editedWorkout['startedAt'], workoutDateStr),
-      'endedAt': formatDateTime(_editedWorkout['endedAt'], workoutDateStr),
-    };
-
-    final exercisesToSave = <Map<String, dynamic>>[];
-    final originalExercises =
-        (_editedWorkout['exercises'] as List<dynamic>?) ?? [];
-
-    for (final exercise in originalExercises) {
-      final exMap = exercise as Map<dynamic, dynamic>;
-
-      // Always include exercise 'id' if it exists (preserve existing IDs from database)
-      final exId = exMap['id'];
-
-      final setsToSave = <Map<String, dynamic>>[];
-      final originalSets = (exMap['sets'] as List<dynamic>?) ?? [];
-
-      for (final set in originalSets) {
-        final setMap = set as Map<dynamic, dynamic>;
-        final setId = setMap['id'];
-
-        final setToSave = <String, dynamic>{
-          if (setId != null) 'id': setId,
-          'setNumber': setMap['setNumber'] ?? 1,
-        };
-
-        final segmentsToSave = <Map<String, dynamic>>[];
-        final originalSegments = (setMap['segments'] as List<dynamic>?) ?? [];
-
-        for (final segment in originalSegments) {
-          final segMap = segment as Map<dynamic, dynamic>;
-          final segId = segMap['id'];
-
-          segmentsToSave.add({
-            if (segId != null) 'id': segId,
-            'weight': segMap['weight'] ?? 0,
-            'repsFrom': segMap['repsFrom'] ?? 0,
-            'repsTo': segMap['repsTo'] ?? 0,
-            'segmentOrder': segMap['segmentOrder'] ?? 0,
-            'notes': segMap['notes'] ?? '',
-          });
-        }
-
-        setToSave['segments'] = segmentsToSave;
-        setsToSave.add(setToSave);
-      }
-
-      exercisesToSave.add({
-        if (exId != null) 'id': exId,
-        'name': exMap['name'] ?? '',
-        'order': exMap['order'] ?? 0,
-        'skipped': exMap['skipped'] ?? false,
-        'sets': setsToSave,
-      });
-    }
-
-    workoutDataToSave['exercises'] = exercisesToSave;
-
-    context.read<WorkoutBloc>().add(
-      WorkoutUpdated(
-        userId: userId,
-        workoutId: workoutId,
-        workoutData: workoutDataToSave,
-      ),
-    );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final workoutDate =
-        _parseDateTime(_editedWorkout['workoutDate'] as String) ??
-        DateTime.now();
-    final exercises = (_editedWorkout['exercises'] as List<dynamic>?) ?? [];
+    final workoutDate = _editedWorkout.workoutDate;
+    final exercises = _editedWorkout.exercises;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Workout'),
-        actions: [
-          TextButton.icon(
-            onPressed: _saveChanges,
-            icon: const Icon(Icons.save),
-            label: const Text('Save'),
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.darkBg,
       body: BlocListener<WorkoutBloc, WorkoutState>(
         listenWhen: (previous, current) {
-          // Only listen to state changes, not rebuilds
           return (previous is! WorkoutError || current is! WorkoutError) &&
               (previous is! WorkoutUpdatedSuccess ||
                   current is! WorkoutUpdatedSuccess);
@@ -293,8 +96,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
               title: 'Success',
               message: 'Workout updated successfully.',
               onConfirm: () {
-                // Dialog sudah di-close oleh button di AppDialogs
-                // Tinggal pop edit page kembali ke detail
                 Navigator.pop(context, true);
               },
             );
@@ -306,260 +107,581 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
             );
           }
         },
-        child: BlocBuilder<WorkoutBloc, WorkoutState>(
-          builder: (context, state) {
-            if (state is WorkoutLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            return SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header with date and times
-                    Card(
-                      color: AppColors.cardBg,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverAppBar(
+                  expandedHeight: 0,
+                  pinned: true,
+                  centerTitle: false,
+                  floating: true,
+                  backgroundColor: AppColors.darkBg,
+                  elevation: 0,
+                  surfaceTintColor: AppColors.darkBg,
+                  leading: IconButton(
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.textPrimary,
+                    ),
+                    onPressed: () => Navigator.maybePop(context),
+                  ),
+                  title: const Text(
+                    'Edit Workout',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  actions: [
+                    IconButton(
+                      onPressed: _showReorderExercisesSheet,
+                      icon: const Icon(
+                        Icons.reorder_rounded,
+                        color: AppColors.textPrimary,
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Workout Date: ${_formatDate(workoutDate)}',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: DateTimeInput(
-                                    label: 'Started At',
-                                    dateTime: _parseDateTime(
-                                      _editedWorkout['startedAt'],
-                                    ),
-                                    onTap: () async {
-                                      final result =
-                                          await showDialog<
-                                            Map<String, DateTime?>
-                                          >(
-                                            context: context,
-                                            builder: (context) =>
-                                                WorkoutDateTimeDialog(
-                                                  initialWorkoutDate:
-                                                      workoutDate,
-                                                  initialStartedAt: _parseDateTime(
-                                                    _editedWorkout['startedAt'],
-                                                  ),
-                                                  initialEndedAt: _parseDateTime(
-                                                    _editedWorkout['endedAt'],
-                                                  ),
-                                                ),
-                                          );
-                                      if (result != null) {
-                                        setState(() {
-                                          if (result['workoutDate'] != null) {
-                                            _editedWorkout['workoutDate'] =
-                                                result['workoutDate']
-                                                    ?.toIso8601String();
-                                          }
-                                          _editedWorkout['startedAt'] =
-                                              result['startedAt']
-                                                  ?.toIso8601String()
-                                                  .split('.')[0];
-                                          _editedWorkout['endedAt'] =
-                                              result['endedAt']
-                                                  ?.toIso8601String()
-                                                  .split('.')[0];
-                                        });
-                                      }
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: DateTimeInput(
-                                    label: 'Ended At',
-                                    dateTime: _parseDateTime(
-                                      _editedWorkout['endedAt'],
-                                    ),
-                                    onTap: () async {
-                                      final result =
-                                          await showDialog<
-                                            Map<String, DateTime?>
-                                          >(
-                                            context: context,
-                                            builder: (context) =>
-                                                WorkoutDateTimeDialog(
-                                                  initialWorkoutDate:
-                                                      workoutDate,
-                                                  initialStartedAt: _parseDateTime(
-                                                    _editedWorkout['startedAt'],
-                                                  ),
-                                                  initialEndedAt: _parseDateTime(
-                                                    _editedWorkout['endedAt'],
-                                                  ),
-                                                ),
-                                          );
-                                      if (result != null) {
-                                        setState(() {
-                                          if (result['workoutDate'] != null) {
-                                            _editedWorkout['workoutDate'] =
-                                                result['workoutDate']
-                                                    ?.toIso8601String();
-                                          }
-                                          _editedWorkout['startedAt'] =
-                                              result['startedAt']
-                                                  ?.toIso8601String()
-                                                  .split('.')[0];
-                                          _editedWorkout['endedAt'] =
-                                              result['endedAt']
-                                                  ?.toIso8601String()
-                                                  .split('.')[0];
-                                        });
-                                      }
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                      tooltip: 'Reorder Exercises',
+                    ),
+                    TextButton(
+                      onPressed: _saveChanges,
+                      child: const Text(
+                        'Save',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.accent,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    // Exercises section
-                    Text(
-                      '${exercises.length} Exercises',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ...List.generate(exercises.length, (exIndex) {
-                      final exercise =
-                          (exercises[exIndex] as Map<dynamic, dynamic>)
-                              .cast<String, dynamic>();
-
-                      return SessionExerciseCard(
-                        exercise: exercise,
-                        exerciseIndex: exIndex,
-                        history: _previousSessions[exercise['name']],
-                        pr: _exercisePRs[exercise['name']],
-                        onSkipToggle: () {
-                          setState(() {
-                            final currentSkipped = exercise['skipped'] == true;
-                            _editedWorkout['exercises'][exIndex]['skipped'] =
-                                !currentSkipped;
-
-                            if (currentSkipped) {
-                              final sets =
-                                  (exercise['sets'] as List<dynamic>?) ?? [];
-                              sets.clear();
-                              sets.add({
-                                'setNumber': 1,
-                                'segments': [
-                                  {
-                                    'weight': 0.0,
-                                    'repsFrom': 1,
-                                    'repsTo': 12,
-                                    'notes': '',
-                                  },
-                                ],
-                              });
-                            }
-                          });
-                        },
-                        onHistoryTap: () {
-                          _showExerciseHistory(
-                            context,
-                            exercise['name'],
-                            _previousSessions[exercise['name']],
-                            _exercisePRs[exercise['name']],
-                          );
-                        },
-                        onAddSet: () {
-                          setState(() {
-                            final sets =
-                                (exercise['sets'] as List<dynamic>?) ?? [];
-                            sets.add({
-                              'setNumber': sets.length + 1,
-                              'segments': [
-                                {
-                                  'weight': 0.0,
-                                  'repsFrom': 1,
-                                  'repsTo': 12,
-                                  'notes': '',
-                                },
-                              ],
-                            });
-                          });
-                        },
-                        onRemoveSet: (setIndex) {
-                          setState(() {
-                            final sets =
-                                (exercise['sets'] as List<dynamic>?) ?? [];
-                            sets.removeAt(setIndex);
-                            for (int i = 0; i < sets.length; i++) {
-                              sets[i]['setNumber'] = i + 1;
-                            }
-                          });
-                        },
-                        onAddDropSet: (setIndex) {
-                          setState(() {
-                            final sets =
-                                (exercise['sets'] as List<dynamic>?) ?? [];
-                            final segments =
-                                (sets[setIndex]['segments']
-                                    as List<dynamic>?) ??
-                                [];
-                            segments.add({
-                              'weight': 0.0,
-                              'repsFrom': 1,
-                              'repsTo': 12,
-                              'notes': '',
-                            });
-                          });
-                        },
-                        onRemoveDropSet: (setIndex, segmentIndex) {
-                          setState(() {
-                            final sets =
-                                (exercise['sets'] as List<dynamic>?) ?? [];
-                            final segments =
-                                (sets[setIndex]['segments']
-                                    as List<dynamic>?) ??
-                                [];
-                            segments.removeAt(segmentIndex);
-                            for (int i = 0; i < segments.length; i++) {
-                              segments[i]['segmentOrder'] = i;
-                            }
-                          });
-                        },
-                        onUpdateSegment:
-                            (setIndex, segmentIndex, field, value) {
-                              _updateSegment(
-                                exIndex,
-                                setIndex,
-                                segmentIndex,
-                                field,
-                                value,
-                              );
-                            },
-                      );
-                    }),
+                    const SizedBox(width: 8),
                   ],
                 ),
-              ),
-            );
-          },
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 24,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppColors.cardBg,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.05),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today_rounded,
+                                size: 16,
+                                color: AppColors.accent,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _formatDate(workoutDate),
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DateTimeInput(
+                                  label: 'Started At',
+                                  dateTime: _editedWorkout.startedAt,
+                                  onTap: () async {
+                                    final result =
+                                        await showDialog<
+                                          Map<String, DateTime?>
+                                        >(
+                                          context: context,
+                                          builder: (context) =>
+                                              WorkoutDateTimeDialog(
+                                                initialWorkoutDate: workoutDate,
+                                                initialStartedAt:
+                                                    _editedWorkout.startedAt,
+                                                initialEndedAt:
+                                                    _editedWorkout.endedAt,
+                                              ),
+                                        );
+                                    if (result != null) {
+                                      setState(() {
+                                        _editedWorkout = _editedWorkout
+                                            .copyWith(
+                                              workoutDate:
+                                                  result['workoutDate'] ??
+                                                  _editedWorkout.workoutDate,
+                                              startedAt: result['startedAt'],
+                                              endedAt: result['endedAt'],
+                                            );
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: DateTimeInput(
+                                  label: 'Ended At',
+                                  dateTime: _editedWorkout.endedAt,
+                                  onTap: () async {
+                                    final result =
+                                        await showDialog<
+                                          Map<String, DateTime?>
+                                        >(
+                                          context: context,
+                                          builder: (context) =>
+                                              WorkoutDateTimeDialog(
+                                                initialWorkoutDate: workoutDate,
+                                                initialStartedAt:
+                                                    _editedWorkout.startedAt,
+                                                initialEndedAt:
+                                                    _editedWorkout.endedAt,
+                                              ),
+                                        );
+                                    if (result != null) {
+                                      setState(() {
+                                        _editedWorkout = _editedWorkout
+                                            .copyWith(
+                                              workoutDate:
+                                                  result['workoutDate'] ??
+                                                  _editedWorkout.workoutDate,
+                                              startedAt: result['startedAt'],
+                                              endedAt: result['endedAt'],
+                                            );
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final exIndex = index;
+                      final exercise = exercises[exIndex];
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (exIndex == 0)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'EXERCISES (${exercises.length})',
+                                      style: TextStyle(
+                                        color: AppColors.accent,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        letterSpacing: 1.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            SessionExerciseCard(
+                              key: ValueKey(exercise.id),
+                              exercise: exercise,
+                              exerciseIndex: exIndex,
+                              history: _previousSessions[exercise.name],
+                              pr: _exercisePRs[exercise.name],
+                              focusedSetIndex: _focusedExerciseIndex == exIndex
+                                  ? _focusedSetIndex
+                                  : null,
+                              focusedSegmentIndex:
+                                  _focusedExerciseIndex == exIndex
+                                  ? _focusedSegmentIndex
+                                  : null,
+                              onSkipToggle: () {
+                                setState(() {
+                                  final updatedExercises =
+                                      List<SessionExercise>.from(exercises);
+                                  updatedExercises[exIndex] = exercise.copyWith(
+                                    skipped: !exercise.skipped,
+                                  );
+                                  _editedWorkout = _editedWorkout.copyWith(
+                                    exercises: updatedExercises,
+                                  );
+                                });
+                              },
+                              onUpdateSegment:
+                                  (setIndex, segmentIndex, field, value) {
+                                    setState(() {
+                                      final updatedExercises =
+                                          List<SessionExercise>.from(exercises);
+                                      final currentSets =
+                                          List<ExerciseSet>.from(exercise.sets);
+                                      final currentSegments =
+                                          List<SetSegment>.from(
+                                            currentSets[setIndex].segments,
+                                          );
+
+                                      final segment =
+                                          currentSegments[segmentIndex];
+                                      final updatedSegment = segment.copyWith(
+                                        weight: field == 'weight'
+                                            ? value as double
+                                            : segment.weight,
+                                        repsFrom: field == 'repsFrom'
+                                            ? value as int
+                                            : segment.repsFrom,
+                                        repsTo: field == 'repsTo'
+                                            ? value as int
+                                            : segment.repsTo,
+                                        notes: field == 'notes'
+                                            ? value as String
+                                            : segment.notes,
+                                      );
+
+                                      currentSegments[segmentIndex] =
+                                          updatedSegment;
+                                      currentSets[setIndex] =
+                                          currentSets[setIndex].copyWith(
+                                            segments: currentSegments,
+                                          );
+                                      updatedExercises[exIndex] = exercise
+                                          .copyWith(sets: currentSets);
+                                      _editedWorkout = _editedWorkout.copyWith(
+                                        exercises: updatedExercises,
+                                      );
+                                    });
+                                  },
+                              onHistoryTap: () {
+                                _showExerciseHistory(
+                                  context,
+                                  exercise.name,
+                                  _previousSessions[exercise.name],
+                                  _exercisePRs[exercise.name],
+                                );
+                              },
+                              onAddSet: () {
+                                setState(() {
+                                  final updatedExercises =
+                                      List<SessionExercise>.from(exercises);
+                                  final currentSets = List<ExerciseSet>.from(
+                                    exercise.sets,
+                                  );
+                                  final timestamp =
+                                      DateTime.now().millisecondsSinceEpoch;
+
+                                  final newSet = ExerciseSet(
+                                    id: 'set_${timestamp}_${currentSets.length}',
+                                    setNumber: currentSets.length + 1,
+                                    segments: [
+                                      SetSegment(
+                                        id: 'seg_${timestamp}_${currentSets.length}_0',
+                                        weight: 0.0,
+                                        repsFrom: 1,
+                                        repsTo: 12,
+                                        notes: '',
+                                        segmentOrder: 0,
+                                      ),
+                                    ],
+                                  );
+
+                                  currentSets.add(newSet);
+                                  updatedExercises[exIndex] = exercise.copyWith(
+                                    sets: currentSets,
+                                  );
+                                  _editedWorkout = _editedWorkout.copyWith(
+                                    exercises: updatedExercises,
+                                  );
+                                  _focusedExerciseIndex = exIndex;
+                                  _focusedSetIndex = currentSets.length - 1;
+                                  _focusedSegmentIndex = 0;
+                                });
+                              },
+                              onRemoveSet: (setIndex) {
+                                setState(() {
+                                  final updatedExercises =
+                                      List<SessionExercise>.from(exercises);
+                                  final currentSets = List<ExerciseSet>.from(
+                                    exercise.sets,
+                                  );
+
+                                  if (setIndex < currentSets.length) {
+                                    currentSets.removeAt(setIndex);
+                                    for (
+                                      int i = 0;
+                                      i < currentSets.length;
+                                      i++
+                                    ) {
+                                      currentSets[i] = currentSets[i].copyWith(
+                                        setNumber: i + 1,
+                                      );
+                                    }
+
+                                    updatedExercises[exIndex] = exercise
+                                        .copyWith(sets: currentSets);
+                                    _editedWorkout = _editedWorkout.copyWith(
+                                      exercises: updatedExercises,
+                                    );
+                                  }
+                                });
+                              },
+                              onAddDropSet: (setIndex) {
+                                setState(() {
+                                  final updatedExercises =
+                                      List<SessionExercise>.from(exercises);
+                                  final currentSets = List<ExerciseSet>.from(
+                                    exercise.sets,
+                                  );
+                                  if (setIndex < currentSets.length) {
+                                    final targetSet = currentSets[setIndex];
+                                    final segments = List<SetSegment>.from(
+                                      targetSet.segments,
+                                    );
+                                    final timestamp =
+                                        DateTime.now().millisecondsSinceEpoch;
+
+                                    segments.add(
+                                      SetSegment(
+                                        id: 'seg_${timestamp}_${setIndex}_${segments.length}',
+                                        weight: 0.0,
+                                        repsFrom: 1,
+                                        repsTo: 12,
+                                        notes: '',
+                                        segmentOrder: segments.length,
+                                      ),
+                                    );
+
+                                    currentSets[setIndex] = targetSet.copyWith(
+                                      segments: segments,
+                                    );
+                                    updatedExercises[exIndex] = exercise
+                                        .copyWith(sets: currentSets);
+                                    _editedWorkout = _editedWorkout.copyWith(
+                                      exercises: updatedExercises,
+                                    );
+                                    _focusedExerciseIndex = exIndex;
+                                    _focusedSetIndex = setIndex;
+                                    _focusedSegmentIndex = segments.length - 1;
+                                  }
+                                });
+                              },
+                              onRemoveDropSet: (setIndex, segmentIndex) {
+                                setState(() {
+                                  final updatedExercises =
+                                      List<SessionExercise>.from(exercises);
+                                  final currentSets = List<ExerciseSet>.from(
+                                    exercise.sets,
+                                  );
+                                  if (setIndex < currentSets.length) {
+                                    final targetSet = currentSets[setIndex];
+                                    final segments = List<SetSegment>.from(
+                                      targetSet.segments,
+                                    );
+
+                                    if (segmentIndex < segments.length) {
+                                      segments.removeAt(segmentIndex);
+                                      for (
+                                        int i = 0;
+                                        i < segments.length;
+                                        i++
+                                      ) {
+                                        segments[i] = segments[i].copyWith(
+                                          segmentOrder: i,
+                                        );
+                                      }
+
+                                      currentSets[setIndex] = targetSet
+                                          .copyWith(segments: segments);
+                                      updatedExercises[exIndex] = exercise
+                                          .copyWith(sets: currentSets);
+                                      _editedWorkout = _editedWorkout.copyWith(
+                                        exercises: updatedExercises,
+                                      );
+                                    }
+                                  }
+                                });
+                              },
+                              onEditName: exercise.isTemplate
+                                  ? null
+                                  : () => _showEditNameDialog(
+                                      context,
+                                      exIndex,
+                                      exercise.name,
+                                    ),
+                              onDelete: exercise.isTemplate
+                                  ? null
+                                  : () => _confirmDeleteExercise(
+                                      context,
+                                      exIndex,
+                                      exercise.name,
+                                    ),
+                            ),
+                            // Clear focus flags after rendering
+                            if (_focusedExerciseIndex != null &&
+                                _focusedExerciseIndex == exIndex)
+                              Builder(
+                                builder: (context) {
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    if (mounted) {
+                                      setState(() {
+                                        _focusedExerciseIndex = null;
+                                        _focusedSetIndex = null;
+                                        _focusedSegmentIndex = null;
+                                      });
+                                    }
+                                  });
+                                  return const SizedBox.shrink();
+                                },
+                              ),
+                          ],
+                        ),
+                      );
+                    }, childCount: exercises.length),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 48),
+                  sliver: SliverToBoxAdapter(
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showAddExerciseDialog(context),
+                        icon: const Icon(Icons.add_rounded),
+                        label: const Text('Add Exercise'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(
+                            color: AppColors.accent.withValues(alpha: 0.5),
+                          ),
+                          foregroundColor: AppColors.accent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _showEditNameDialog(
+    BuildContext context,
+    int index,
+    String currentName,
+  ) async {
+    final WorkoutRepository workoutRepository = WorkoutRepository();
+    List<String> availableExercises = [];
+
+    // Load suggestions
+    try {
+      // 1. Load from history
+      const userId = '1';
+      final historyWorkouts = await workoutRepository.getWorkouts(
+        userId: userId,
+      );
+      final historyNames = historyWorkouts
+          .expand((w) => w.exercises)
+          .map((e) => e.name)
+          .toSet();
+
+      if (!context.mounted) return;
+
+      // 2. Load from plans
+      final currentPlanState = context.read<PlanBloc>().state;
+      if (currentPlanState is PlansLoaded) {
+        final planNames = currentPlanState.plans
+            .expand((p) => p.exercises)
+            .map((e) => e.name)
+            .toSet();
+        historyNames.addAll(planNames);
+      }
+
+      availableExercises = historyNames.toList()..sort();
+    } catch (e) {
+      debugPrint('Error loading suggestions: $e');
+    }
+
+    if (!context.mounted) return;
+
+    AppDialogs.showExerciseEntryDialog(
+      context: context,
+      title: 'Rename Exercise',
+      initialValue: currentName,
+      suggestions: availableExercises,
+      onConfirm: (newName) {
+        _updateExerciseName(index, newName);
+      },
+    );
+  }
+
+  void _updateExerciseName(int index, String newName) {
+    setState(() {
+      final updatedExercises = List<SessionExercise>.from(
+        _editedWorkout.exercises,
+      );
+      if (index < updatedExercises.length) {
+        updatedExercises[index] = updatedExercises[index].copyWith(
+          name: newName,
+        );
+        _editedWorkout = _editedWorkout.copyWith(exercises: updatedExercises);
+        _loadHistoryAndPRsRecursive(newName);
+      }
+    });
+  }
+
+  void _confirmDeleteExercise(BuildContext context, int index, String name) {
+    AppDialogs.showConfirmationDialog(
+      context: context,
+      title: 'Remove Exercise',
+      message: 'Are you sure you want to remove "$name"?',
+      confirmText: 'Remove',
+      isDangerous: true,
+    ).then((confirm) {
+      if (confirm == true) {
+        _removeExercise(index);
+      }
+    });
+  }
+
+  void _removeExercise(int index) {
+    setState(() {
+      final updatedExercises = List<SessionExercise>.from(
+        _editedWorkout.exercises,
+      );
+      if (index < updatedExercises.length) {
+        updatedExercises.removeAt(index);
+        // re-number
+        for (int i = 0; i < updatedExercises.length; i++) {
+          updatedExercises[i] = updatedExercises[i].copyWith(order: i);
+        }
+        _editedWorkout = _editedWorkout.copyWith(exercises: updatedExercises);
+      }
+    });
   }
 
   void _showExerciseHistory(
@@ -575,168 +697,235 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                exerciseName,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 24),
-              if (history != null) ...[
-                Text(
-                  'Last Session',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ...history.sets.map((s) {
-                  if (s.segments.isEmpty) return const SizedBox.shrink();
-                  final seg = s.segments.first;
-                  final weight = seg.weight == seg.weight.toInt()
-                      ? seg.weight.toInt()
-                      : seg.weight;
-
-                  String reps;
-                  if (seg.repsFrom != seg.repsTo && seg.repsTo > 0) {
-                    reps = '${seg.repsFrom}-${seg.repsTo}';
-                  } else if (seg.repsFrom <= 1 && seg.repsTo > 1) {
-                    reps = '${seg.repsTo}';
-                  } else {
-                    reps = '${seg.repsFrom}';
-                  }
-
-                  String notesStr = '';
-                  if (seg.notes.isNotEmpty) {
-                    notesStr = ' (${seg.notes})';
-                  }
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: AppColors.textSecondary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          '$weight kg × $reps$notesStr',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                const SizedBox(height: 24),
-              ],
-              if (pr != null) ...[
-                Text(
-                  'Personal Record (PR)',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.accent,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Builder(
-                  builder: (context) {
-                    final weight = pr.weight == pr.weight.toInt()
-                        ? pr.weight.toInt()
-                        : pr.weight;
-
-                    final repsCount = (pr.repsTo > pr.repsFrom)
-                        ? pr.repsTo
-                        : pr.repsFrom;
-                    final reps = '$repsCount';
-
-                    String notesStr = '';
-                    if (pr.notes.isNotEmpty) {
-                      notesStr = ' (${pr.notes})';
-                    }
-
-                    return Row(
-                      children: [
-                        const Icon(
-                          Icons.emoji_events_outlined,
-                          size: 20,
-                          color: AppColors.accent,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$weight kg - $reps reps$notesStr',
-                          style: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(
-                                color: AppColors.accent,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-              ],
-            ],
-          ),
+        return SessionExerciseHistorySheet(
+          exerciseName: exerciseName,
+          history: history,
+          pr: pr,
         );
       },
     );
   }
-}
 
-class _EditField extends StatefulWidget {
-  final String label;
-  final dynamic value;
-  final Function(String) onChanged;
+  Future<void> _showAddExerciseDialog(BuildContext context) async {
+    List<String> availableExercises = [];
 
-  const _EditField({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
+    // Load suggestions
+    try {
+      // 1. Load from history
+      const userId = '1';
+      final historyWorkouts = await _workoutRepository.getWorkouts(
+        userId: userId,
+      );
+      final historyNames = historyWorkouts
+          .expand((w) => w.exercises)
+          .map((e) => e.name)
+          .toSet();
 
-  @override
-  State<_EditField> createState() => _EditFieldState();
-}
+      if (!context.mounted) return;
 
-class _EditFieldState extends State<_EditField> {
-  late TextEditingController _controller;
+      // 2. Load from plans
+      final currentPlanState = context.read<PlanBloc>().state;
+      if (currentPlanState is PlansLoaded) {
+        final planNames = currentPlanState.plans
+            .expand((p) => p.exercises)
+            .map((e) => e.name)
+            .toSet();
+        historyNames.addAll(planNames);
+      } else {
+        context.read<PlanBloc>().add(const PlansFetchRequested(userId: userId));
+      }
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.value.toString());
+      availableExercises = historyNames.toList()..sort();
+    } catch (e) {
+      debugPrint('Error loading suggestions: $e');
+    }
+
+    if (!context.mounted) return;
+
+    AppDialogs.showExerciseEntryDialog(
+      context: context,
+      title: 'Add Exercise',
+      hintText: 'Exercise Name (e.g. Bench Press)',
+      suggestions: availableExercises,
+      onConfirm: (exerciseName) {
+        _addExercise(exerciseName);
+      },
+    );
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  void _addExercise(String name) {
+    setState(() {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final newExerciseIndex = _editedWorkout.exercises.length;
+
+      final newExercise = SessionExercise(
+        id: 'ex_${timestamp}_$newExerciseIndex',
+        name: name,
+        order: newExerciseIndex,
+        sets: [
+          ExerciseSet(
+            id: 'set_${timestamp}_ex${newExerciseIndex}_s1',
+            setNumber: 1,
+            segments: [
+              SetSegment(
+                id: 'seg_${timestamp}_ex${newExerciseIndex}_s1_0',
+                weight: 0.0,
+                repsFrom: 1,
+                repsTo: 12,
+                segmentOrder: 0,
+                notes: '',
+              ),
+            ],
+          ),
+        ],
+      );
+
+      final updatedExercises = List<SessionExercise>.from(
+        _editedWorkout.exercises,
+      )..add(newExercise);
+
+      _editedWorkout = _editedWorkout.copyWith(exercises: updatedExercises);
+
+      // Also load history/PR for this new exercise immediately
+      _loadHistoryAndPRsRecursive(name);
+    });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      decoration: InputDecoration(
-        labelText: widget.label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  Future<void> _loadHistoryAndPRsRecursive(String name) async {
+    const userId = '1';
+    final lastLog = await _workoutRepository.getLastExerciseLog(
+      userId: userId,
+      exerciseName: name,
+    );
+    if (lastLog != null) {
+      if (mounted) {
+        setState(() {
+          _previousSessions[name] = lastLog;
+        });
+      }
+    }
+
+    final pr = await _workoutRepository.getExercisePR(
+      userId: userId,
+      exerciseName: name,
+    );
+    if (pr != null) {
+      if (mounted) {
+        setState(() {
+          _exercisePRs[name] = pr;
+        });
+      }
+    }
+  }
+
+  void _showReorderExercisesSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.cardBg,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      keyboardType: TextInputType.number,
-      onChanged: widget.onChanged,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.6,
+              minChildSize: 0.4,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Reorder Exercises',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Done'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: ReorderableListView.builder(
+                        scrollController: scrollController,
+                        itemCount: _editedWorkout.exercises.length,
+                        onReorder: (oldIndex, newIndex) {
+                          setState(() {
+                            final updatedExercises = List<SessionExercise>.from(
+                              _editedWorkout.exercises,
+                            );
+                            if (oldIndex < newIndex) {
+                              newIndex -= 1;
+                            }
+                            final item = updatedExercises.removeAt(oldIndex);
+                            updatedExercises.insert(newIndex, item);
+
+                            // Fix order index
+                            for (var i = 0; i < updatedExercises.length; i++) {
+                              updatedExercises[i] = updatedExercises[i]
+                                  .copyWith(order: i);
+                            }
+
+                            _editedWorkout = _editedWorkout.copyWith(
+                              exercises: updatedExercises,
+                            );
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          final ex = _editedWorkout.exercises[index];
+                          return ListTile(
+                            key: ValueKey(ex.id),
+                            leading: Container(
+                              width: 32,
+                              height: 32,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: AppColors.accent.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '${index + 1}',
+                                style: const TextStyle(
+                                  color: AppColors.accent,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              ex.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            trailing: const Icon(
+                              Icons.drag_handle_rounded,
+                              color: AppColors.textSecondary,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }

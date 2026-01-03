@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
+import '../../session/bloc/session_bloc.dart';
+import '../../session/bloc/session_event.dart';
+import '../../session/bloc/session_state.dart';
 import '../../session/pages/start_workout_page.dart';
 import '../../session/pages/workout_history_page.dart';
 import '../../plans/pages/plans_page.dart';
 import '../../stats/pages/stats_page.dart';
 import '../../session/pages/session_page.dart';
-import '../../workout_log/repositories/workout_repository.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../settings/pages/settings_page.dart';
 
@@ -18,6 +21,14 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  String _quote = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _quote = _getRandomQuote();
+  }
+
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good Morning';
@@ -25,164 +36,201 @@ class _HomePageState extends State<HomePage> {
     return 'Good Evening';
   }
 
+  String _getRandomQuote() {
+    final quotes = [
+      'Ready to crush your goals today?',
+      'Consistent action creates consistent results.',
+      'The only bad workout is the one that didn\'t happen.',
+      'Your body can stand almost anything. It\'s your mind that you have to convince.',
+      'Fitness is not about being better than someone else. It\'s about being better than you were yesterday.',
+      'Discipline is doing what needs to be done, even if you don\'t want to do it.',
+      'Success starts with self-discipline.',
+      'Don\'t stop when you\'re tired. Stop when you\'re done.',
+      'Motivation is what gets you started. Habit is what keeps you going.',
+      'Invest in yourself. It pays the best interest.',
+    ];
+    return (quotes..shuffle()).first;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Section
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now()),
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AppColors.accent,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
-                    ),
+      backgroundColor: AppColors.darkBg,
+      body: BlocListener<SessionBloc, SessionState>(
+        listener: (context, state) async {
+          if (state is SessionDraftCheckSuccess) {
+            final draft = state.draft;
+            if (draft != null) {
+              final confirm = await AppDialogs.showConfirmationDialog(
+                context: context,
+                title: 'Resume Draft?',
+                message:
+                    'You have an unfinished workout from ${DateFormat('dd MMMM yyyy').format(draft.createdAt)}. Do you want to resume it?',
+                confirmText: 'Resume',
+                cancelText: 'New Workout',
+              );
+
+              if (!context.mounted) return;
+
+              if (confirm == true) {
+                // Resume Draft
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SessionPage(draftSession: draft),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _getGreeting(),
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      height: 1.1,
-                    ),
+                );
+              } else {
+                // Start New Workout
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const StartWorkoutPage(),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Ready to crush your goals today?',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-
-              // Hero Section - Start Workout
-              _HeroCard(
-                title: 'Start Workout',
-                subtitle: 'Log a new session manually',
-                icon: Icons.add_circle_outline_rounded,
-                onTap: () async {
-                  final repo = WorkoutRepository();
-                  final draft = await repo.getDraftWorkout(userId: '1');
-
-                  if (!context.mounted) return;
-
-                  if (draft != null) {
-                    final confirm = await AppDialogs.showConfirmationDialog(
-                      context: context,
-                      title: 'Resume Draft?',
-                      message:
-                          'You have an unfinished workout from ${DateFormat('dd MMMM yyyy').format(draft.createdAt)}. Do you want to resume it?',
-                      confirmText: 'Resume',
-                      cancelText: 'New Workout',
-                    );
-
-                    if (!context.mounted) return;
-
-                    if (confirm == true) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              SessionPage(draftSession: draft),
-                        ),
-                      );
-                    } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const StartWorkoutPage(),
-                        ),
-                      );
-                    }
-                  } else {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const StartWorkoutPage(),
-                      ),
-                    );
-                  }
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // Grid Section
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final width = (constraints.maxWidth - 16) / 2;
-                  final height = width * 1.0; // Square-ish cards
-
-                  return Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
+                );
+              }
+            } else {
+              // No Draft
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const StartWorkoutPage(),
+                ),
+              );
+            }
+          } else if (state is SessionError) {
+            AppDialogs.showErrorDialog(
+              context: context,
+              title: "Error",
+              message: state.message,
+            );
+          }
+        },
+        child: SafeArea(
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _GridCard(
-                        width: width,
-                        height: height,
-                        title: 'History',
-                        subtitle: 'Past sessions',
-                        icon: Icons.calendar_month_rounded,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const WorkoutHistoryPage(),
-                          ),
+                      Text(
+                        DateFormat(
+                          'EEEE, dd MMMM yyyy',
+                        ).format(DateTime.now()).toUpperCase(),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.accent,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
                         ),
                       ),
-                      _GridCard(
-                        width: width,
-                        height: height,
-                        title: 'Statistics',
-                        subtitle: 'Your progress',
-                        icon: Icons.show_chart_rounded,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const StatsPage(),
-                          ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _getGreeting(),
+                        style: Theme.of(context).textTheme.displaySmall
+                            ?.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                              height: 1.1,
+                              fontSize: 32,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _quote,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontSize: 16,
                         ),
                       ),
-                      _GridCard(
-                        width: width,
-                        height: height,
-                        title: 'Plans',
-                        subtitle: 'Manage routines',
-                        icon: Icons.copy_all_rounded,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const PlansPage(),
-                          ),
-                        ),
+                      const SizedBox(height: 32),
+                      // Hero Section - Start Workout
+                      _HeroCard(
+                        title: 'Start Workout',
+                        subtitle: 'Log a new session manually',
+                        icon: Icons.add_rounded,
+                        onTap: () {
+                          context.read<SessionBloc>().add(
+                            const SessionCheckDraftRequested(userId: '1'),
+                          );
+                        },
                       ),
-                      _GridCard(
-                        width: width,
-                        height: height,
-                        title: 'Settings',
-                        subtitle: 'Preferences',
-                        icon: Icons.tune_rounded,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SettingsPage(),
-                          ),
-                        ),
-                      ),
+                      const SizedBox(height: 24),
                     ],
-                  );
-                },
+                  ),
+                ),
               ),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                sliver: SliverLayoutBuilder(
+                  builder: (context, constraints) {
+                    final crossAxisCount = constraints.crossAxisExtent > 600
+                        ? 3
+                        : 2;
+                    return SliverGrid(
+                      delegate: SliverChildListDelegate([
+                        _GridCard(
+                          title: 'History',
+                          subtitle: 'Past sessions',
+                          icon: Icons.history_rounded,
+                          color: const Color(0xFF6366F1), // Indigo
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const WorkoutHistoryPage(),
+                            ),
+                          ),
+                        ),
+                        _GridCard(
+                          title: 'Statistics',
+                          subtitle: 'Your progress',
+                          icon: Icons.bar_chart_rounded,
+                          color: const Color(0xFF10B981), // Emerald
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const StatsPage(),
+                            ),
+                          ),
+                        ),
+                        _GridCard(
+                          title: 'Plans',
+                          subtitle: 'Routines',
+                          icon: Icons.bookmarks_rounded,
+                          color: const Color(0xFFF59E0B), // Amber
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PlansPage(),
+                            ),
+                          ),
+                        ),
+                        _GridCard(
+                          title: 'Settings',
+                          subtitle: 'Preferences',
+                          icon: Icons.settings_rounded,
+                          color: const Color(0xFF64748B), // Slate
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SettingsPage(),
+                            ),
+                          ),
+                        ),
+                      ]),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        childAspectRatio: 1.1,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
             ],
           ),
         ),
@@ -206,54 +254,95 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: AppColors.accent,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accent.withValues(alpha: 0.25),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.accent,
+                AppColors.accent.withValues(alpha: 0.8),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                ],
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.accent.withValues(alpha: 0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'NEW SESSION',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Icon(icon, color: Colors.white, size: 32),
-            ),
-          ],
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: AppColors.accent, size: 28),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -261,72 +350,74 @@ class _HeroCard extends StatelessWidget {
 }
 
 class _GridCard extends StatelessWidget {
-  final double width;
-  final double height;
   final String title;
   final String subtitle;
   final IconData icon;
+  final Color color;
   final VoidCallback onTap;
 
   const _GridCard({
-    required this.width,
-    required this.height,
     required this.title,
     required this.subtitle,
     required this.icon,
+    required this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: width,
-        height: height,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.cardBg,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.borderLight, width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.inputBg,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.borderLight.withValues(alpha: 0.5),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.cardBg,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.05),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
                 ),
+                child: Icon(icon, color: color, size: 22),
               ),
-              child: Icon(icon, color: AppColors.textPrimary, size: 24),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.3,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

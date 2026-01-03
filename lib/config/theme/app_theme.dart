@@ -7,6 +7,42 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.darkBg,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.accent,
+        brightness: Brightness.dark,
+        primary: AppColors.accent,
+        surface: AppColors.cardBg,
+        onSurface: AppColors.textPrimary,
+      ),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: AppColors.cardBg,
+        headerBackgroundColor: AppColors.darkBg,
+        headerForegroundColor: AppColors.textPrimary,
+        surfaceTintColor: Colors.transparent,
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.accent;
+          }
+          return null;
+        }),
+        todayBackgroundColor: WidgetStateProperty.all(
+          AppColors.accent.withValues(alpha: 0.1),
+        ),
+        todayForegroundColor: WidgetStateProperty.all(AppColors.accent),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: AppColors.cardBg,
+        hourMinuteTextColor: AppColors.textPrimary,
+        hourMinuteColor: AppColors.inputBg,
+        dayPeriodTextColor: AppColors.textPrimary,
+        dayPeriodColor: AppColors.inputBg,
+        dialHandColor: AppColors.accent,
+        dialBackgroundColor: AppColors.inputBg,
+        dialTextColor: AppColors.textPrimary,
+        entryModeIconColor: AppColors.accent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.cardBg,
         elevation: 0,
@@ -20,7 +56,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.inputBg,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppColors.borderDark),
@@ -41,33 +80,28 @@ class AppTheme {
           backgroundColor: AppColors.accent,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          elevation: 0,
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
+          elevation: 0,
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.accent,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          side: const BorderSide(color: AppColors.borderLight, width: 1.5),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
+          side: const BorderSide(color: AppColors.borderLight, width: 1.5),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.accent,
-          textStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
       ),
       cardTheme: const CardThemeData(

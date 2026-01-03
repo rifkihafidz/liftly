@@ -30,6 +30,24 @@ class SetSegment extends Equatable {
     segmentOrder,
     notes,
   ];
+
+  SetSegment copyWith({
+    String? id,
+    double? weight,
+    int? repsFrom,
+    int? repsTo,
+    int? segmentOrder,
+    String? notes,
+  }) {
+    return SetSegment(
+      id: id ?? this.id,
+      weight: weight ?? this.weight,
+      repsFrom: repsFrom ?? this.repsFrom,
+      repsTo: repsTo ?? this.repsTo,
+      segmentOrder: segmentOrder ?? this.segmentOrder,
+      notes: notes ?? this.notes,
+    );
+  }
 }
 
 class ExerciseSet extends Equatable {
@@ -47,6 +65,18 @@ class ExerciseSet extends Equatable {
 
   @override
   List<Object?> get props => [id, segments, setNumber];
+
+  ExerciseSet copyWith({
+    String? id,
+    List<SetSegment>? segments,
+    int? setNumber,
+  }) {
+    return ExerciseSet(
+      id: id ?? this.id,
+      segments: segments ?? this.segments,
+      setNumber: setNumber ?? this.setNumber,
+    );
+  }
 }
 
 class SessionExercise extends Equatable {
@@ -54,6 +84,7 @@ class SessionExercise extends Equatable {
   final String name;
   final int order;
   final bool skipped;
+  final bool isTemplate;
   final List<ExerciseSet> sets;
 
   const SessionExercise({
@@ -61,11 +92,44 @@ class SessionExercise extends Equatable {
     required this.name,
     required this.order,
     this.skipped = false,
+    this.isTemplate = false,
     required this.sets,
   });
 
   @override
-  List<Object?> get props => [id, name, order, skipped, sets];
+  List<Object?> get props => [id, name, order, skipped, isTemplate, sets];
+
+  /// Calculates total volume for this exercise.
+  /// If name contains 'single' (case-insensitive), assumes unilateral exercise
+  /// and doubles the volume (left + right).
+  double get totalVolume {
+    double vol = 0;
+    for (final set in sets) {
+      for (final segment in set.segments) {
+        vol += segment.volume;
+      }
+    }
+
+    return vol;
+  }
+
+  SessionExercise copyWith({
+    String? id,
+    String? name,
+    int? order,
+    bool? skipped,
+    bool? isTemplate,
+    List<ExerciseSet>? sets,
+  }) {
+    return SessionExercise(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      order: order ?? this.order,
+      skipped: skipped ?? this.skipped,
+      isTemplate: isTemplate ?? this.isTemplate,
+      sets: sets ?? this.sets,
+    );
+  }
 }
 
 class WorkoutSession extends Equatable {
@@ -114,6 +178,17 @@ class WorkoutSession extends Equatable {
     } else {
       return '${hours}h ${minutes}m';
     }
+  }
+
+  /// Total workout volume
+  double get totalVolume {
+    double vol = 0;
+    for (final exercise in exercises) {
+      if (!exercise.skipped) {
+        vol += exercise.totalVolume;
+      }
+    }
+    return vol;
   }
 
   WorkoutSession copyWith({
@@ -205,7 +280,9 @@ class WorkoutSession extends Equatable {
       updatedAt: map['updatedAt'] is String
           ? DateTime.parse(map['updatedAt'] as String)
           : map['updatedAt'] as DateTime,
-      isDraft: map['isDraft'] as bool? ?? false,
+      isDraft: map['isDraft'] is int
+          ? (map['isDraft'] as int) == 1
+          : (map['isDraft'] as bool? ?? false),
     );
   }
 
@@ -224,6 +301,7 @@ class WorkoutSession extends Equatable {
       'name': exercise.name,
       'order': exercise.order,
       'skipped': exercise.skipped,
+      'isTemplate': exercise.isTemplate,
       'sets': exercise.sets.map((set) => _exerciseSetToMap(set)).toList(),
     };
   }
@@ -235,6 +313,7 @@ class WorkoutSession extends Equatable {
       name: map['name'] as String,
       order: map['order'] as int,
       skipped: map['skipped'] as bool? ?? false,
+      isTemplate: map['isTemplate'] as bool? ?? false,
       sets:
           (map['sets'] as List<dynamic>?)
               ?.map((set) => _exerciseSetFromMap(set as Map<String, dynamic>))
