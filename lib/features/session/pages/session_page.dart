@@ -29,7 +29,7 @@ class _SessionPageState extends State<SessionPage> {
   void initState() {
     super.initState();
     initializeDateFormatting('id_ID');
-    
+
     // Start session with actual exercises
     final bloc = context.read<SessionBloc>();
     const userId = '1'; // Default local user ID
@@ -100,7 +100,7 @@ class _SessionPageState extends State<SessionPage> {
                   if (mounted) {
                     // Pop the dialog first
                     Navigator.pop(context);
-                    
+
                     // Replace session with detail (smooth transition, no Home flash)
                     Navigator.pushReplacement(
                       context,
@@ -127,688 +127,881 @@ class _SessionPageState extends State<SessionPage> {
                 return const SizedBox.shrink();
               }
 
-            if (state is SessionInProgress) {
-              // Initialize _editedSession only once from the bloc state
-              if (!_sessionInitialized) {
-                final session = state.session;
-                _editedSession = {
-                  'workoutDate': session.workoutDate,
-                  'startedAt': session.startedAt,
-                  'endedAt': session.endedAt,
-                  'planId': session.planId,
-                  'exercises': session.exercises.map((ex) {
-                    // If exercise has no sets, create 1 default set
-                    final sets = ex.sets.isEmpty
-                        ? [
-                            {
-                              'id': 'set_${DateTime.now().millisecondsSinceEpoch}_${ex.id}',
-                              'setNumber': 1,
-                              'segments': [
-                                {
-                                  'id': 'seg_${DateTime.now().millisecondsSinceEpoch}_${ex.id}_0',
-                                  'weight': 0.0,
-                                  'repsFrom': 1,
-                                  'repsTo': 12,
-                                  'notes': '',
-                                  'segmentOrder': 0,
-                                },
-                              ],
-                            },
-                          ]
-                        : ex.sets
-                            .map((set) {
+              if (state is SessionInProgress) {
+                // Initialize _editedSession only once from the bloc state
+                if (!_sessionInitialized) {
+                  final session = state.session;
+                  _editedSession = {
+                    'workoutDate': session.workoutDate,
+                    'startedAt': session.startedAt,
+                    'endedAt': session.endedAt,
+                    'planId': session.planId,
+                    'exercises': session.exercises.map((ex) {
+                      // If exercise has no sets, create 1 default set
+                      final sets = ex.sets.isEmpty
+                          ? [
+                              {
+                                'id':
+                                    'set_${DateTime.now().millisecondsSinceEpoch}_${ex.id}',
+                                'setNumber': 1,
+                                'segments': [
+                                  {
+                                    'id':
+                                        'seg_${DateTime.now().millisecondsSinceEpoch}_${ex.id}_0',
+                                    'weight': 0.0,
+                                    'repsFrom': 1,
+                                    'repsTo': 12,
+                                    'notes': '',
+                                    'segmentOrder': 0,
+                                  },
+                                ],
+                              },
+                            ]
+                          : ex.sets.map((set) {
                               return {
                                 'id': set.id,
                                 'setNumber': set.setNumber,
-                                'segments': set.segments
-                                    .map((seg) {
-                                      return {
-                                        'id': seg.id,
-                                        'weight': seg.weight,
-                                        'repsFrom': seg.repsFrom,
-                                        'repsTo': seg.repsTo,
-                                        'notes': seg.notes,
-                                        'segmentOrder': seg.segmentOrder,
-                                      };
-                                    })
-                                    .toList(),
+                                'segments': set.segments.map((seg) {
+                                  return {
+                                    'id': seg.id,
+                                    'weight': seg.weight,
+                                    'repsFrom': seg.repsFrom,
+                                    'repsTo': seg.repsTo,
+                                    'notes': seg.notes,
+                                    'segmentOrder': seg.segmentOrder,
+                                  };
+                                }).toList(),
                               };
-                            })
-                            .toList();
+                            }).toList();
 
-                    return {
-                      'name': ex.name,
-                      'id': ex.id,
-                      'order': ex.order,
-                      'skipped': ex.skipped,
-                      'sets': sets,
-                    };
-                  }).toList(),
-                };
-                _sessionInitialized = true;
-              }
+                      return {
+                        'name': ex.name,
+                        'id': ex.id,
+                        'order': ex.order,
+                        'skipped': ex.skipped,
+                        'sets': sets,
+                      };
+                    }).toList(),
+                  };
+                  _sessionInitialized = true;
+                }
 
-              final exercises =
-                  (_editedSession['exercises'] as List<dynamic>? ?? []);
+                final exercises =
+                    (_editedSession['exercises'] as List<dynamic>? ?? []);
 
-              return SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header with date and times
-                      Card(
-                        color: AppColors.cardBg,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Workout Date: ${DateFormat('EEEE, dd MMMM yyyy').format(_editedSession['workoutDate'] as DateTime)}',
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: DateTimeInput(
-                                      label: 'Started At',
-                                      dateTime: _editedSession['startedAt']
-                                          as DateTime?,
-                                      onTap: () async {
-                                        final result = await showDialog<
-                                            Map<String, DateTime?>>(
-                                          context: context,
-                                          builder: (context) =>
-                                              WorkoutDateTimeDialog(
-                                            initialWorkoutDate:
-                                                _editedSession['workoutDate']
-                                                    as DateTime? ??
-                                                DateTime.now(),
-                                            initialStartedAt:
-                                                _editedSession['startedAt']
-                                                    as DateTime?,
-                                            initialEndedAt:
-                                                _editedSession['endedAt']
-                                                    as DateTime?,
-                                          ),
-                                        );
-                                        if (result != null) {
-                                          setState(() {
-                                            _editedSession['workoutDate'] =
-                                                result['workoutDate'] ??
-                                                _editedSession['workoutDate'];
-                                            _editedSession['startedAt'] =
-                                                result['startedAt'];
-                                            _editedSession['endedAt'] =
-                                                result['endedAt'];
-                                          });
-                                        }
-                                      },
+                return SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header with date and times
+                        Card(
+                          color: AppColors.cardBg,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Workout Date: ${DateFormat('EEEE, dd MMMM yyyy').format(_editedSession['workoutDate'] as DateTime)}',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: DateTimeInput(
+                                        label: 'Started At',
+                                        dateTime:
+                                            _editedSession['startedAt']
+                                                as DateTime?,
+                                        onTap: () async {
+                                          final result =
+                                              await showDialog<
+                                                Map<String, DateTime?>
+                                              >(
+                                                context: context,
+                                                builder: (context) =>
+                                                    WorkoutDateTimeDialog(
+                                                      initialWorkoutDate:
+                                                          _editedSession['workoutDate']
+                                                              as DateTime? ??
+                                                          DateTime.now(),
+                                                      initialStartedAt:
+                                                          _editedSession['startedAt']
+                                                              as DateTime?,
+                                                      initialEndedAt:
+                                                          _editedSession['endedAt']
+                                                              as DateTime?,
+                                                    ),
+                                              );
+                                          if (result != null) {
+                                            setState(() {
+                                              _editedSession['workoutDate'] =
+                                                  result['workoutDate'] ??
+                                                  _editedSession['workoutDate'];
+                                              _editedSession['startedAt'] =
+                                                  result['startedAt'];
+                                              _editedSession['endedAt'] =
+                                                  result['endedAt'];
+                                            });
+                                          }
+                                        },
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: DateTimeInput(
-                                      label: 'Ended At',
-                                      dateTime:
-                                          _editedSession['endedAt']
-                                          as DateTime?,
-                                      onTap: () async {
-                                        final result = await showDialog<
-                                            Map<String, DateTime?>>(
-                                          context: context,
-                                          builder: (context) =>
-                                              WorkoutDateTimeDialog(
-                                            initialWorkoutDate:
-                                                _editedSession['workoutDate']
-                                                    as DateTime? ??
-                                                DateTime.now(),
-                                            initialStartedAt:
-                                                _editedSession['startedAt']
-                                                    as DateTime?,
-                                            initialEndedAt:
-                                                _editedSession['endedAt']
-                                                    as DateTime?,
-                                          ),
-                                        );
-                                        if (result != null) {
-                                          setState(() {
-                                            _editedSession['workoutDate'] =
-                                                result['workoutDate'] ??
-                                                _editedSession['workoutDate'];
-                                            _editedSession['startedAt'] =
-                                                result['startedAt'];
-                                            _editedSession['endedAt'] =
-                                                result['endedAt'];
-                                          });
-                                        }
-                                      },
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: DateTimeInput(
+                                        label: 'Ended At',
+                                        dateTime:
+                                            _editedSession['endedAt']
+                                                as DateTime?,
+                                        onTap: () async {
+                                          final result =
+                                              await showDialog<
+                                                Map<String, DateTime?>
+                                              >(
+                                                context: context,
+                                                builder: (context) =>
+                                                    WorkoutDateTimeDialog(
+                                                      initialWorkoutDate:
+                                                          _editedSession['workoutDate']
+                                                              as DateTime? ??
+                                                          DateTime.now(),
+                                                      initialStartedAt:
+                                                          _editedSession['startedAt']
+                                                              as DateTime?,
+                                                      initialEndedAt:
+                                                          _editedSession['endedAt']
+                                                              as DateTime?,
+                                                    ),
+                                              );
+                                          if (result != null) {
+                                            setState(() {
+                                              _editedSession['workoutDate'] =
+                                                  result['workoutDate'] ??
+                                                  _editedSession['workoutDate'];
+                                              _editedSession['startedAt'] =
+                                                  result['startedAt'];
+                                              _editedSession['endedAt'] =
+                                                  result['endedAt'];
+                                            });
+                                          }
+                                        },
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
-                      // Exercises
-                      Text(
-                        '${exercises.length} Exercises',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 16),
-                      ...exercises.asMap().entries.map((entry) {
-                        final exercise = entry.value as Map<String, dynamic>;
-                        final sets = (exercise['sets'] as List<dynamic>? ?? []);
+                        // Exercises
+                        Text(
+                          '${exercises.length} Exercises',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 16),
+                        ...exercises.asMap().entries.map((entry) {
+                          final exercise = entry.value as Map<String, dynamic>;
+                          final sets =
+                              (exercise['sets'] as List<dynamic>? ?? []);
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Card(
-                            color: AppColors.cardBg,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          exercise['name'] as String,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                        ),
-                                      ),
-                                      GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            exercise['skipped'] =
-                                                !(exercise['skipped']
-                                                        as bool? ??
-                                                    false);
-                                          });
-                                        },
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: exercise['skipped'] == true
-                                                ? AppColors.accent.withValues(
-                                                    alpha: 0.2,
-                                                  )
-                                                : AppColors.inputBg,
-                                            borderRadius: BorderRadius.circular(
-                                              4,
-                                            ),
-                                            border: Border.all(
-                                              color: exercise['skipped'] == true
-                                                  ? AppColors.accent
-                                                  : AppColors.borderLight,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Card(
+                              color: AppColors.cardBg,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
-                                              Icon(
-                                                exercise['skipped'] == true
-                                                    ? Icons.check_box
-                                                    : Icons
-                                                          .check_box_outline_blank,
-                                                size: 14,
-                                                color:
-                                                    exercise['skipped'] == true
-                                                    ? AppColors.accent
-                                                    : AppColors.textSecondary,
-                                              ),
-                                              const SizedBox(width: 4),
                                               Text(
-                                                exercise['skipped'] == true
-                                                    ? 'Skipped'
-                                                    : 'Skip',
+                                                exercise['name'] as String,
                                                 style: Theme.of(context)
                                                     .textTheme
-                                                    .labelSmall
+                                                    .titleMedium
                                                     ?.copyWith(
-                                                      color:
-                                                          exercise['skipped'] ==
-                                                              true
-                                                          ? AppColors.accent
-                                                          : AppColors
-                                                                .textSecondary,
+                                                      fontWeight:
+                                                          FontWeight.w600,
                                                     ),
                                               ),
                                             ],
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  if (!(exercise['skipped'] as bool? ??
-                                      false)) ...[
-                                    const SizedBox(height: 16),
-                                    if (sets.isNotEmpty)
-                                      ...List.generate(sets.length, (setIndex) {
-                                        final set =
-                                            sets[setIndex]
-                                                as Map<String, dynamic>;
-                                        final segments =
-                                            (set['segments']
-                                                as List<dynamic>? ??
-                                            []);
+                                        if (state.previousSessions.containsKey(
+                                              exercise['name'] as String,
+                                            ) ||
+                                            state.exercisePRs.containsKey(
+                                              exercise['name'] as String,
+                                            ))
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.history,
+                                              size: 20,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                            tooltip: 'View History & PR',
+                                            constraints:
+                                                const BoxConstraints.tightFor(
+                                                  width: 32,
+                                                  height: 32,
+                                                ),
+                                            padding: EdgeInsets.zero,
+                                            onPressed: () {
+                                              _showExerciseHistory(
+                                                context,
+                                                exercise['name'] as String,
+                                                state
+                                                    .previousSessions[exercise['name']],
+                                                state
+                                                    .exercisePRs[exercise['name']],
+                                              );
+                                            },
+                                          ),
+                                        const SizedBox(width: 4),
 
-                                        return Column(
-                                          key: ValueKey(set['id']),
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            if (setIndex > 0)
-                                              const Divider(height: 12),
-                                            Row(
+                                        GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              exercise['skipped'] =
+                                                  !(exercise['skipped']
+                                                          as bool? ??
+                                                      false);
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: exercise['skipped'] == true
+                                                  ? AppColors.accent.withValues(
+                                                      alpha: 0.2,
+                                                    )
+                                                  : AppColors.inputBg,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                              border: Border.all(
+                                                color:
+                                                    exercise['skipped'] == true
+                                                    ? AppColors.accent
+                                                    : AppColors.borderLight,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
                                               children: [
+                                                Icon(
+                                                  exercise['skipped'] == true
+                                                      ? Icons.check_box
+                                                      : Icons
+                                                            .check_box_outline_blank,
+                                                  size: 14,
+                                                  color:
+                                                      exercise['skipped'] ==
+                                                          true
+                                                      ? AppColors.accent
+                                                      : AppColors.textSecondary,
+                                                ),
+                                                const SizedBox(width: 4),
                                                 Text(
-                                                  'Set ${set['setNumber']}',
+                                                  exercise['skipped'] == true
+                                                      ? 'Skipped'
+                                                      : 'Skip',
                                                   style: Theme.of(context)
                                                       .textTheme
-                                                      .bodyMedium
+                                                      .labelSmall
                                                       ?.copyWith(
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color: AppColors.accent,
+                                                        color:
+                                                            exercise['skipped'] ==
+                                                                true
+                                                            ? AppColors.accent
+                                                            : AppColors
+                                                                  .textSecondary,
                                                       ),
                                                 ),
-                                                const SizedBox(width: 8),
-                                                if (segments.length > 1)
-                                                  Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 2,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: AppColors.accent
-                                                          .withValues(
-                                                            alpha: 0.1,
-                                                          ),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            4,
-                                                          ),
-                                                    ),
-                                                    child: Text(
-                                                      'Drop Set',
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .labelSmall
-                                                          ?.copyWith(
-                                                            color: AppColors
-                                                                .accent,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            fontSize: 10,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                const Spacer(),
-                                                if (setIndex > 0) ...[
-                                                  IconButton(
-                                                    onPressed: () {
-                                                      setState(() {
-                                                        sets.removeAt(setIndex);
-                                                        for (
-                                                          int i = 0;
-                                                          i < sets.length;
-                                                          i++
-                                                        ) {
-                                                          sets[i]['setNumber'] =
-                                                              i + 1;
-                                                        }
-                                                      });
-                                                    },
-                                                    icon: Icon(
-                                                      Icons.delete_outline,
-                                                      size: 20,
-                                                    ),
-                                                    color: AppColors.error,
-                                                    tooltip: 'Remove Set',
-                                                    constraints:
-                                                        const BoxConstraints.tightFor(
-                                                          width: 32,
-                                                          height: 32,
-                                                        ),
-                                                    padding: EdgeInsets.zero,
-                                                  ),
-                                                ],
                                               ],
                                             ),
-                                            const SizedBox(height: 12),
-                                            ...List.generate(segments.length, (
-                                              segIndex,
-                                            ) {
-                                              final segment =
-                                                  segments[segIndex]
-                                                      as Map<String, dynamic>;
-                                              return Padding(
-                                                padding: const EdgeInsets.only(
-                                                  bottom: 12,
-                                                ),
-                                                child: Row(
-                                                  children: [
-                                                    Expanded(
-                                                      flex: 2,
-                                                      child: WeightField(
-                                                        initialValue:
-                                                            segment['weight']
-                                                                .toString(),
-                                                        onChanged: (v) => setState(
-                                                          () => segment['weight'] =
-                                                              double.tryParse(
-                                                                v,
-                                                              ) ??
-                                                              0,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Expanded(
-                                                      child: NumberField(
-                                                        label: 'From',
-                                                        initialValue:
-                                                            segment['repsFrom']
-                                                                .toString(),
-                                                        onChanged: (v) => setState(
-                                                          () =>
-                                                              segment['repsFrom'] =
-                                                                  int.tryParse(
-                                                                    v,
-                                                                  ) ??
-                                                                  0,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Expanded(
-                                                      child: ToField(
-                                                        initialValue:
-                                                            segment['repsTo']
-                                                                .toString(),
-                                                        onChanged: (v) => setState(
-                                                          () =>
-                                                              segment['repsTo'] =
-                                                                  int.tryParse(
-                                                                    v,
-                                                                  ) ??
-                                                                  0,
-                                                        ),
-                                                        onDeleteTap:
-                                                            segments.length >
-                                                                    1 &&
-                                                                segIndex > 0
-                                                            ? () {
-                                                                setState(() {
-                                                                  segments
-                                                                      .removeAt(
-                                                                        segIndex,
-                                                                      );
-                                                                  // Update
-                                                                  // segment
-                                                                  // order
-                                                                  for (
-                                                                    int i = 0;
-                                                                    i <
-                                                                        segments
-                                                                            .length;
-                                                                    i++
-                                                                  ) {
-                                                                    segments[i]['segmentOrder'] =
-                                                                        i;
-                                                                  }
-                                                                });
-                                                              }
-                                                            : null,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            }),
-                                            const SizedBox(height: 12),
-                                            if (segments.isNotEmpty)
-                                              NotesField(
-                                                initialValue:
-                                                    segments[0]['notes']
-                                                        .toString(),
-                                                onChanged: (v) => setState(
-                                                  () =>
-                                                      segments[0]['notes'] = v,
-                                                ),
-                                              )
-                                            else
-                                              NotesField(
-                                                initialValue: '',
-                                                onChanged: (_) {},
-                                              ),
-                                            const SizedBox(height: 12),
-                                            if (setIndex == sets.length - 1)
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (!(exercise['skipped'] as bool? ??
+                                        false)) ...[
+                                      const SizedBox(height: 16),
+                                      if (sets.isNotEmpty)
+                                        ...List.generate(sets.length, (
+                                          setIndex,
+                                        ) {
+                                          final set =
+                                              sets[setIndex]
+                                                  as Map<String, dynamic>;
+                                          final segments =
+                                              (set['segments']
+                                                  as List<dynamic>? ??
+                                              []);
+
+                                          return Column(
+                                            key: ValueKey(set['id']),
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              if (setIndex > 0)
+                                                const Divider(height: 12),
                                               Row(
                                                 children: [
-                                                  Expanded(
-                                                    child: ElevatedButton.icon(
+                                                  Text(
+                                                    'Set ${set['setNumber']}',
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodyMedium
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color:
+                                                              AppColors.accent,
+                                                        ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  if (segments.length > 1)
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 6,
+                                                            vertical: 2,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: AppColors.accent
+                                                            .withValues(
+                                                              alpha: 0.1,
+                                                            ),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              4,
+                                                            ),
+                                                      ),
+                                                      child: Text(
+                                                        'Drop Set',
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .labelSmall
+                                                            ?.copyWith(
+                                                              color: AppColors
+                                                                  .accent,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              fontSize: 10,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                  const Spacer(),
+                                                  if (setIndex > 0) ...[
+                                                    IconButton(
                                                       onPressed: () {
                                                         setState(() {
-                                                          final newSet = {
-                                                            'id':
-                                                                'set_${DateTime.now().millisecondsSinceEpoch}',
-                                                            'setNumber':
-                                                                sets.length + 1,
-                                                            'segments': [
-                                                              {
+                                                          sets.removeAt(
+                                                            setIndex,
+                                                          );
+                                                          for (
+                                                            int i = 0;
+                                                            i < sets.length;
+                                                            i++
+                                                          ) {
+                                                            sets[i]['setNumber'] =
+                                                                i + 1;
+                                                          }
+                                                        });
+                                                      },
+                                                      icon: Icon(
+                                                        Icons.delete_outline,
+                                                        size: 20,
+                                                      ),
+                                                      color: AppColors.error,
+                                                      tooltip: 'Remove Set',
+                                                      constraints:
+                                                          const BoxConstraints.tightFor(
+                                                            width: 32,
+                                                            height: 32,
+                                                          ),
+                                                      padding: EdgeInsets.zero,
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                              const SizedBox(height: 12),
+                                              ...List.generate(segments.length, (
+                                                segIndex,
+                                              ) {
+                                                final segment =
+                                                    segments[segIndex]
+                                                        as Map<String, dynamic>;
+                                                return Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        bottom: 12,
+                                                      ),
+                                                  child: Row(
+                                                    children: [
+                                                      Expanded(
+                                                        flex: 2,
+                                                        child: WeightField(
+                                                          initialValue:
+                                                              segment['weight']
+                                                                  .toString(),
+                                                          onChanged: (v) => setState(
+                                                            () => segment['weight'] =
+                                                                double.tryParse(
+                                                                  v,
+                                                                ) ??
+                                                                0,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Expanded(
+                                                        child: NumberField(
+                                                          label: 'From',
+                                                          initialValue:
+                                                              segment['repsFrom']
+                                                                  .toString(),
+                                                          onChanged: (v) => setState(
+                                                            () =>
+                                                                segment['repsFrom'] =
+                                                                    int.tryParse(
+                                                                      v,
+                                                                    ) ??
+                                                                    0,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Expanded(
+                                                        child: ToField(
+                                                          initialValue:
+                                                              segment['repsTo']
+                                                                  .toString(),
+                                                          onChanged: (v) => setState(
+                                                            () =>
+                                                                segment['repsTo'] =
+                                                                    int.tryParse(
+                                                                      v,
+                                                                    ) ??
+                                                                    0,
+                                                          ),
+                                                          onDeleteTap:
+                                                              segments.length >
+                                                                      1 &&
+                                                                  segIndex > 0
+                                                              ? () {
+                                                                  setState(() {
+                                                                    segments
+                                                                        .removeAt(
+                                                                          segIndex,
+                                                                        );
+                                                                    // Update
+                                                                    // segment
+                                                                    // order
+                                                                    for (
+                                                                      int i = 0;
+                                                                      i <
+                                                                          segments
+                                                                              .length;
+                                                                      i++
+                                                                    ) {
+                                                                      segments[i]['segmentOrder'] =
+                                                                          i;
+                                                                    }
+                                                                  });
+                                                                }
+                                                              : null,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              }),
+                                              const SizedBox(height: 12),
+                                              if (segments.isNotEmpty)
+                                                NotesField(
+                                                  initialValue:
+                                                      segments[0]['notes']
+                                                          .toString(),
+                                                  onChanged: (v) => setState(
+                                                    () => segments[0]['notes'] =
+                                                        v,
+                                                  ),
+                                                )
+                                              else
+                                                NotesField(
+                                                  initialValue: '',
+                                                  onChanged: (_) {},
+                                                ),
+                                              const SizedBox(height: 12),
+                                              if (setIndex == sets.length - 1)
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: ElevatedButton.icon(
+                                                        onPressed: () {
+                                                          setState(() {
+                                                            final newSet = {
+                                                              'id':
+                                                                  'set_${DateTime.now().millisecondsSinceEpoch}',
+                                                              'setNumber':
+                                                                  sets.length +
+                                                                  1,
+                                                              'segments': [
+                                                                {
+                                                                  'weight': 0.0,
+                                                                  'repsFrom': 1,
+                                                                  'repsTo': 12,
+                                                                  'notes': '',
+                                                                  'segmentOrder':
+                                                                      0,
+                                                                },
+                                                              ],
+                                                            };
+                                                            sets.add(newSet);
+                                                          });
+                                                        },
+                                                        icon: const Icon(
+                                                          Icons.add,
+                                                          size: 16,
+                                                        ),
+                                                        label: const Text(
+                                                          'Add Set',
+                                                          style: TextStyle(
+                                                            fontSize: 12,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: ElevatedButton.icon(
+                                                        onPressed: () {
+                                                          setState(() {
+                                                            if (segments
+                                                                .isNotEmpty) {
+                                                              final newSegment = {
                                                                 'weight': 0.0,
                                                                 'repsFrom': 1,
                                                                 'repsTo': 12,
                                                                 'notes': '',
                                                                 'segmentOrder':
-                                                                    0,
-                                                              },
-                                                            ],
-                                                          };
-                                                          sets.add(newSet);
-                                                        });
-                                                      },
-                                                      icon: const Icon(
-                                                        Icons.add,
-                                                        size: 16,
-                                                      ),
-                                                      label: const Text(
-                                                        'Add Set',
-                                                        style: TextStyle(
-                                                          fontSize: 12,
+                                                                    segments
+                                                                        .length,
+                                                              };
+                                                              segments.add(
+                                                                newSegment,
+                                                              );
+                                                            }
+                                                          });
+                                                        },
+                                                        icon: const Icon(
+                                                          Icons.add,
+                                                          size: 16,
+                                                        ),
+                                                        label: const Text(
+                                                          'Add Drop Set',
+                                                          style: TextStyle(
+                                                            fontSize: 12,
+                                                          ),
                                                         ),
                                                       ),
                                                     ),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Expanded(
-                                                    child: ElevatedButton.icon(
-                                                      onPressed: () {
-                                                        setState(() {
-                                                          if (segments
-                                                              .isNotEmpty) {
-                                                            final newSegment = {
-                                                              'weight': 0.0,
-                                                              'repsFrom': 1,
-                                                              'repsTo': 12,
-                                                              'notes': '',
-                                                              'segmentOrder':
-                                                                  segments
-                                                                      .length,
-                                                            };
-                                                            segments.add(
-                                                              newSegment,
-                                                            );
-                                                          }
-                                                        });
-                                                      },
-                                                      icon: const Icon(
-                                                        Icons.add,
-                                                        size: 16,
-                                                      ),
-                                                      label: const Text(
-                                                        'Add Drop Set',
-                                                        style: TextStyle(
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                          ],
-                                        );
-                                      }),
+                                                  ],
+                                                ),
+                                            ],
+                                          );
+                                        }),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      }),
-                      const SizedBox(height: 4),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            // Convert _editedSession back to WorkoutSession and update bloc state
-                            final exercises =
-                                (_editedSession['exercises']
-                                    as List<dynamic>? ??
-                                []);
-                            final sessionExercises = exercises.map((ex) {
-                              final isSkipped = ex['skipped'] as bool? ?? false;
-                              final sets = isSkipped
-                                  ? []
-                                  : (ex['sets'] as List<dynamic>? ?? []);
-                              return SessionExercise(
-                                id:
-                                    (ex['id'] as String?) ??
-                                    'ex_${DateTime.now().millisecondsSinceEpoch}',
-                                name: ex['name'] as String? ?? '',
-                                order: ex['order'] as int? ?? 0,
-                                skipped: isSkipped,
-                                sets: sets.map((set) {
-                                  final segments =
-                                      (set['segments'] as List<dynamic>? ?? []);
-                                  return ExerciseSet(
-                                    id:
-                                        (set['id'] as String?) ??
-                                        'set_${DateTime.now().millisecondsSinceEpoch}',
-                                    setNumber: set['setNumber'] as int? ?? 0,
-                                    segments: segments.map((seg) {
-                                      return SetSegment(
-                                        id:
-                                            (seg['id'] as String?) ??
-                                            'seg_${DateTime.now().millisecondsSinceEpoch}',
-                                        weight: seg['weight'] as double? ?? 0.0,
-                                        repsFrom: seg['repsFrom'] as int? ?? 0,
-                                        repsTo: seg['repsTo'] as int? ?? 0,
-                                        segmentOrder:
-                                            seg['segmentOrder'] as int? ?? 0,
-                                        notes: seg['notes'] as String? ?? '',
-                                      );
-                                    }).toList(),
-                                  );
-                                }).toList(),
+                          );
+                        }),
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              // Convert _editedSession back to WorkoutSession and update bloc state
+                              final exercises =
+                                  (_editedSession['exercises']
+                                      as List<dynamic>? ??
+                                  []);
+                              final sessionExercises = exercises.map((ex) {
+                                final isSkipped =
+                                    ex['skipped'] as bool? ?? false;
+                                final sets = isSkipped
+                                    ? []
+                                    : (ex['sets'] as List<dynamic>? ?? []);
+                                return SessionExercise(
+                                  id:
+                                      (ex['id'] as String?) ??
+                                      'ex_${DateTime.now().millisecondsSinceEpoch}',
+                                  name: ex['name'] as String? ?? '',
+                                  order: ex['order'] as int? ?? 0,
+                                  skipped: isSkipped,
+                                  sets: sets.map((set) {
+                                    final segments =
+                                        (set['segments'] as List<dynamic>? ??
+                                        []);
+                                    return ExerciseSet(
+                                      id:
+                                          (set['id'] as String?) ??
+                                          'set_${DateTime.now().millisecondsSinceEpoch}',
+                                      setNumber: set['setNumber'] as int? ?? 0,
+                                      segments: segments.map((seg) {
+                                        return SetSegment(
+                                          id:
+                                              (seg['id'] as String?) ??
+                                              'seg_${DateTime.now().millisecondsSinceEpoch}',
+                                          weight:
+                                              seg['weight'] as double? ?? 0.0,
+                                          repsFrom:
+                                              seg['repsFrom'] as int? ?? 0,
+                                          repsTo: seg['repsTo'] as int? ?? 0,
+                                          segmentOrder:
+                                              seg['segmentOrder'] as int? ?? 0,
+                                          notes: seg['notes'] as String? ?? '',
+                                        );
+                                      }).toList(),
+                                    );
+                                  }).toList(),
+                                );
+                              }).toList();
+
+                              final workoutDate =
+                                  _editedSession['workoutDate'] as DateTime? ??
+                                  DateTime.now();
+                              final now = DateTime.now();
+                              // Keep the original session ID - don't create a new one!
+                              // The session already has a unique ID from when it was started
+                              final originalSessionId = (state).session.id;
+                              final updatedSession = WorkoutSession(
+                                id: originalSessionId,
+                                userId: (state)
+                                    .session
+                                    .userId, // Get from current session state
+                                planId: _editedSession['planId'] as String?,
+                                workoutDate: workoutDate,
+                                startedAt:
+                                    _editedSession['startedAt'] as DateTime?,
+                                endedAt: _editedSession['endedAt'] as DateTime?,
+                                exercises: sessionExercises,
+                                createdAt: now,
+                                updatedAt: now,
                               );
-                            }).toList();
 
-                            final workoutDate =
-                                _editedSession['workoutDate'] as DateTime? ??
-                                    DateTime.now();
-                            final now = DateTime.now();
-                            // Keep the original session ID - don't create a new one!
-                            // The session already has a unique ID from when it was started
-                            final originalSessionId = (state).session.id;
-                            final updatedSession = WorkoutSession(
-                              id: originalSessionId,
-                              userId: (state)
-                                  .session
-                                  .userId, // Get from current session state
-                              planId: _editedSession['planId'] as String?,
-                              workoutDate: workoutDate,
-                              startedAt: _editedSession['startedAt'] as DateTime?,
-                              endedAt: _editedSession['endedAt'] as DateTime?,
-                              exercises: sessionExercises,
-                              createdAt: now,
-                              updatedAt: now,
-                            );
+                              // Update bloc with the final session data, then save
+                              context.read<SessionBloc>().add(
+                                SessionRecovered(session: updatedSession),
+                              );
 
-                            // Update bloc with the final session data, then save
-                            context.read<SessionBloc>().add(
-                              SessionRecovered(session: updatedSession),
-                            );
-
-                            // Give bloc time to update state, then save
-                            Future.delayed(
-                              const Duration(milliseconds: 50),
-                              () {
-                                if (mounted && context.mounted) {
-                                  context.read<SessionBloc>().add(
-                                    const SessionSaveRequested(),
-                                  );
-                                }
-                              },
-                            );
-                          },
-                          child: const Text('Finish Workout'),
+                              // Give bloc time to update state, then save
+                              Future.delayed(
+                                const Duration(milliseconds: 50),
+                                () {
+                                  if (mounted && context.mounted) {
+                                    context.read<SessionBloc>().add(
+                                      const SessionSaveRequested(),
+                                    );
+                                  }
+                                },
+                              );
+                            },
+                            child: const Text('Finish Workout'),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            }
-
-            if (state is SessionSaved) {
-              // Handled by BlocListener above, don't show anything here
-              return const SizedBox.shrink();
-            }
-
-            if (state is SessionError) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                AppDialogs.showErrorDialog(
-                  context: context,
-                  title: 'Error Occurred',
-                  message: state.message,
                 );
-              });
-              // Return to the InProgress state view
-              return const Center(child: CircularProgressIndicator());
-            }
+              }
 
-            return const Center(child: Text('No session'));
+              if (state is SessionSaved) {
+                // Handled by BlocListener above, don't show anything here
+                return const SizedBox.shrink();
+              }
+
+              if (state is SessionError) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  AppDialogs.showErrorDialog(
+                    context: context,
+                    title: 'Error Occurred',
+                    message: state.message,
+                  );
+                });
+                // Return to the InProgress state view
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              return const Center(child: Text('No session'));
             },
           ),
         ),
       ),
     );
   }
-}
 
+  void _showExerciseHistory(
+    BuildContext context,
+    String exerciseName,
+    SessionExercise? history,
+    SetSegment? pr,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                exerciseName,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              if (history != null) ...[
+                Text(
+                  'Last Session',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...history.sets.map((s) {
+                  if (s.segments.isEmpty) return const SizedBox.shrink();
+                  final seg = s.segments.first;
+                  final weight = seg.weight == seg.weight.toInt()
+                      ? seg.weight.toInt()
+                      : seg.weight;
+
+                  String reps;
+                  if (seg.repsFrom != seg.repsTo && seg.repsTo > 0) {
+                    reps = '${seg.repsFrom}-${seg.repsTo}';
+                  } else if (seg.repsFrom <= 1 && seg.repsTo > 1) {
+                    reps = '${seg.repsTo}';
+                  } else {
+                    reps = '${seg.repsFrom}';
+                  }
+
+                  String notesStr = '';
+                  if (seg.notes.isNotEmpty) {
+                    notesStr = ' (${seg.notes})';
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: const BoxDecoration(
+                            color: AppColors.textSecondary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          '$weight kg × $reps$notesStr',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 24),
+              ],
+              if (pr != null) ...[
+                Text(
+                  'Personal Record (PR)',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.accent,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Builder(
+                  builder: (context) {
+                    final weight = pr.weight == pr.weight.toInt()
+                        ? pr.weight.toInt()
+                        : pr.weight;
+
+                    String reps;
+                    if (pr.repsFrom != pr.repsTo && pr.repsTo > 0) {
+                      reps = '${pr.repsFrom}-${pr.repsTo}';
+                    } else if (pr.repsFrom <= 1 && pr.repsTo > 1) {
+                      reps = '${pr.repsTo}';
+                    } else {
+                      reps = '${pr.repsFrom}';
+                    }
+
+                    String notesStr = '';
+                    if (pr.notes.isNotEmpty) {
+                      notesStr = ' (${pr.notes})';
+                    }
+
+                    return Row(
+                      children: [
+                        const Icon(
+                          Icons.emoji_events_outlined,
+                          size: 20,
+                          color: AppColors.accent,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$weight kg × $reps$notesStr',
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(
+                                color: AppColors.accent,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}

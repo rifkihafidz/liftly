@@ -560,4 +560,131 @@ class WorkoutLocalDataSource {
       rethrow;
     }
   }
+
+  /// Get the last logged session for a specific exercise
+  Future<SessionExercise?> getLastExerciseLog(
+    String userId,
+    String exerciseName,
+  ) async {
+    try {
+      final database = SQLiteService.database;
+
+      // Find the most recent workout that includes this exercise
+      final result = await database.rawQuery(
+        '''
+        SELECT w.id, w.workout_date
+        FROM workouts w
+        JOIN workout_exercises we ON w.id = we.workout_id
+        WHERE w.user_id = ? AND we.name = ?
+        ORDER BY w.workout_date DESC
+        LIMIT 1
+      ''',
+        [userId, exerciseName],
+      );
+
+      if (result.isEmpty) return null;
+
+      final workoutId = result.first['id'] as String;
+
+      // Get the exercise details (id, etc) from that workout
+      final exerciseRows = await database.query(
+        'workout_exercises',
+        where: 'workout_id = ? AND name = ?',
+        whereArgs: [workoutId, exerciseName],
+      );
+
+      if (exerciseRows.isEmpty) return null;
+      final exerciseRow = exerciseRows.first;
+      final exerciseId = exerciseRow['id'] as String;
+
+      // Get sets
+      final setRows = await database.query(
+        'workout_sets',
+        where: 'exercise_id = ?',
+        whereArgs: [exerciseId],
+        orderBy: 'set_number ASC',
+      );
+
+      final sets = <ExerciseSet>[];
+      for (final setRow in setRows) {
+        final setId = setRow['id'] as String;
+        final segmentRows = await database.query(
+          'set_segments',
+          where: 'set_id = ?',
+          whereArgs: [setId],
+          orderBy: 'segment_order ASC',
+        );
+
+        final segments = segmentRows
+            .map(
+              (seg) => SetSegment(
+                id: seg['id'] as String,
+                weight: (seg['weight'] as num?)?.toDouble() ?? 0,
+                repsFrom: seg['reps_from'] as int? ?? 0,
+                repsTo: seg['reps_to'] as int? ?? 0,
+                segmentOrder: seg['segment_order'] as int? ?? 0,
+                notes: seg['notes'] as String? ?? '',
+              ),
+            )
+            .toList();
+
+        sets.add(
+          ExerciseSet(
+            id: setId,
+            setNumber: setRow['set_number'] as int,
+            segments: segments,
+          ),
+        );
+      }
+
+      return SessionExercise(
+        id: exerciseId,
+        name: exerciseName,
+        order: exerciseRow['exercise_order'] as int,
+        sets: sets,
+        skipped: (exerciseRow['skipped'] as int) == 1,
+      );
+    } catch (e) {
+      _log('SELECT', 'getLastExerciseLog: FAILED - $e');
+      return null;
+    }
+  }
+
+  /// Get the Personal Record (PR) for a specific exercise
+  /// Returns the segment with the highest weight
+  Future<SetSegment?> getExercisePR(String userId, String exerciseName) async {
+    try {
+      final database = SQLiteService.database;
+
+      // Find the segment with max weight for this exercise
+      final result = await database.rawQuery(
+        '''
+        SELECT ss.*
+        FROM set_segments ss
+        JOIN workout_sets ws ON ss.set_id = ws.id
+        JOIN workout_exercises we ON ws.exercise_id = we.id
+        JOIN workouts w ON we.workout_id = w.id
+        WHERE w.user_id = ? AND we.name = ?
+        ORDER BY ss.weight DESC, MAX(ss.reps_from, ss.reps_to) DESC
+        LIMIT 1
+      ''',
+        [userId, exerciseName],
+      );
+
+      if (result.isEmpty) return null;
+
+      final row = result.first;
+      return SetSegment(
+        id: row['id'] as String,
+        weight: (row['weight'] as num?)?.toDouble() ?? 0,
+        repsFrom: row['reps_from'] as int? ?? 0,
+        repsTo: row['reps_to'] as int? ?? 0,
+        segmentOrder: row['segment_order'] as int? ?? 0,
+        notes: row['notes'] as String? ?? '',
+      );
+    } catch (e) {
+      _log('SELECT', 'getExercisePR: FAILED - $e');
+      return null;
+    }
+  }
 }

@@ -18,11 +18,17 @@ class SessionLoading extends SessionState {
 
 class SessionInProgress extends SessionState {
   final WorkoutSession session;
+  final Map<String, SessionExercise> previousSessions;
+  final Map<String, SetSegment> exercisePRs;
 
-  const SessionInProgress({required this.session});
+  const SessionInProgress({
+    required this.session,
+    this.previousSessions = const {},
+    this.exercisePRs = const {},
+  });
 
   @override
-  List<Object?> get props => [session];
+  List<Object?> get props => [session, previousSessions, exercisePRs];
 }
 
 class SessionSaved extends SessionState {

@@ -15,9 +15,7 @@ class WorkoutRepository {
     }
   }
 
-  Future<List<WorkoutSession>> getWorkouts({
-    required String userId,
-  }) async {
+  Future<List<WorkoutSession>> getWorkouts({required String userId}) async {
     try {
       final workouts = await _localDataSource.getWorkouts(userId);
       return workouts;
@@ -26,9 +24,7 @@ class WorkoutRepository {
     }
   }
 
-  Future<WorkoutSession> getWorkout({
-    required String workoutId,
-  }) async {
+  Future<WorkoutSession> getWorkout({required String workoutId}) async {
     try {
       return await _localDataSource.getWorkout(workoutId);
     } catch (e) {
@@ -59,6 +55,29 @@ class WorkoutRepository {
     }
   }
 
+  Future<SessionExercise?> getLastExerciseLog({
+    required String userId,
+    required String exerciseName,
+  }) async {
+    try {
+      return await _localDataSource.getLastExerciseLog(userId, exerciseName);
+    } catch (e) {
+      // Don't throw for stats, just return null
+      return null;
+    }
+  }
+
+  Future<SetSegment?> getExercisePR({
+    required String userId,
+    required String exerciseName,
+  }) async {
+    try {
+      return await _localDataSource.getExercisePR(userId, exerciseName);
+    } catch (e) {
+      return null;
+    }
+  }
+
   String _parseErrorMessage(String error) {
     if (error.contains('Exception:')) {
       return error.split('Exception:').last.trim();
@@ -66,4 +85,3 @@ class WorkoutRepository {
     return error;
   }
 }
-

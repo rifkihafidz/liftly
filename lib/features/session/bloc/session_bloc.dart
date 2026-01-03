@@ -63,7 +63,38 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         updatedAt: now,
       );
 
-      emit(SessionInProgress(session: session));
+      // Load history
+      // Load history and PRs
+      final previousSessions = <String, SessionExercise>{};
+      final exercisePRs = <String, SetSegment>{};
+
+      for (final name in event.exerciseNames) {
+        // Load Last Log
+        final lastLog = await _workoutRepository.getLastExerciseLog(
+          userId: event.userId,
+          exerciseName: name,
+        );
+        if (lastLog != null) {
+          previousSessions[name] = lastLog;
+        }
+
+        // Load PR
+        final pr = await _workoutRepository.getExercisePR(
+          userId: event.userId,
+          exerciseName: name,
+        );
+        if (pr != null) {
+          exercisePRs[name] = pr;
+        }
+      }
+
+      emit(
+        SessionInProgress(
+          session: session,
+          previousSessions: previousSessions,
+          exercisePRs: exercisePRs,
+        ),
+      );
     } catch (e) {
       emit(SessionError(message: 'Failed to start session: $e'));
     }
@@ -113,7 +144,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         updatedAt: DateTime.now(),
       );
 
-      emit(SessionInProgress(session: updatedSession));
+      emit(
+        SessionInProgress(
+          session: updatedSession,
+          previousSessions: currentState.previousSessions,
+          exercisePRs: currentState.exercisePRs,
+        ),
+      );
     }
   }
 
@@ -150,7 +187,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         updatedAt: DateTime.now(),
       );
 
-      emit(SessionInProgress(session: updatedSession));
+      emit(
+        SessionInProgress(
+          session: updatedSession,
+          previousSessions: currentState.previousSessions,
+          exercisePRs: currentState.exercisePRs,
+        ),
+      );
     }
   }
 
@@ -205,7 +248,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         updatedAt: DateTime.now(),
       );
 
-      emit(SessionInProgress(session: updatedSession));
+      emit(
+        SessionInProgress(
+          session: updatedSession,
+          previousSessions: currentState.previousSessions,
+          exercisePRs: currentState.exercisePRs,
+        ),
+      );
     }
   }
 
@@ -247,7 +296,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
           updatedAt: DateTime.now(),
         );
 
-        emit(SessionInProgress(session: updatedSession));
+        emit(
+          SessionInProgress(
+            session: updatedSession,
+            previousSessions: currentState.previousSessions,
+            exercisePRs: currentState.exercisePRs,
+          ),
+        );
       }
     }
   }
@@ -306,7 +361,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
           updatedAt: DateTime.now(),
         );
 
-        emit(SessionInProgress(session: updatedSession));
+        emit(
+          SessionInProgress(
+            session: updatedSession,
+            previousSessions: currentState.previousSessions,
+            exercisePRs: currentState.exercisePRs,
+          ),
+        );
       }
     }
   }
@@ -360,7 +421,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
             updatedAt: DateTime.now(),
           );
 
-          emit(SessionInProgress(session: updatedSession));
+          emit(
+            SessionInProgress(
+              session: updatedSession,
+              previousSessions: currentState.previousSessions,
+              exercisePRs: currentState.exercisePRs,
+            ),
+          );
         }
       }
     }
@@ -385,7 +452,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       updatedAt: DateTime.now(),
     );
 
-    emit(SessionInProgress(session: updatedSession));
+    emit(
+      SessionInProgress(
+        session: updatedSession,
+        previousSessions: currentState.previousSessions,
+        exercisePRs: currentState.exercisePRs,
+      ),
+    );
   }
 
   Future<void> _onSessionSaved(
