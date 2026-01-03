@@ -15,8 +15,14 @@ import '../bloc/session_state.dart';
 class SessionPage extends StatefulWidget {
   final List<String> exerciseNames;
   final String? planId;
+  final WorkoutSession? draftSession;
 
-  const SessionPage({super.key, required this.exerciseNames, this.planId});
+  const SessionPage({
+    super.key,
+    this.exerciseNames = const [],
+    this.planId,
+    this.draftSession,
+  });
 
   @override
   State<SessionPage> createState() => _SessionPageState();
@@ -31,16 +37,21 @@ class _SessionPageState extends State<SessionPage> {
     super.initState();
     initializeDateFormatting('id_ID');
 
-    // Start session with actual exercises
+    // Start session with actual exercises or resume draft
     final bloc = context.read<SessionBloc>();
     const userId = '1'; // Default local user ID
-    bloc.add(
-      SessionStarted(
-        planId: widget.planId,
-        exerciseNames: widget.exerciseNames,
-        userId: userId,
-      ),
-    );
+
+    if (widget.draftSession != null) {
+      bloc.add(SessionDraftResumed(draftSession: widget.draftSession!));
+    } else {
+      bloc.add(
+        SessionStarted(
+          planId: widget.planId,
+          exerciseNames: widget.exerciseNames,
+          userId: userId,
+        ),
+      );
+    }
   }
 
   @override
@@ -61,19 +72,35 @@ class _SessionPageState extends State<SessionPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            title: const Text('Leave Workout?'),
-            content: const Text('Your current workout progress will be lost.'),
+            title: const Text('Unsaved Changes'),
+            content: const Text(
+              'You have unsaved progress. What would you like to do?',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Continue'),
+                child: const Text('Cancel'),
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.pop(dialogContext);
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext); // Close dialog
+                  Navigator.pop(context); // Close page (Discard)
                 },
-                child: const Text('Leave'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                child: const Text('Discard'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext); // Close dialog
+                  context.read<SessionBloc>().add(
+                    const SessionSaveDraftRequested(),
+                  );
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accent,
+                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                child: const Text('Save Draft'),
               ),
             ],
           ),
@@ -81,7 +108,32 @@ class _SessionPageState extends State<SessionPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Log Workout'),
+          title: Text(
+            widget.draftSession != null ? 'Resume Workout' : 'Log Workout',
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.class_outlined),
+              tooltip: 'Save as Draft',
+              onPressed: () async {
+                final confirm = await AppDialogs.showConfirmationDialog(
+                  context: context,
+                  title: 'Save Draft',
+                  message:
+                      'Save current progress as draft? You can resume it later.',
+                  confirmText: 'Save',
+                );
+
+                if (confirm == true) {
+                  if (context.mounted) {
+                    context.read<SessionBloc>().add(
+                      const SessionSaveDraftRequested(),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
@@ -90,18 +142,27 @@ class _SessionPageState extends State<SessionPage> {
           ),
         ),
         body: BlocListener<SessionBloc, SessionState>(
-          listenWhen: (previous, current) => current is SessionSaved,
+          listenWhen: (previous, current) =>
+              current is SessionSaved || current is SessionDraftSaved,
           listener: (context, state) {
-            if (state is SessionSaved) {
+            if (state is SessionDraftSaved) {
+              AppDialogs.showSuccessDialog(
+                context: context,
+                title: 'Draft Saved',
+                message: 'Your workout draft has been saved.',
+                onConfirm: () {
+                  if (mounted) {
+                    Navigator.pop(context); // Pop session page
+                  }
+                },
+              );
+            } else if (state is SessionSaved) {
               AppDialogs.showSuccessDialog(
                 context: context,
                 title: 'Success',
                 message: 'Workout saved successfully.',
                 onConfirm: () {
                   if (mounted) {
-                    // Pop the dialog first
-                    Navigator.pop(context);
-
                     // Replace session with detail (smooth transition, no Home flash)
                     Navigator.pushReplacement(
                       context,

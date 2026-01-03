@@ -78,6 +78,14 @@ class WorkoutRepository {
     }
   }
 
+  Future<WorkoutSession?> getDraftWorkout({required String userId}) async {
+    try {
+      return await _localDataSource.getDraftWorkout(userId);
+    } catch (e) {
+      return null;
+    }
+  }
+
   String _parseErrorMessage(String error) {
     if (error.contains('Exception:')) {
       return error.split('Exception:').last.trim();

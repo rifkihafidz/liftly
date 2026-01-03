@@ -138,3 +138,16 @@ class SessionRecovered extends SessionEvent {
 class SessionSaveRequested extends SessionEvent {
   const SessionSaveRequested();
 }
+
+class SessionDraftResumed extends SessionEvent {
+  final WorkoutSession draftSession;
+
+  const SessionDraftResumed({required this.draftSession});
+
+  @override
+  List<Object?> get props => [draftSession];
+}
+
+class SessionSaveDraftRequested extends SessionEvent {
+  const SessionSaveDraftRequested();
+}

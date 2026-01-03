@@ -40,6 +40,15 @@ class SessionSaved extends SessionState {
   List<Object?> get props => [session];
 }
 
+class SessionDraftSaved extends SessionState {
+  final WorkoutSession session;
+
+  const SessionDraftSaved({required this.session});
+
+  @override
+  List<Object?> get props => [session];
+}
+
 class SessionError extends SessionState {
   final String message;
 

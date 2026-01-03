@@ -35,6 +35,7 @@ class WorkoutLocalDataSource {
             : null,
         'created_at': SQLiteService.formatDateTime(workout.createdAt),
         'updated_at': SQLiteService.formatDateTime(workout.updatedAt),
+        'is_draft': workout.isDraft ? 1 : 0,
       }, conflictAlgorithm: ConflictAlgorithm.replace);
       _log('INSERT', 'workouts: SUCCESS');
 
@@ -99,7 +100,7 @@ class WorkoutLocalDataSource {
 
       final workouts = await database.query(
         'workouts',
-        where: 'user_id = ?',
+        where: 'user_id = ? AND is_draft = 0',
         whereArgs: [userId],
         orderBy: 'workout_date DESC',
       );
@@ -132,6 +133,30 @@ class WorkoutLocalDataSource {
   Future<WorkoutSession> getWorkout(String workoutId) async {
     _log('SELECT', 'workout id=$workoutId');
     return _buildWorkoutFromRows(workoutId);
+  }
+
+  /// Get the latest draft workout for a user
+  Future<WorkoutSession?> getDraftWorkout(String userId) async {
+    try {
+      _log('SELECT', 'Draft workout for userId=$userId');
+      final database = SQLiteService.database;
+
+      final result = await database.query(
+        'workouts',
+        where: 'user_id = ? AND is_draft = 1',
+        whereArgs: [userId],
+        orderBy: 'updated_at DESC',
+        limit: 1,
+      );
+
+      if (result.isEmpty) return null;
+
+      final draftId = result.first['id'] as String;
+      return _buildWorkoutFromRows(draftId);
+    } catch (e) {
+      _log('SELECT', 'getDraftWorkout: FAILED - $e');
+      return null;
+    }
   }
 
   /// Build complete workout object from database rows
@@ -289,6 +314,7 @@ class WorkoutLocalDataSource {
         updatedAt: SQLiteService.parseDateTime(
           workoutRow['updated_at'] as String,
         ),
+        isDraft: (workoutRow['is_draft'] as int?) == 1,
       );
 
       // Log the final result
@@ -325,6 +351,7 @@ class WorkoutLocalDataSource {
             ? SQLiteService.formatDateTime(workout.endedAt!)
             : null,
         'updated_at': SQLiteService.formatDateTime(workout.updatedAt),
+        'is_draft': workout.isDraft ? 1 : 0,
       },
       where: 'id = ?',
       whereArgs: [workout.id],
@@ -518,6 +545,7 @@ class WorkoutLocalDataSource {
         updatedAt: SQLiteService.parseDateTime(
           workoutRow['updated_at'] as String,
         ),
+        isDraft: (workoutRow['is_draft'] as int?) == 1,
       );
 
       return updatedWorkout;

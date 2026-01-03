@@ -23,7 +23,7 @@ class SQLiteService {
 
       _database = await openDatabase(
         path,
-        version: 3,
+        version: 4,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
         },
@@ -35,6 +35,28 @@ class SQLiteService {
           _log('INIT', 'Upgrading database from v$oldVersion to v$newVersion');
           if (oldVersion < 3) {
             await _createTables(db);
+          }
+          if (oldVersion < 4) {
+            _log('INIT', 'Adding is_draft column to workouts table');
+            try {
+              // Check if column exists first
+              final columns = await db.rawQuery('PRAGMA table_info(workouts)');
+              final hasIsDraft = columns.any((c) => c['name'] == 'is_draft');
+
+              if (!hasIsDraft) {
+                await db.execute(
+                  'ALTER TABLE workouts ADD COLUMN is_draft INTEGER DEFAULT 0',
+                );
+              } else {
+                _log(
+                  'INIT',
+                  'Column is_draft already exists, skipping ADD COLUMN',
+                );
+              }
+            } catch (e) {
+              _log('INIT', 'Error migrate is_draft: $e');
+              // Ignore if it's strictly a duplicate column error just in case logic fails
+            }
           }
         },
       );
@@ -92,7 +114,8 @@ class SQLiteService {
         started_at DATETIME,
         ended_at DATETIME,
         created_at DATETIME NOT NULL,
-        updated_at DATETIME NOT NULL
+        updated_at DATETIME NOT NULL,
+        is_draft INTEGER DEFAULT 0
       )
     ''');
 

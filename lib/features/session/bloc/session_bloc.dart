@@ -20,6 +20,8 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     on<SessionSegmentRemoved>(_onSegmentRemoved);
     on<SessionEnded>(_onSessionEnded);
     on<SessionSaveRequested>(_onSessionSaved);
+    on<SessionDraftResumed>(_onSessionDraftResumed);
+    on<SessionSaveDraftRequested>(_onSessionSaveDraftRequested);
   }
 
   Future<void> _onSessionStarted(
@@ -480,6 +482,78 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       emit(SessionSaved(session: savedSession));
     } catch (e) {
       emit(SessionError(message: 'Failed to save session: $e'));
+    }
+  }
+
+  Future<void> _onSessionDraftResumed(
+    SessionDraftResumed event,
+    Emitter<SessionState> emit,
+  ) async {
+    emit(const SessionLoading());
+    try {
+      final session = event.draftSession;
+
+      // Load history and PRs
+      final previousSessions = <String, SessionExercise>{};
+      final exercisePRs = <String, SetSegment>{};
+      // Extract unique exercise names from draft
+      final exerciseNames = session.exercises.map((e) => e.name).toSet();
+
+      for (final name in exerciseNames) {
+        // Load Last Log
+        final lastLog = await _workoutRepository.getLastExerciseLog(
+          userId: session.userId,
+          exerciseName: name,
+        );
+        if (lastLog != null) {
+          previousSessions[name] = lastLog;
+        }
+
+        // Load PR
+        final pr = await _workoutRepository.getExercisePR(
+          userId: session.userId,
+          exerciseName: name,
+        );
+        if (pr != null) {
+          exercisePRs[name] = pr;
+        }
+      }
+
+      emit(
+        SessionInProgress(
+          session: session,
+          previousSessions: previousSessions,
+          exercisePRs: exercisePRs,
+        ),
+      );
+    } catch (e) {
+      emit(SessionError(message: 'Failed to resume draft: $e'));
+    }
+  }
+
+  Future<void> _onSessionSaveDraftRequested(
+    SessionSaveDraftRequested event,
+    Emitter<SessionState> emit,
+  ) async {
+    if (state is! SessionInProgress) return;
+
+    try {
+      final currentState = state as SessionInProgress;
+      final session = currentState.session.copyWith(
+        isDraft: true,
+        updatedAt: DateTime.now(),
+      );
+
+      // Save workout directly using WorkoutRepository
+      // createWorkout uses REPLACE conflict algorithm, so it handles updates too
+      final savedSession = await _workoutRepository.createWorkout(
+        userId: session.userId,
+        workout: session,
+      );
+
+      emit(SessionDraftSaved(session: savedSession));
+    } catch (e) {
+      emit(SessionError(message: 'Failed to save draft: $e'));
     }
   }
 }

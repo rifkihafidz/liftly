@@ -79,6 +79,7 @@ class WorkoutSession extends Equatable {
   final List<SessionExercise> exercises;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isDraft;
 
   const WorkoutSession({
     required this.id,
@@ -91,6 +92,7 @@ class WorkoutSession extends Equatable {
     required this.exercises,
     required this.createdAt,
     required this.updatedAt,
+    this.isDraft = false,
   });
 
   Duration? get duration {
@@ -125,6 +127,7 @@ class WorkoutSession extends Equatable {
     List<SessionExercise>? exercises,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? isDraft,
   }) {
     return WorkoutSession(
       id: id ?? this.id,
@@ -137,6 +140,7 @@ class WorkoutSession extends Equatable {
       exercises: exercises ?? this.exercises,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isDraft: isDraft ?? this.isDraft,
     );
   }
 
@@ -152,6 +156,7 @@ class WorkoutSession extends Equatable {
     exercises,
     createdAt,
     updatedAt,
+    isDraft,
   ];
 
   Map<String, dynamic> toMap() {
@@ -166,6 +171,7 @@ class WorkoutSession extends Equatable {
       'exercises': exercises.map((ex) => _sessionExerciseToMap(ex)).toList(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'isDraft': isDraft,
     };
   }
 
@@ -199,6 +205,7 @@ class WorkoutSession extends Equatable {
       updatedAt: map['updatedAt'] is String
           ? DateTime.parse(map['updatedAt'] as String)
           : map['updatedAt'] as DateTime,
+      isDraft: map['isDraft'] as bool? ?? false,
     );
   }
 

@@ -5,6 +5,9 @@ import '../../session/pages/start_workout_page.dart';
 import '../../session/pages/workout_history_page.dart';
 import '../../plans/pages/plans_page.dart';
 import '../../stats/pages/stats_page.dart';
+import '../../session/pages/session_page.dart';
+import '../../workout_log/repositories/workout_repository.dart';
+import '../../../shared/widgets/app_dialogs.dart';
 import '../../settings/pages/settings_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -68,13 +71,48 @@ class _HomePageState extends State<HomePage> {
                 title: 'Start Workout',
                 subtitle: 'Log a new session manually',
                 icon: Icons.add_circle_outline_rounded,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const StartWorkoutPage(),
-                    ),
-                  );
+                onTap: () async {
+                  final repo = WorkoutRepository();
+                  final draft = await repo.getDraftWorkout(userId: '1');
+
+                  if (!context.mounted) return;
+
+                  if (draft != null) {
+                    final confirm = await AppDialogs.showConfirmationDialog(
+                      context: context,
+                      title: 'Resume Draft?',
+                      message:
+                          'You have an unfinished workout from ${DateFormat('dd MMMM yyyy').format(draft.createdAt)}. Do you want to resume it?',
+                      confirmText: 'Resume',
+                      cancelText: 'New Workout',
+                    );
+
+                    if (!context.mounted) return;
+
+                    if (confirm == true) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              SessionPage(draftSession: draft),
+                        ),
+                      );
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const StartWorkoutPage(),
+                        ),
+                      );
+                    }
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const StartWorkoutPage(),
+                      ),
+                    );
+                  }
                 },
               ),
               const SizedBox(height: 24),
