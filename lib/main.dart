@@ -13,9 +13,7 @@ import 'features/workout_log/repositories/workout_repository.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SQLiteService.initDatabase();
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const Liftly());
 }
 
@@ -28,20 +26,18 @@ class Liftly extends StatelessWidget {
       providers: [
         BlocProvider(create: (context) => SessionBloc()),
         BlocProvider(
-          create: (context) => PlanBloc(
-            planRepository: PlanRepository(),
-          ),
+          create: (context) => PlanBloc(planRepository: PlanRepository()),
         ),
         BlocProvider(
-          create: (context) => WorkoutBloc(
-            workoutRepository: WorkoutRepository(),
-          ),
+          create: (context) =>
+              WorkoutBloc(workoutRepository: WorkoutRepository()),
         ),
       ],
       child: MaterialApp(
         title: 'Liftly',
         theme: AppTheme.darkTheme,
         home: const HomePage(),
+        debugShowCheckedModeBanner: false,
       ),
     );
   }

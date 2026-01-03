@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
+import 'package:intl/intl.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/workout_form_widgets.dart';
 import '../../../core/models/workout_session.dart';
 import '../repositories/workout_repository.dart';
+import '../../../shared/widgets/session_exercise_card.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
@@ -141,22 +143,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
   }
 
   String _formatDate(DateTime date) {
-    // Format date without requiring locale initialization
-    final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
+    return DateFormat('EEEE, dd MMMM yyyy').format(date);
   }
 
   void _saveChanges() {
@@ -376,6 +363,11 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                           );
                                       if (result != null) {
                                         setState(() {
+                                          if (result['workoutDate'] != null) {
+                                            _editedWorkout['workoutDate'] =
+                                                result['workoutDate']
+                                                    ?.toIso8601String();
+                                          }
                                           _editedWorkout['startedAt'] =
                                               result['startedAt']
                                                   ?.toIso8601String()
@@ -416,6 +408,11 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                           );
                                       if (result != null) {
                                         setState(() {
+                                          if (result['workoutDate'] != null) {
+                                            _editedWorkout['workoutDate'] =
+                                                result['workoutDate']
+                                                    ?.toIso8601String();
+                                          }
                                           _editedWorkout['startedAt'] =
                                               result['startedAt']
                                                   ?.toIso8601String()
@@ -448,433 +445,111 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                       final exercise =
                           (exercises[exIndex] as Map<dynamic, dynamic>)
                               .cast<String, dynamic>();
-                      final sets = (exercise['sets'] as List<dynamic>?) ?? [];
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: AppColors.cardBg,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppColors.borderLight,
-                            width: 1,
-                          ),
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        exercise['name'],
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (_previousSessions.containsKey(
-                                      exercise['name'],
-                                    ) ||
-                                    _exercisePRs.containsKey(exercise['name']))
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.history,
-                                      size: 20,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    tooltip: 'View History & PR',
-                                    constraints: const BoxConstraints.tightFor(
-                                      width: 32,
-                                      height: 32,
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () {
-                                      _showExerciseHistory(
-                                        context,
-                                        exercise['name'],
-                                        _previousSessions[exercise['name']],
-                                        _exercisePRs[exercise['name']],
-                                      );
-                                    },
-                                  ),
-                                const SizedBox(width: 4),
-                                GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      final currentSkipped =
-                                          exercise['skipped'] == true;
-                                      _editedWorkout['exercises'][exIndex]['skipped'] =
-                                          !currentSkipped;
+                      return SessionExerciseCard(
+                        exercise: exercise,
+                        exerciseIndex: exIndex,
+                        history: _previousSessions[exercise['name']],
+                        pr: _exercisePRs[exercise['name']],
+                        onSkipToggle: () {
+                          setState(() {
+                            final currentSkipped = exercise['skipped'] == true;
+                            _editedWorkout['exercises'][exIndex]['skipped'] =
+                                !currentSkipped;
 
-                                      // Jika uncheck skipped, reset sets ke 1 set kosong
-                                      if (currentSkipped) {
-                                        // Clear all existing sets
-                                        sets.clear();
-                                        // Add 1 default empty set
-                                        sets.add({
-                                          'setNumber': 1,
-                                          'segments': [
-                                            {
-                                              'weight': 0.0,
-                                              'repsFrom': 1,
-                                              'repsTo': 12,
-                                              'notes': '',
-                                            },
-                                          ],
-                                        });
-                                      }
-                                    });
+                            if (currentSkipped) {
+                              final sets =
+                                  (exercise['sets'] as List<dynamic>?) ?? [];
+                              sets.clear();
+                              sets.add({
+                                'setNumber': 1,
+                                'segments': [
+                                  {
+                                    'weight': 0.0,
+                                    'repsFrom': 1,
+                                    'repsTo': 12,
+                                    'notes': '',
                                   },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: exercise['skipped'] == true
-                                          ? AppColors.accent.withValues(
-                                              alpha: 0.2,
-                                            )
-                                          : AppColors.inputBg,
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: exercise['skipped'] == true
-                                            ? AppColors.accent
-                                            : AppColors.borderLight,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          exercise['skipped'] == true
-                                              ? Icons.check_box
-                                              : Icons.check_box_outline_blank,
-                                          size: 14,
-                                          color: exercise['skipped'] == true
-                                              ? AppColors.accent
-                                              : AppColors.textSecondary,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          exercise['skipped'] == true
-                                              ? 'Skipped'
-                                              : 'Skip',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelSmall
-                                              ?.copyWith(
-                                                color:
-                                                    exercise['skipped'] == true
-                                                    ? AppColors.accent
-                                                    : AppColors.textSecondary,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                                ],
+                              });
+                            }
+                          });
+                        },
+                        onHistoryTap: () {
+                          _showExerciseHistory(
+                            context,
+                            exercise['name'],
+                            _previousSessions[exercise['name']],
+                            _exercisePRs[exercise['name']],
+                          );
+                        },
+                        onAddSet: () {
+                          setState(() {
+                            final sets =
+                                (exercise['sets'] as List<dynamic>?) ?? [];
+                            sets.add({
+                              'setNumber': sets.length + 1,
+                              'segments': [
+                                {
+                                  'weight': 0.0,
+                                  'repsFrom': 1,
+                                  'repsTo': 12,
+                                  'notes': '',
+                                },
                               ],
-                            ),
-                            if ((_editedWorkout['exercises'][exIndex]
-                                    as Map<dynamic, dynamic>)['skipped'] !=
-                                true) ...[
-                              const SizedBox(height: 16),
-                              ...List.generate(sets.length, (setIndex) {
-                                final set =
-                                    (sets[setIndex] as Map<dynamic, dynamic>)
-                                        .cast<String, dynamic>();
-                                final segments =
-                                    (set['segments'] as List<dynamic>?) ?? [];
-
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (setIndex > 0)
-                                      const Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                        child: Divider(height: 1),
-                                      ),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          'Set ${set['setNumber']}',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                                color: AppColors.accent,
-                                              ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        if (segments.length > 1)
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.accent
-                                                  .withValues(alpha: 0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              'Drop Set',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .labelSmall
-                                                  ?.copyWith(
-                                                    color: AppColors.accent,
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 10,
-                                                  ),
-                                            ),
-                                          ),
-                                        const Spacer(),
-                                        if (setIndex > 0) ...[
-                                          IconButton(
-                                            onPressed: () {
-                                              setState(() {
-                                                sets.removeAt(setIndex);
-                                                for (
-                                                  int i = 0;
-                                                  i < sets.length;
-                                                  i++
-                                                ) {
-                                                  sets[i]['setNumber'] = i + 1;
-                                                }
-                                              });
-                                            },
-                                            icon: const Icon(
-                                              Icons.delete_outline,
-                                              size: 20,
-                                            ),
-                                            color: AppColors.error,
-                                            tooltip: 'Remove Set',
-                                            constraints:
-                                                const BoxConstraints.tightFor(
-                                                  width: 32,
-                                                  height: 32,
-                                                ),
-                                            padding: EdgeInsets.zero,
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    ...List.generate(segments.length, (
-                                      segIndex,
-                                    ) {
-                                      final segment =
-                                          (segments[segIndex]
-                                                  as Map<dynamic, dynamic>)
-                                              .cast<String, dynamic>();
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 12,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              flex: 2,
-                                              child: WeightField(
-                                                initialValue: segment['weight']
-                                                    .toString(),
-                                                onChanged: (v) =>
-                                                    _updateSegment(
-                                                      exIndex,
-                                                      setIndex,
-                                                      segIndex,
-                                                      'weight',
-                                                      double.tryParse(v) ?? 0,
-                                                    ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: NumberField(
-                                                label: 'From',
-                                                initialValue:
-                                                    segment['repsFrom']
-                                                        .toString(),
-                                                onChanged: (v) =>
-                                                    _updateSegment(
-                                                      exIndex,
-                                                      setIndex,
-                                                      segIndex,
-                                                      'repsFrom',
-                                                      int.tryParse(v) ?? 0,
-                                                    ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: ToField(
-                                                initialValue: segment['repsTo']
-                                                    .toString(),
-                                                onChanged: (v) =>
-                                                    _updateSegment(
-                                                      exIndex,
-                                                      setIndex,
-                                                      segIndex,
-                                                      'repsTo',
-                                                      int.tryParse(v) ?? 0,
-                                                    ),
-                                                onDeleteTap:
-                                                    (segments.length > 1 &&
-                                                        segIndex > 0)
-                                                    ? () {
-                                                        setState(() {
-                                                          segments.removeAt(
-                                                            segIndex,
-                                                          );
-                                                          // Update segment order
-                                                          for (
-                                                            int i = 0;
-                                                            i < segments.length;
-                                                            i++
-                                                          ) {
-                                                            segments[i]['segmentOrder'] =
-                                                                i;
-                                                          }
-                                                        });
-                                                      }
-                                                    : null,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }),
-                                    const SizedBox(height: 12),
-                                    if (segments.isNotEmpty)
-                                      NotesField(
-                                        initialValue: segments[0]['notes']
-                                            .toString(),
-                                        onChanged: (v) => _updateSegment(
-                                          exIndex,
-                                          setIndex,
-                                          0,
-                                          'notes',
-                                          v,
-                                        ),
-                                      )
-                                    else
-                                      NotesField(
-                                        initialValue: '',
-                                        onChanged: (_) {},
-                                      ),
-                                    const SizedBox(height: 12),
-                                    if (setIndex == sets.length - 1) ...[
-                                      // Last set: show both buttons
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: ElevatedButton.icon(
-                                              onPressed: () {
-                                                setState(() {
-                                                  final newSet = {
-                                                    'setNumber':
-                                                        sets.length + 1,
-                                                    'segments': [
-                                                      {
-                                                        'weight': 0.0,
-                                                        'repsFrom': 1,
-                                                        'repsTo': 12,
-                                                        'notes': '',
-                                                      },
-                                                    ],
-                                                  };
-                                                  sets.add(newSet);
-                                                });
-                                              },
-                                              icon: const Icon(
-                                                Icons.add,
-                                                size: 16,
-                                              ),
-                                              label: const Text(
-                                                'Add Set',
-                                                style: TextStyle(fontSize: 12),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: ElevatedButton.icon(
-                                              onPressed: () {
-                                                setState(() {
-                                                  final newSegment = {
-                                                    'weight': 0.0,
-                                                    'repsFrom': 1,
-                                                    'repsTo': 12,
-                                                    'notes': '',
-                                                  };
-                                                  segments.add(newSegment);
-                                                });
-                                              },
-                                              icon: const Icon(
-                                                Icons.add,
-                                                size: 16,
-                                              ),
-                                              label: const Text(
-                                                'Add Drop Set',
-                                                style: TextStyle(fontSize: 12),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ] else ...[
-                                      // Not last set: show only Add Drop Set button
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: ElevatedButton.icon(
-                                              onPressed: () {
-                                                setState(() {
-                                                  final newSegment = {
-                                                    'weight': 0.0,
-                                                    'repsFrom': 1,
-                                                    'repsTo': 12,
-                                                    'notes': '',
-                                                  };
-                                                  segments.add(newSegment);
-                                                });
-                                              },
-                                              icon: const Icon(
-                                                Icons.add,
-                                                size: 16,
-                                              ),
-                                              label: const Text(
-                                                'Add Drop Set',
-                                                style: TextStyle(fontSize: 12),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ],
-                                );
-                              }),
-                            ],
-                          ],
-                        ),
+                            });
+                          });
+                        },
+                        onRemoveSet: (setIndex) {
+                          setState(() {
+                            final sets =
+                                (exercise['sets'] as List<dynamic>?) ?? [];
+                            sets.removeAt(setIndex);
+                            for (int i = 0; i < sets.length; i++) {
+                              sets[i]['setNumber'] = i + 1;
+                            }
+                          });
+                        },
+                        onAddDropSet: (setIndex) {
+                          setState(() {
+                            final sets =
+                                (exercise['sets'] as List<dynamic>?) ?? [];
+                            final segments =
+                                (sets[setIndex]['segments']
+                                    as List<dynamic>?) ??
+                                [];
+                            segments.add({
+                              'weight': 0.0,
+                              'repsFrom': 1,
+                              'repsTo': 12,
+                              'notes': '',
+                            });
+                          });
+                        },
+                        onRemoveDropSet: (setIndex, segmentIndex) {
+                          setState(() {
+                            final sets =
+                                (exercise['sets'] as List<dynamic>?) ?? [];
+                            final segments =
+                                (sets[setIndex]['segments']
+                                    as List<dynamic>?) ??
+                                [];
+                            segments.removeAt(segmentIndex);
+                            for (int i = 0; i < segments.length; i++) {
+                              segments[i]['segmentOrder'] = i;
+                            }
+                          });
+                        },
+                        onUpdateSegment:
+                            (setIndex, segmentIndex, field, value) {
+                              _updateSegment(
+                                exIndex,
+                                setIndex,
+                                segmentIndex,
+                                field,
+                                value,
+                              );
+                            },
                       );
                     }),
                   ],
@@ -981,14 +656,10 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                         ? pr.weight.toInt()
                         : pr.weight;
 
-                    String reps;
-                    if (pr.repsFrom != pr.repsTo && pr.repsTo > 0) {
-                      reps = '${pr.repsFrom}-${pr.repsTo}';
-                    } else if (pr.repsFrom <= 1 && pr.repsTo > 1) {
-                      reps = '${pr.repsTo}';
-                    } else {
-                      reps = '${pr.repsFrom}';
-                    }
+                    final repsCount = (pr.repsTo > pr.repsFrom)
+                        ? pr.repsTo
+                        : pr.repsFrom;
+                    final reps = '$repsCount';
 
                     String notesStr = '';
                     if (pr.notes.isNotEmpty) {
@@ -1004,7 +675,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '$weight kg × $reps$notesStr',
+                          '$weight kg - $reps reps$notesStr',
                           style: Theme.of(context).textTheme.bodyLarge
                               ?.copyWith(
                                 color: AppColors.accent,

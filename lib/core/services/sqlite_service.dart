@@ -24,6 +24,9 @@ class SQLiteService {
       _database = await openDatabase(
         path,
         version: 3,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
         onCreate: (Database db, int version) async {
           _log('INIT', 'Creating tables (version $version)');
           await _createTables(db);
@@ -153,7 +156,7 @@ class SQLiteService {
       }
       final dateParts = parts[0].split('-'); // dd-MM-yyyy
       final timeParts = parts[1].split(':'); // HH:mm:ss
-      
+
       return DateTime(
         int.parse(dateParts[2]), // year
         int.parse(dateParts[1]), // month
@@ -179,11 +182,10 @@ class SQLiteService {
   static Future<void> savePreference(String key, String value) async {
     try {
       _log('INSERT', 'preferences: key=$key, value=$value');
-      await _database.insert(
-        'preferences',
-        {'key': key, 'value': value},
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await _database.insert('preferences', {
+        'key': key,
+        'value': value,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
       _log('INSERT', 'preferences: SUCCESS');
     } catch (e) {
       _log('INSERT', 'preferences: FAILED - $e');
@@ -216,11 +218,7 @@ class SQLiteService {
   static Future<void> deletePreference(String key) async {
     try {
       _log('DELETE', 'preferences WHERE key=$key');
-      await _database.delete(
-        'preferences',
-        where: 'key = ?',
-        whereArgs: [key],
-      );
+      await _database.delete('preferences', where: 'key = ?', whereArgs: [key]);
       _log('DELETE', 'preferences: SUCCESS');
     } catch (e) {
       _log('DELETE', 'preferences: FAILED - $e');

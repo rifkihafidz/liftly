@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/constants/colors.dart';
+import 'app_dialogs.dart';
+import 'package:intl/intl.dart';
 
 // Reusable datetime dialog untuk session/workout form
 class WorkoutDateTimeDialog extends StatefulWidget {
@@ -25,22 +27,7 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
   late TimeOfDay endTime;
 
   String _formatDate(DateTime date) {
-    // Format date without requiring locale initialization
-    final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
+    return DateFormat('EEEE, dd MMMM yyyy').format(date);
   }
 
   @override
@@ -239,22 +226,34 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
+                      final start = DateTime(
+                        selectedDate.year,
+                        selectedDate.month,
+                        selectedDate.day,
+                        startTime.hour,
+                        startTime.minute,
+                      );
+                      final end = DateTime(
+                        selectedDate.year,
+                        selectedDate.month,
+                        selectedDate.day,
+                        endTime.hour,
+                        endTime.minute,
+                      );
+
+                      if (end.isBefore(start)) {
+                        AppDialogs.showErrorDialog(
+                          context: context,
+                          title: 'Invalid Time',
+                          message: 'End time cannot be before start time.',
+                        );
+                        return;
+                      }
+
                       final result = {
                         'workoutDate': selectedDate,
-                        'startedAt': DateTime(
-                          selectedDate.year,
-                          selectedDate.month,
-                          selectedDate.day,
-                          startTime.hour,
-                          startTime.minute,
-                        ),
-                        'endedAt': DateTime(
-                          selectedDate.year,
-                          selectedDate.month,
-                          selectedDate.day,
-                          endTime.hour,
-                          endTime.minute,
-                        ),
+                        'startedAt': start,
+                        'endedAt': end,
                       };
                       Navigator.pop(context, result);
                     },
@@ -298,6 +297,14 @@ class _WeightFieldState extends State<WeightField> {
   void dispose() {
     controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant WeightField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialValue != controller.text) {
+      controller.text = widget.initialValue;
+    }
   }
 
   @override
@@ -367,6 +374,14 @@ class _NumberFieldState extends State<NumberField> {
   }
 
   @override
+  void didUpdateWidget(covariant NumberField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialValue != controller.text) {
+      controller.text = widget.initialValue;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -430,6 +445,14 @@ class _ToFieldState extends State<ToField> {
   void dispose() {
     controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant ToField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialValue != controller.text) {
+      controller.text = widget.initialValue;
+    }
   }
 
   @override
@@ -507,6 +530,14 @@ class _NotesFieldState extends State<NotesField> {
   void dispose() {
     controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant NotesField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialValue != controller.text) {
+      controller.text = widget.initialValue;
+    }
   }
 
   @override

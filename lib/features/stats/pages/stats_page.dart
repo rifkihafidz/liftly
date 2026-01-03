@@ -644,8 +644,7 @@ class _StatsPageState extends State<StatsPage> {
             ],
           ],
         ),
-        const SizedBox(height: 16),
-
+        const SizedBox(height: 8),
         AnimatedCrossFade(
           firstChild: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),

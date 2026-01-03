@@ -22,7 +22,14 @@ class SetSegment extends Equatable {
   double get volume => weight * totalReps;
 
   @override
-  List<Object?> get props => [id, weight, repsFrom, repsTo, segmentOrder, notes];
+  List<Object?> get props => [
+    id,
+    weight,
+    repsFrom,
+    repsTo,
+    segmentOrder,
+    notes,
+  ];
 }
 
 class ExerciseSet extends Equatable {
@@ -65,6 +72,7 @@ class WorkoutSession extends Equatable {
   final String id;
   final String userId;
   final String? planId;
+  final String? planName;
   final DateTime workoutDate;
   final DateTime? startedAt;
   final DateTime? endedAt;
@@ -76,6 +84,7 @@ class WorkoutSession extends Equatable {
     required this.id,
     required this.userId,
     this.planId,
+    this.planName,
     required this.workoutDate,
     this.startedAt,
     this.endedAt,
@@ -92,10 +101,10 @@ class WorkoutSession extends Equatable {
   String get formattedDuration {
     final dur = duration;
     if (dur == null) return '-';
-    
+
     final hours = dur.inHours;
     final minutes = dur.inMinutes % 60;
-    
+
     if (hours == 0) {
       return '${minutes}m';
     } else if (minutes == 0) {
@@ -109,6 +118,7 @@ class WorkoutSession extends Equatable {
     String? id,
     String? userId,
     String? planId,
+    String? planName,
     DateTime? workoutDate,
     DateTime? startedAt,
     DateTime? endedAt,
@@ -120,6 +130,7 @@ class WorkoutSession extends Equatable {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       planId: planId ?? this.planId,
+      planName: planName ?? this.planName,
       workoutDate: workoutDate ?? this.workoutDate,
       startedAt: startedAt ?? this.startedAt,
       endedAt: endedAt ?? this.endedAt,
@@ -134,6 +145,7 @@ class WorkoutSession extends Equatable {
     id,
     userId,
     planId,
+    planName,
     workoutDate,
     startedAt,
     endedAt,
@@ -142,12 +154,12 @@ class WorkoutSession extends Equatable {
     updatedAt,
   ];
 
-  /// Convert to Map for Hive storage
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'userId': userId,
       'planId': planId,
+      'planName': planName,
       'workoutDate': workoutDate.toIso8601String(),
       'startedAt': startedAt?.toIso8601String(),
       'endedAt': endedAt?.toIso8601String(),
@@ -157,32 +169,34 @@ class WorkoutSession extends Equatable {
     };
   }
 
-  /// Create from Map (from Hive storage or API response)
   static WorkoutSession fromMap(Map<String, dynamic> map) {
     return WorkoutSession(
       id: _parseId(map['id']),
       userId: _parseId(map['userId']),
       planId: map['planId'] != null ? _parseId(map['planId']) : null,
-      workoutDate: map['workoutDate'] is String 
+      planName: map['planName'] as String?,
+      workoutDate: map['workoutDate'] is String
           ? DateTime.parse(map['workoutDate'] as String)
           : map['workoutDate'] as DateTime,
-      startedAt: map['startedAt'] != null 
-          ? (map['startedAt'] is String 
-              ? DateTime.parse(map['startedAt'] as String)
-              : map['startedAt'] as DateTime)
+      startedAt: map['startedAt'] != null
+          ? (map['startedAt'] is String
+                ? DateTime.parse(map['startedAt'] as String)
+                : map['startedAt'] as DateTime)
           : null,
-      endedAt: map['endedAt'] != null 
-          ? (map['endedAt'] is String 
-              ? DateTime.parse(map['endedAt'] as String)
-              : map['endedAt'] as DateTime)
+      endedAt: map['endedAt'] != null
+          ? (map['endedAt'] is String
+                ? DateTime.parse(map['endedAt'] as String)
+                : map['endedAt'] as DateTime)
           : null,
-      exercises: (map['exercises'] as List<dynamic>?)
-          ?.map((ex) => _sessionExerciseFromMap(ex as Map<String, dynamic>))
-          .toList() ?? [],
-      createdAt: map['createdAt'] is String 
+      exercises:
+          (map['exercises'] as List<dynamic>?)
+              ?.map((ex) => _sessionExerciseFromMap(ex as Map<String, dynamic>))
+              .toList() ??
+          [],
+      createdAt: map['createdAt'] is String
           ? DateTime.parse(map['createdAt'] as String)
           : map['createdAt'] as DateTime,
-      updatedAt: map['updatedAt'] is String 
+      updatedAt: map['updatedAt'] is String
           ? DateTime.parse(map['updatedAt'] as String)
           : map['updatedAt'] as DateTime,
     );
@@ -214,9 +228,11 @@ class WorkoutSession extends Equatable {
       name: map['name'] as String,
       order: map['order'] as int,
       skipped: map['skipped'] as bool? ?? false,
-      sets: (map['sets'] as List<dynamic>?)
-          ?.map((set) => _exerciseSetFromMap(set as Map<String, dynamic>))
-          .toList() ?? [],
+      sets:
+          (map['sets'] as List<dynamic>?)
+              ?.map((set) => _exerciseSetFromMap(set as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
@@ -234,9 +250,11 @@ class WorkoutSession extends Equatable {
     return ExerciseSet(
       id: _parseId(map['id']),
       setNumber: map['setNumber'] as int,
-      segments: (map['segments'] as List<dynamic>?)
-          ?.map((seg) => _setSegmentFromMap(seg as Map<String, dynamic>))
-          .toList() ?? [],
+      segments:
+          (map['segments'] as List<dynamic>?)
+              ?.map((seg) => _setSegmentFromMap(seg as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 

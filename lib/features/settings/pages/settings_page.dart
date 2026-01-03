@@ -1,27 +1,23 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/services/data_management_service.dart';
+import '../../../shared/widgets/app_dialogs.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
   Future<void> _handleExport(BuildContext context) async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preparing data for export...')),
-      );
-
       await DataManagementService.exportData();
 
       // Note: Share sheet will open, so we don't necessarily need a success snackbar
       // as the user sees the file. But a confirmation is nice.
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Export failed: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
+        await AppDialogs.showErrorDialog(
+          context: context,
+          title: 'Export Failed',
+          message: e.toString(),
         );
       }
     }
@@ -29,114 +25,73 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _handleImport(BuildContext context) async {
     try {
-      final result = await showDialog<bool>(
+      final result = await AppDialogs.showConfirmationDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Import Data'),
-          content: const Text(
+        title: 'Import Data',
+        message:
             'Importing data will replace existing records with the same IDs. Are you sure you want to continue?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Import'),
-            ),
-          ],
-        ),
+        confirmText: 'Import',
+        isDangerous: false,
       );
 
       if (result != true) return;
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select an Excel file to import...')),
-      );
 
       final importResult = await DataManagementService.importData();
 
       if (context.mounted) {
         if (importResult == 'Import cancelled') {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          // No action needed
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(importResult),
-              backgroundColor: AppColors.success,
-              duration: const Duration(seconds: 4),
-            ),
+          await AppDialogs.showSuccessDialog(
+            context: context,
+            title: 'Import Successful',
+            message: importResult,
           );
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Import failed: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
+        await AppDialogs.showErrorDialog(
+          context: context,
+          title: 'Import Failed',
+          message: e.toString(),
         );
       }
     }
   }
 
   Future<void> _handleClearAll(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await AppDialogs.showConfirmationDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear All Data'),
-        content: const Text(
+      title: 'Clear All Data',
+      message:
           'This will permanently delete all your workouts and plans. This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Clear Everything'),
-          ),
-        ],
-      ),
+      confirmText: 'Clear Everything',
+      isDangerous: true,
     );
 
     if (confirmed != true) return;
 
     try {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Clearing all data...')));
 
       await DataManagementService.clearAllData();
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('All data cleared successfully'),
-            backgroundColor: AppColors.success,
-          ),
+        await AppDialogs.showSuccessDialog(
+          context: context,
+          title: 'Success',
+          message: 'All data cleared successfully',
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to clear data: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
+        await AppDialogs.showErrorDialog(
+          context: context,
+          title: 'Error',
+          message: 'Failed to clear data: ${e.toString()}',
         );
       }
     }
