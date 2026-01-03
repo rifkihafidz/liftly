@@ -80,6 +80,10 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
       (sum, ex) => sum + (ex.skipped ? 0 : ex.totalVolume),
     );
     final exerciseCount = workout.exercises.where((ex) => !ex.skipped).length;
+    final totalSets = workout.exercises.fold<int>(
+      0,
+      (sum, ex) => sum + (ex.skipped ? 0 : ex.sets.length),
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24),
@@ -150,7 +154,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                     child: Stack(
                       children: [
                         Padding(
-                          padding: const EdgeInsets.all(32),
+                          padding: const EdgeInsets.all(24),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -185,12 +189,14 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                               const Spacer(),
 
                               _buildStatGroup('Exercises', '$exerciseCount'),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 12),
+                              _buildStatGroup('Total Sets', '$totalSets'),
+                              const SizedBox(height: 12),
                               _buildStatGroup(
                                 'Total Volume',
                                 '${_formatNumber(totalVolume)} kg',
                               ),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 12),
                               _buildStatGroup(
                                 'Time',
                                 _formatDuration(duration),
@@ -204,7 +210,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                   Icon(
                                     Icons.fitness_center_rounded,
                                     color: AppColors.accent,
-                                    size: 32,
+                                    size: 28,
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -213,7 +219,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                     style: TextStyle(
                                       color: AppColors.textPrimary,
                                       fontWeight: FontWeight.w900,
-                                      fontSize: 16,
+                                      fontSize: 14,
                                       letterSpacing: 2,
                                     ),
                                   ),
@@ -294,17 +300,17 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: AppColors.textSecondary,
-            fontSize: 14,
+            fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           value,
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: AppColors.textPrimary,
-            fontSize: 28,
+            fontSize: 24,
             fontWeight: FontWeight.w900,
           ),
         ),

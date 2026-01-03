@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_plan.dart';
+import '../../../core/models/workout_session.dart';
 
 import '../../plans/bloc/plan_bloc.dart';
 import '../../plans/bloc/plan_event.dart';
@@ -15,11 +16,7 @@ import '../../workout_log/repositories/workout_repository.dart';
 
 enum PlanSortOption { newest, oldest, aToZ, zToA }
 
-class _SessionQueueItem {
-  final String id;
-  final String name;
-  _SessionQueueItem(this.name) : id = UniqueKey().toString();
-}
+// _SessionQueueItem removed in favor of SessionExercise
 
 class StartWorkoutPage extends StatefulWidget {
   const StartWorkoutPage({super.key});
@@ -31,7 +28,7 @@ class StartWorkoutPage extends StatefulWidget {
 class _StartWorkoutPageState extends State<StartWorkoutPage> {
   WorkoutPlan? _selectedPlan;
   final _exerciseController = TextEditingController();
-  final List<_SessionQueueItem> _customExercises = [];
+  final List<SessionExercise> _customExercises = [];
   final _exerciseFocusNode = FocusNode();
   bool _isAddingExercise = false;
   final PlanSortOption _sortOption = PlanSortOption.newest;
@@ -40,6 +37,14 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
   final List<String> _availableExercises = [];
   final _workoutRepository = WorkoutRepository();
   int? _editingIndex;
+
+  // Pagination state
+  int _planPageIndex = 0;
+  static const int _plansPerPage = 2;
+
+  // Queue Pagination state
+  int _queuePageIndex = 0;
+  static const int _queuePerPage = 5;
   // _editingItemBackup not needed for in-place edit logic as we keep the item in list until modified
   // But we need to know we are editing.
   // Wait, if we edit in place, we should just use _editingIndex.
@@ -126,22 +131,37 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
     super.dispose();
   }
 
-  void _submitCustomExercise() {
-    final text = _exerciseController.text.trim();
-    if (text.isNotEmpty) {
+  void _addCustomExercise() {
+    final name = _exerciseController.text.trim();
+    if (name.isNotEmpty) {
       setState(() {
-        if (_editingIndex != null) {
-          // Update existing
-          _customExercises[_editingIndex!] = _SessionQueueItem(text);
-          _editingIndex = null;
-        } else {
-          // Add new
-          _customExercises.add(_SessionQueueItem(text));
-        }
-        _exerciseController.clear();
-        _isAddingExercise = false;
-        FocusManager.instance.primaryFocus?.unfocus();
+        final newItem = SessionExercise(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          name: name,
+          order: _customExercises.length, // Ensure order is set
+          sets: const [],
+        );
+        _customExercises.add(newItem);
       });
+      _exerciseController.clear();
+      _isAddingExercise = false;
+      // _exerciseFocusNode.unfocus(); // Keep focus for rapid entry? Maybe better to unfocus.
+      _exerciseFocusNode.requestFocus(); // Keep focus for rapid entry
+    }
+  }
+
+  void _updateCustomExercise() {
+    if (_editingIndex == null) return;
+    final name = _exerciseController.text.trim();
+    if (name.isNotEmpty) {
+      final oldItem = _customExercises[_editingIndex!];
+      final newItem = oldItem.copyWith(name: name);
+      setState(() {
+        _customExercises[_editingIndex!] = newItem;
+        _editingIndex = null;
+        _exerciseController.clear();
+      });
+      _exerciseFocusNode.unfocus();
     }
   }
 
@@ -154,21 +174,6 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
     });
   }
 
-  void _editCustomExercise(int index) {
-    setState(() {
-      _editingIndex = index;
-      _exerciseController.text = _customExercises[index].name;
-      // We do NOT remove the item.
-      // We just set editing index so build method renders it differently.
-      _isAddingExercise = false; // Ensure we aren't adding a new one at bottom
-
-      // Slight delay to ensure list updates before focus request
-      Future.delayed(const Duration(milliseconds: 50), () {
-        _exerciseFocusNode.requestFocus();
-      });
-    });
-  }
-
   void _startSession() {
     if (_selectedPlan == null && _customExercises.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -177,16 +182,23 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
       return;
     }
 
-    final planExercises =
-        _selectedPlan?.exercises.map((e) => e.name).toList() ?? [];
-    final customExercises = _customExercises.map((e) => e.name).toList();
-    final allExercises = [...planExercises, ...customExercises];
+    final List<SessionExercise> allExercises = [];
+
+    allExercises.addAll(
+      _customExercises.map((e) {
+        // Update orders based on current list position
+        return e.copyWith(
+          order: _customExercises.indexOf(e),
+          sets: [], // Ensure sets are cleared/initialized for new session
+        );
+      }).toList(),
+    );
 
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (context) =>
-            SessionPage(planId: _selectedPlan?.id, exerciseNames: allExercises),
+            SessionPage(planId: _selectedPlan?.id, exercises: allExercises),
       ),
     );
   }
@@ -206,9 +218,6 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
           }
         },
         builder: (context, state) {
-          // We can render the content regardless of loading state to show cached data if available
-          // But normally we show shimmer if empty
-
           if (state is PlanLoading && _sortedPlans.isEmpty) {
             return const SafeArea(child: PlanListShimmer());
           }
@@ -300,12 +309,63 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                               ),
                         );
                       }
-                      return SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final plan = _sortedPlans[index];
-                          final isSelected = _selectedPlan?.id == plan.id;
-                          return _buildPlanCard(plan, isSelected);
-                        }, childCount: _sortedPlans.length),
+                      final plansToShow = _sortedPlans
+                          .skip(_planPageIndex * _plansPerPage)
+                          .take(_plansPerPage)
+                          .toList();
+
+                      return SliverToBoxAdapter(
+                        child: Column(
+                          children: [
+                            ...plansToShow.map((plan) {
+                              final isSelected = _selectedPlan?.id == plan.id;
+                              return _buildPlanCard(plan, isSelected);
+                            }),
+                            if (_sortedPlans.length > _plansPerPage)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    IconButton(
+                                      onPressed: _planPageIndex > 0
+                                          ? () =>
+                                                setState(() => _planPageIndex--)
+                                          : null,
+                                      icon: const Icon(
+                                        Icons.chevron_left_rounded,
+                                      ),
+                                      color: AppColors.accent,
+                                      disabledColor: AppColors.textSecondary
+                                          .withValues(alpha: 0.3),
+                                    ),
+                                    Text(
+                                      '${_planPageIndex + 1} / ${(_sortedPlans.length / _plansPerPage).ceil()}',
+                                      style: const TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed:
+                                          (_planPageIndex + 1) * _plansPerPage <
+                                              _sortedPlans.length
+                                          ? () =>
+                                                setState(() => _planPageIndex++)
+                                          : null,
+                                      icon: const Icon(
+                                        Icons.chevron_right_rounded,
+                                      ),
+                                      color: AppColors.accent,
+                                      disabledColor: AppColors.textSecondary
+                                          .withValues(alpha: 0.3),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
                       );
                     },
                   ),
@@ -316,7 +376,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 sliver: SliverToBoxAdapter(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
                         'SESSION QUEUE',
@@ -328,309 +388,386 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppColors.cardBg,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.05),
+
+                      if (_selectedPlan != null)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.cardBg,
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (_selectedPlan != null)
+                          child: Row(
+                            children: [
                               Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.all(12),
+                                padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
                                   color: AppColors.accent.withValues(
                                     alpha: 0.1,
                                   ),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: AppColors.accent.withValues(
-                                      alpha: 0.2,
-                                    ),
-                                  ),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Row(
+                                child: Icon(
+                                  Icons.bookmarks_rounded,
+                                  color: AppColors.accent,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(
-                                      Icons.bookmarks_rounded,
-                                      color: AppColors.accent,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Selected Plan',
-                                            style: TextStyle(
-                                              color: AppColors.accent,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          Text(
-                                            _selectedPlan!.name,
-                                            style: const TextStyle(
-                                              color: AppColors.textPrimary,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
+                                    const Text(
+                                      'Selected Plan',
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    IconButton(
-                                      onPressed: () =>
-                                          setState(() => _selectedPlan = null),
-                                      icon: const Icon(Icons.close, size: 18),
-                                      color: AppColors.textSecondary,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _selectedPlan!.name,
+                                      style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
+                              IconButton(
+                                onPressed: () =>
+                                    setState(() => _selectedPlan = null),
+                                icon: const Icon(Icons.close, size: 20),
+                                color: AppColors.textSecondary,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ],
+                          ),
+                        ),
 
-                            if (_customExercises.isNotEmpty)
-                              ReorderableListView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: _customExercises.length,
-                                onReorder: (oldIndex, newIndex) {
-                                  setState(() {
-                                    if (oldIndex < newIndex) newIndex -= 1;
-                                    final item = _customExercises.removeAt(
-                                      oldIndex,
-                                    );
-                                    _customExercises.insert(newIndex, item);
-                                  });
-                                },
-                                itemBuilder: (context, index) {
-                                  final exercise = _customExercises[index];
-                                  // Check if this item is being edited
-                                  if (_editingIndex == index) {
-                                    return Container(
-                                      key: ValueKey('editing_${exercise.id}'),
-                                      margin: const EdgeInsets.only(bottom: 8),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.cardBg,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: AppColors.accent,
-                                        ),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 4,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: SuggestionTextField(
-                                              controller: _exerciseController,
-                                              focusNode: _exerciseFocusNode,
-                                              hintText: 'Exercise name...',
-                                              suggestions: _availableExercises,
-                                              onSubmitted: (_) =>
-                                                  _submitCustomExercise(),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          IconButton.filled(
-                                            onPressed: _submitCustomExercise,
-                                            icon: const Icon(
-                                              Icons.check_rounded,
-                                            ),
-                                            style: IconButton.styleFrom(
-                                              backgroundColor:
-                                                  AppColors.success,
-                                            ),
-                                          ),
-                                          IconButton(
-                                            onPressed: _cancelAddingExercise,
-                                            icon: const Icon(
-                                              Icons.close_rounded,
-                                              color: AppColors.error,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }
+                      Container(
+                        decoration: BoxDecoration(
+                          color: _customExercises.isNotEmpty
+                              ? AppColors.cardBg
+                              : null,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (_customExercises.isNotEmpty) ...[
+                              ..._customExercises
+                                  .skip(_queuePageIndex * _queuePerPage)
+                                  .take(_queuePerPage)
+                                  .toList()
+                                  .asMap()
+                                  .entries
+                                  .map((entry) {
+                                    final index =
+                                        (_queuePageIndex * _queuePerPage) +
+                                        entry.key;
+                                    final exercise = entry.value;
 
-                                  return Container(
-                                    key: ValueKey(exercise.id),
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.darkBg,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.drag_handle_rounded,
-                                          color: AppColors.textSecondary,
-                                          size: 18,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            exercise.name,
-                                            style: const TextStyle(
-                                              color: AppColors.textPrimary,
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                    // Last visible item on this specific page
+                                    final currentVisibleCount = _customExercises
+                                        .skip(_queuePageIndex * _queuePerPage)
+                                        .take(_queuePerPage)
+                                        .length;
+                                    final isLastOnPage =
+                                        entry.key == currentVisibleCount - 1;
+
+                                    if (_editingIndex == index) {
+                                      return Container(
+                                        key: ValueKey('editing_${exercise.id}'),
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            bottom: isLastOnPage
+                                                ? BorderSide.none
+                                                : BorderSide(
+                                                    color: Colors.white
+                                                        .withValues(
+                                                          alpha: 0.05,
+                                                        ),
+                                                  ),
                                           ),
                                         ),
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
+                                        child: Row(
                                           children: [
-                                            InkWell(
-                                              onTap: () =>
-                                                  _editCustomExercise(index),
-                                              child: const Padding(
-                                                padding: EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                ),
-                                                child: Icon(
-                                                  Icons.edit_rounded,
-                                                  size: 18,
-                                                  color: AppColors.accent,
-                                                ),
+                                            Expanded(
+                                              child: SuggestionTextField(
+                                                controller: _exerciseController,
+                                                focusNode: _exerciseFocusNode,
+                                                hintText: 'Exercise name...',
+                                                suggestions:
+                                                    _availableExercises,
+                                                onSubmitted: (_) =>
+                                                    _updateCustomExercise(),
                                               ),
                                             ),
-                                            InkWell(
-                                              onTap: () => setState(
-                                                () => _customExercises.removeAt(
-                                                  index,
-                                                ),
-                                              ),
-                                              child: const Padding(
-                                                padding: EdgeInsets.only(
-                                                  left: 4,
-                                                ),
-                                                child: Icon(
-                                                  Icons.close,
-                                                  color: AppColors.error,
-                                                  size: 18,
-                                                ),
+                                            const SizedBox(width: 8),
+                                            IconButton(
+                                              onPressed: _updateCustomExercise,
+                                              icon: const Icon(
+                                                Icons.check_rounded,
+                                                color: AppColors.success,
                                               ),
                                             ),
                                           ],
                                         ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
+                                      );
+                                    }
 
-                            if (_selectedPlan == null &&
-                                _customExercises.isEmpty)
-                              const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 24),
-                                  child: Text(
-                                    'Select a plan below or add custom exercises',
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                                    return Container(
+                                      key: ValueKey(exercise.id),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: isLastOnPage
+                                              ? BorderSide.none
+                                              : BorderSide(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.05),
+                                                ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              exercise.name,
+                                              style: const TextStyle(
+                                                color: AppColors.textPrimary,
+                                                fontWeight: FontWeight.w500,
+                                                height: 1.2,
+                                              ),
+                                            ),
+                                          ),
+                                          if (!exercise.isTemplate) ...[
+                                            IconButton(
+                                              onPressed: () {
+                                                setState(() {
+                                                  _editingIndex = index;
+                                                  _exerciseController.text =
+                                                      exercise.name;
+                                                  _exerciseFocusNode
+                                                      .requestFocus();
+                                                });
+                                              },
+                                              icon: const Icon(
+                                                Icons.edit_rounded,
+                                                size: 16,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                              style: IconButton.styleFrom(
+                                                tapTargetSize:
+                                                    MaterialTapTargetSize
+                                                        .shrinkWrap,
+                                              ),
+                                              padding: EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                            ),
+                                            const SizedBox(width: 16),
+                                            IconButton(
+                                              onPressed: () {
+                                                setState(() {
+                                                  _customExercises.removeAt(
+                                                    index,
+                                                  );
+                                                  final maxPage =
+                                                      ((_customExercises
+                                                                      .length -
+                                                                  1) /
+                                                              _queuePerPage)
+                                                          .floor();
+                                                  // Check if we need to go back a page
+                                                  if (_queuePageIndex >
+                                                          maxPage &&
+                                                      maxPage >= 0) {
+                                                    _queuePageIndex = maxPage;
+                                                  } else if (_customExercises
+                                                      .isEmpty) {
+                                                    _queuePageIndex = 0;
+                                                  }
+                                                });
+                                              },
+                                              icon: const Icon(
+                                                Icons.close_rounded,
+                                                size: 16,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                              style: IconButton.styleFrom(
+                                                tapTargetSize:
+                                                    MaterialTapTargetSize
+                                                        .shrinkWrap,
+                                              ),
+                                              padding: EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    );
+                                  }),
 
-                            // Only show Add button if NO edit is in progress
-                            if (_editingIndex == null) ...[
-                              const SizedBox(height: 16),
-                              if (_isAddingExercise)
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.cardBg,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: AppColors.accent),
-                                  ),
+                              // Queue Pagination Controls
+                              if (_customExercises.length > _queuePerPage)
+                                Padding(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
                                     vertical: 4,
                                   ),
                                   child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Expanded(
-                                        child: SuggestionTextField(
-                                          controller: _exerciseController,
-                                          focusNode: _exerciseFocusNode,
-                                          hintText: 'Exercise name...',
-                                          suggestions: _availableExercises,
-                                          onSubmitted: (_) =>
-                                              _submitCustomExercise(),
+                                      IconButton(
+                                        onPressed: _queuePageIndex > 0
+                                            ? () => setState(
+                                                () => _queuePageIndex--,
+                                              )
+                                            : null,
+                                        icon: const Icon(
+                                          Icons.chevron_left_rounded,
                                         ),
+                                        color: AppColors.accent,
+                                        disabledColor: AppColors.textSecondary
+                                            .withValues(alpha: 0.3),
+                                        visualDensity: VisualDensity.compact,
                                       ),
-                                      const SizedBox(width: 8),
-                                      IconButton.filled(
-                                        onPressed: _submitCustomExercise,
-                                        icon: const Icon(Icons.check_rounded),
-                                        style: IconButton.styleFrom(
-                                          backgroundColor: AppColors.success,
+                                      Text(
+                                        '${_queuePageIndex + 1} / ${(_customExercises.length / _queuePerPage).ceil()}',
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       IconButton(
-                                        onPressed: _cancelAddingExercise,
+                                        onPressed:
+                                            (_queuePageIndex + 1) *
+                                                    _queuePerPage <
+                                                _customExercises.length
+                                            ? () => setState(
+                                                () => _queuePageIndex++,
+                                              )
+                                            : null,
                                         icon: const Icon(
-                                          Icons.close_rounded,
-                                          color: AppColors.error,
+                                          Icons.chevron_right_rounded,
                                         ),
+                                        color: AppColors.accent,
+                                        disabledColor: AppColors.textSecondary
+                                            .withValues(alpha: 0.3),
+                                        visualDensity: VisualDensity.compact,
                                       ),
                                     ],
                                   ),
-                                )
-                              else
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () {
-                                      setState(() {
-                                        _isAddingExercise = true;
-                                        Future.delayed(
-                                          const Duration(milliseconds: 100),
-                                          () {
-                                            _exerciseFocusNode.requestFocus();
-                                          },
-                                        );
-                                      });
-                                    },
-                                    icon: const Icon(Icons.add_rounded),
-                                    label: const Text('Add Exercise'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: AppColors.accent,
-                                      side: BorderSide(
-                                        color: AppColors.accent.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                      ),
-                                      padding: const EdgeInsets.all(16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
+                                ),
+                            ],
+
+                            if (_selectedPlan == null &&
+                                _customExercises.isEmpty &&
+                                !_isAddingExercise)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 32),
+                                  child: Text(
+                                    'Select a plan or add exercises to start',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 14,
                                     ),
                                   ),
                                 ),
-                            ],
+                              ),
                           ],
                         ),
                       ),
+
+                      if (_editingIndex == null) ...[
+                        const SizedBox(height: 16),
+                        if (_isAddingExercise)
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.cardBg,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 4,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: SuggestionTextField(
+                                    controller: _exerciseController,
+                                    focusNode: _exerciseFocusNode,
+                                    hintText: 'New exercise...',
+                                    suggestions: _availableExercises,
+                                    onSubmitted: (_) => _addCustomExercise(),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: _addCustomExercise,
+                                  icon: const Icon(
+                                    Icons.check_rounded,
+                                    color: AppColors.success,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                                const SizedBox(width: 16),
+                                IconButton(
+                                  onPressed: _cancelAddingExercise,
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _isAddingExercise = true;
+                                  Future.delayed(
+                                    const Duration(milliseconds: 100),
+                                    () {
+                                      _exerciseFocusNode.requestFocus();
+                                    },
+                                  );
+                                });
+                              },
+                              icon: const Icon(Icons.add_rounded),
+                              label: const Text('Add Exercise'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.all(16),
+                                side: const BorderSide(color: AppColors.accent),
+                                foregroundColor: AppColors.accent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ],
                   ),
                 ),
@@ -684,10 +821,28 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
         child: InkWell(
           onTap: () {
             setState(() {
+              _queuePageIndex = 0; // Reset queue pagination
               if (isSelected) {
                 _selectedPlan = null;
+                if (_customExercises.isNotEmpty) {
+                  _customExercises.clear();
+                }
               } else {
                 _selectedPlan = plan;
+                _customExercises.clear();
+                _customExercises.addAll(
+                  plan.exercises.map(
+                    (e) => SessionExercise(
+                      id:
+                          DateTime.now().millisecondsSinceEpoch.toString() +
+                          e.id,
+                      name: e.name,
+                      order: e.order,
+                      isTemplate: true,
+                      sets: const [],
+                    ),
+                  ),
+                );
               }
             });
           },

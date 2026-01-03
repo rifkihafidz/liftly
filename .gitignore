@@ -20,6 +20,13 @@
 # VS Code
 .vscode/
 
+# Eclipse
+.settings/
+.project
+.classpath
+.factorypath
+
+
 # Flutter/Dart/Pub related
 **/doc/api/
 .dart_tool/

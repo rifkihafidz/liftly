@@ -20,13 +20,13 @@ import '../../plans/bloc/plan_event.dart';
 import '../../plans/bloc/plan_state.dart';
 
 class SessionPage extends StatefulWidget {
-  final List<String> exerciseNames;
+  final List<SessionExercise> exercises; // Updated from exerciseNames
   final String? planId;
   final WorkoutSession? draftSession;
 
   const SessionPage({
     super.key,
-    this.exerciseNames = const [],
+    this.exercises = const [],
     this.planId,
     this.draftSession,
   });
@@ -53,7 +53,7 @@ class _SessionPageState extends State<SessionPage> {
       _sessionBloc.add(
         SessionStarted(
           planId: widget.planId,
-          exerciseNames: widget.exerciseNames,
+          exerciseNames: widget.exercises.map((e) => e.name).toList(),
           userId: userId,
         ),
       );
