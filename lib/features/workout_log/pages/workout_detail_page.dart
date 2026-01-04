@@ -11,6 +11,8 @@ import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
 import 'workout_edit_page.dart';
 import '../widgets/workout_share_sheet.dart';
+import '../../../core/utils/page_transitions.dart';
+import '../../../shared/widgets/animations/fade_in_slide.dart';
 
 class WorkoutDetailPage extends StatefulWidget {
   final WorkoutSession workout;
@@ -42,7 +44,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       // Replace detail with history (smooth transition, no Home flash)
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const WorkoutHistoryPage()),
+        SmoothPageRoute(page: const WorkoutHistoryPage()),
       );
     } else if (Navigator.canPop(context)) {
       Navigator.pop(context);
@@ -201,9 +203,8 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                         onPressed: () async {
                           final updated = await Navigator.push<bool>(
                             context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  WorkoutEditPage(workout: _currentWorkout),
+                            SmoothPageRoute(
+                              page: WorkoutEditPage(workout: _currentWorkout),
                             ),
                           );
                           if (updated == true && context.mounted) {
@@ -313,10 +314,13 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate((context, index) {
                         final exercise = exercises[index];
-                        return _ExerciseCard(
-                          exercise: exercise,
+                        return FadeInSlide(
                           index: index,
-                          formatNumber: formatNumber,
+                          child: _ExerciseCard(
+                            exercise: exercise,
+                            index: index,
+                            formatNumber: formatNumber,
+                          ),
                         );
                       }, childCount: exercises.length),
                     ),

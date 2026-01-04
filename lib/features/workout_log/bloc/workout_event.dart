@@ -11,10 +11,7 @@ class WorkoutSubmitted extends WorkoutEvent {
   final String userId;
   final Map<String, dynamic> workoutData;
 
-  const WorkoutSubmitted({
-    required this.userId,
-    required this.workoutData,
-  });
+  const WorkoutSubmitted({required this.userId, required this.workoutData});
 
   @override
   List<Object?> get props => [userId, workoutData];
@@ -39,10 +36,7 @@ class WorkoutDeleted extends WorkoutEvent {
   final String userId;
   final String workoutId;
 
-  const WorkoutDeleted({
-    required this.userId,
-    required this.workoutId,
-  });
+  const WorkoutDeleted({required this.userId, required this.workoutId});
 
   @override
   List<Object?> get props => [userId, workoutId];
@@ -50,9 +44,11 @@ class WorkoutDeleted extends WorkoutEvent {
 
 class WorkoutsFetched extends WorkoutEvent {
   final String userId;
+  final int limit;
+  final int offset;
 
-  const WorkoutsFetched({this.userId = '1'});
+  const WorkoutsFetched({this.userId = '1', this.limit = 20, this.offset = 0});
 
   @override
-  List<Object?> get props => [userId];
+  List<Object?> get props => [userId, limit, offset];
 }

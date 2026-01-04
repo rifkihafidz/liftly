@@ -14,6 +14,7 @@ import '../bloc/stats_bloc.dart';
 import '../bloc/stats_event.dart';
 import '../bloc/stats_state.dart';
 import 'stats_shimmer.dart';
+import '../../../shared/widgets/animations/fade_in_slide.dart';
 
 class StatsPage extends StatefulWidget {
   const StatsPage({super.key});
@@ -340,24 +341,35 @@ class _StatsPageState extends State<StatsPage> {
               childAspectRatio: 0.85,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                _StatBox(
-                  label: 'Workouts',
-                  value: filteredSessions.length.toString(),
-                  icon: Icons.fitness_center,
-                  color: AppColors.accent,
+                FadeInSlide(
+                  index: 0,
+                  child: _StatBox(
+                    label: 'Workouts',
+                    value: filteredSessions.length.toString(),
+                    icon: Icons.fitness_center,
+                    color: AppColors.accent,
+                  ),
                 ),
-                _StatBox(
-                  label: 'Total Volume',
-                  value: _formatNumber(_calculateTotalVolume(filteredSessions)),
-                  unit: 'kg',
-                  icon: Icons.scale,
-                  color: AppColors.success,
+                FadeInSlide(
+                  index: 1,
+                  child: _StatBox(
+                    label: 'Total Volume',
+                    value: _formatNumber(
+                      _calculateTotalVolume(filteredSessions),
+                    ),
+                    unit: 'kg',
+                    icon: Icons.scale,
+                    color: AppColors.success,
+                  ),
                 ),
-                _StatBox(
-                  label: 'Avg Time',
-                  value: _calculateAverageDuration(filteredSessions),
-                  icon: Icons.timer_outlined,
-                  color: AppColors.warning,
+                FadeInSlide(
+                  index: 2,
+                  child: _StatBox(
+                    label: 'Avg Time',
+                    value: _calculateAverageDuration(filteredSessions),
+                    icon: Icons.timer_outlined,
+                    color: AppColors.warning,
+                  ),
                 ),
               ],
             );
@@ -555,83 +567,88 @@ class _StatsPageState extends State<StatsPage> {
               itemCount: currentPRs.length,
               itemBuilder: (context, index) {
                 final entry = currentPRs[index];
-                return Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBg,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
+                return FadeInSlide(
+                  index: index,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: AppColors.accent.withValues(alpha: 0.15),
+                        width: 1,
                       ),
-                    ],
-                    border: Border.all(
-                      color: AppColors.accent.withValues(alpha: 0.15),
-                      width: 1,
                     ),
-                  ),
-                  clipBehavior: Clip.hardEdge,
-                  child: Stack(
-                    children: [
-                      // Decorative watermark
-                      Positioned(
-                        right: -10,
-                        bottom: -10,
-                        child: Icon(
-                          Icons.emoji_events_rounded,
-                          size: 64,
-                          color: AppColors.accent.withValues(alpha: 0.05),
+                    clipBehavior: Clip.hardEdge,
+                    child: Stack(
+                      children: [
+                        // Decorative watermark
+                        Positioned(
+                          right: -10,
+                          bottom: -10,
+                          child: Icon(
+                            Icons.emoji_events_rounded,
+                            size: 64,
+                            color: AppColors.accent.withValues(alpha: 0.05),
+                          ),
                         ),
-                      ),
-                      // Content
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              entry.key.toUpperCase(),
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.5,
+                        // Content
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                entry.key.toUpperCase(),
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.5,
+                                    ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    _formatNumber(entry.value),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineMedium
+                                        ?.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          height: 1,
+                                        ),
                                   ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                Text(
-                                  _formatNumber(entry.value),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineMedium
-                                      ?.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        height: 1,
-                                      ),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'kg',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: AppColors.accent,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'kg',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: AppColors.accent,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },

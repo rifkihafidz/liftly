@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/colors.dart';
 import 'home_page.dart';
+import '../../../../core/utils/page_transitions.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -39,9 +40,9 @@ class _SplashPageState extends State<SplashPage>
       // Navigate to home after animation
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const HomePage()),
-          );
+          Navigator.of(
+            context,
+          ).pushReplacement(SmoothPageRoute(page: const HomePage()));
         }
       });
     });

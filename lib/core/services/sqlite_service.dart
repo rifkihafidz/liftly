@@ -23,7 +23,7 @@ class SQLiteService {
 
       _database = await openDatabase(
         path,
-        version: 5,
+        version: 6,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
         },
@@ -69,6 +69,36 @@ class SQLiteService {
               }
             } catch (e) {
               _log('INIT', 'Error migrate is_template: $e');
+            }
+          }
+          if (oldVersion < 6) {
+            _log('INIT', 'Creating indexes for performance optimization');
+            try {
+              // Workouts indexes
+              await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_workouts_user_draft ON workouts(user_id, is_draft)',
+              );
+              await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_workouts_date ON workouts(workout_date DESC)',
+              );
+
+              // Exercises indexes
+              await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_exercises_workout_id ON workout_exercises(workout_id)',
+              );
+              await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_exercises_name ON workout_exercises(name)',
+              );
+
+              // Sets & Segments indexes
+              await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_sets_exercise_id ON workout_sets(exercise_id)',
+              );
+              await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_segments_set_id ON set_segments(set_id)',
+              );
+            } catch (e) {
+              _log('INIT', 'Error creating indexes: $e');
             }
           }
         },

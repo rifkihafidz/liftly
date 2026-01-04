@@ -13,6 +13,7 @@ import '../bloc/session_event.dart';
 import '../bloc/session_state.dart';
 import '../widgets/session_exercise_history_sheet.dart';
 import '../../../shared/widgets/shimmer_widgets.dart';
+import '../../../core/utils/page_transitions.dart';
 
 import '../../workout_log/repositories/workout_repository.dart';
 import '../../plans/bloc/plan_bloc.dart';
@@ -104,8 +105,8 @@ class _SessionPageState extends State<SessionPage> {
                     // Replace session with detail (smooth transition, no Home flash)
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => WorkoutDetailPage(
+                      SmoothPageRoute(
+                        page: WorkoutDetailPage(
                           workout: state.session,
                           fromSession: true,
                         ),
@@ -648,13 +649,10 @@ class _SessionPageState extends State<SessionPage> {
     try {
       // 1. Load from history
       const userId = '1';
-      final historyWorkouts = await workoutRepository.getWorkouts(
+      final historyNames = await workoutRepository.getExerciseNames(
         userId: userId,
       );
-      final historyNames = historyWorkouts
-          .expand((w) => w.exercises)
-          .map((e) => e.name)
-          .toSet();
+      final uniqueNames = historyNames.toSet();
 
       if (!context.mounted) return;
 
@@ -663,12 +661,11 @@ class _SessionPageState extends State<SessionPage> {
       if (currentPlanState is PlansLoaded) {
         final planNames = currentPlanState.plans
             .expand((p) => p.exercises)
-            .map((e) => e.name)
-            .toSet();
-        historyNames.addAll(planNames);
+            .map((e) => e.name);
+        uniqueNames.addAll(planNames);
       }
 
-      availableExercises = historyNames.toList()..sort();
+      availableExercises = uniqueNames.toList()..sort();
     } catch (e) {
       debugPrint('Error loading suggestions: $e');
     }
@@ -711,13 +708,10 @@ class _SessionPageState extends State<SessionPage> {
     try {
       // 1. Load from history
       const userId = '1';
-      final historyWorkouts = await workoutRepository.getWorkouts(
+      final historyNames = await workoutRepository.getExerciseNames(
         userId: userId,
       );
-      final historyNames = historyWorkouts
-          .expand((w) => w.exercises)
-          .map((e) => e.name)
-          .toSet();
+      final uniqueNames = historyNames.toSet();
 
       if (!context.mounted) return;
 
@@ -726,14 +720,13 @@ class _SessionPageState extends State<SessionPage> {
       if (currentPlanState is PlansLoaded) {
         final planNames = currentPlanState.plans
             .expand((p) => p.exercises)
-            .map((e) => e.name)
-            .toSet();
-        historyNames.addAll(planNames);
+            .map((e) => e.name);
+        uniqueNames.addAll(planNames);
       } else {
         context.read<PlanBloc>().add(const PlansFetchRequested(userId: userId));
       }
 
-      availableExercises = historyNames.toList()..sort();
+      availableExercises = uniqueNames.toList()..sort();
     } catch (e) {
       debugPrint('Error loading suggestions: $e');
     }

@@ -8,6 +8,9 @@ import '../../workout_log/bloc/workout_event.dart';
 import '../../workout_log/bloc/workout_state.dart';
 import '../../workout_log/pages/workout_detail_page.dart';
 import '../../../core/models/workout_session.dart';
+import '../../../core/utils/page_transitions.dart';
+import '../../../shared/widgets/animations/scale_button_wrapper.dart';
+import '../../../shared/widgets/animations/fade_in_slide.dart';
 
 class WorkoutHistoryPage extends StatefulWidget {
   const WorkoutHistoryPage({super.key});
@@ -17,6 +20,7 @@ class WorkoutHistoryPage extends StatefulWidget {
 }
 
 class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
+  final ScrollController _scrollController = ScrollController();
   bool _sortDescending = true;
   String? _selectedPlanName;
 
@@ -24,10 +28,32 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   void initState() {
     super.initState();
     _loadWorkouts();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_isBottom) {
+      context.read<WorkoutBloc>().add(const WorkoutsFetched());
+    }
+  }
+
+  bool get _isBottom {
+    if (!_scrollController.hasClients) return false;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.offset;
+    return currentScroll >= (maxScroll * 0.9);
   }
 
   void _loadWorkouts() {
-    context.read<WorkoutBloc>().add(const WorkoutsFetched());
+    context.read<WorkoutBloc>().add(
+      const WorkoutsFetched(limit: 20, offset: 0),
+    );
   }
 
   void _showFilterDialog(List<WorkoutSession> allWorkouts) {
@@ -211,6 +237,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
             });
 
             return CustomScrollView(
+              controller: _scrollController,
               physics: const BouncingScrollPhysics(),
               slivers: [
                 SliverAppBar(
@@ -261,8 +288,16 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                     hasScrollBody: false,
                     child: _buildEmptyState(context),
                   )
-                else
+                else ...[
                   _buildWorkoutList(workouts),
+                  if (!state.hasReachedMax)
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    ),
+                ],
               ],
             );
           }
@@ -307,22 +342,27 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                   ),
                 ),
               ),
-              ...monthWorkouts.map(
-                (session) => _WorkoutHistoryCard(
-                  session: session,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => WorkoutDetailPage(
-                          workout: session,
-                          fromSession: false,
+              ...monthWorkouts.asMap().entries.map((entry) {
+                final index = entry.key;
+                final session = entry.value;
+                return FadeInSlide(
+                  index: index,
+                  child: _WorkoutHistoryCard(
+                    session: session,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        SmoothPageRoute(
+                          page: WorkoutDetailPage(
+                            workout: session,
+                            fromSession: false,
+                          ),
                         ),
-                      ),
-                    ).then((_) => _loadWorkouts());
-                  },
-                ),
-              ),
+                      ).then((_) => _loadWorkouts());
+                    },
+                  ),
+                );
+              }),
             ],
           );
         }, childCount: sortedMonthKeys.length),
@@ -401,91 +441,93 @@ class _WorkoutHistoryCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: AppColors.cardBg,
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          onTap: onTap,
+      child: ScaleButtonWrapper(
+        child: Material(
+          color: AppColors.cardBg,
           borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            DateFormat(
-                              'EEEE, d MMM',
-                            ).format(session.workoutDate),
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              DateFormat(
+                                'EEEE, dd MMMM yyyy',
+                              ).format(session.workoutDate),
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
                             ),
+                            const SizedBox(height: 4),
+                            Text(
+                              session.formattedDuration,
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (planName != '-')
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            session.formattedDuration,
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            planName,
                             style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                              color: AppColors.accent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ],
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _StatBadge(
+                        icon: Icons.fitness_center_rounded,
+                        label: '${exercises.length} Exercises',
+                        color: const Color(0xFF6366F1), // Indigo
                       ),
-                    ),
-                    if (planName != '-')
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          planName,
-                          style: TextStyle(
-                            color: AppColors.accent,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                      const SizedBox(width: 8),
+                      _StatBadge(
+                        icon: Icons.repeat_rounded,
+                        label: '$totalSets Sets',
+                        color: const Color(0xFF10B981), // Emerald
                       ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    _StatBadge(
-                      icon: Icons.fitness_center_rounded,
-                      label: '${exercises.length} Exercises',
-                      color: const Color(0xFF6366F1), // Indigo
-                    ),
-                    const SizedBox(width: 8),
-                    _StatBadge(
-                      icon: Icons.repeat_rounded,
-                      label: '$totalSets Sets',
-                      color: const Color(0xFF10B981), // Emerald
-                    ),
-                    const SizedBox(width: 8),
-                    _StatBadge(
-                      icon: Icons.scale_rounded,
-                      label: '$formattedVolume kg',
-                      color: const Color(0xFFF59E0B), // Amber
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 8),
+                      _StatBadge(
+                        icon: Icons.scale_rounded,
+                        label: '$formattedVolume kg',
+                        color: const Color(0xFFF59E0B), // Amber
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

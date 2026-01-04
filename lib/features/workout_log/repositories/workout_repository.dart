@@ -15,9 +15,17 @@ class WorkoutRepository {
     }
   }
 
-  Future<List<WorkoutSession>> getWorkouts({required String userId}) async {
+  Future<List<WorkoutSession>> getWorkouts({
+    required String userId,
+    int limit = 20,
+    int offset = 0,
+  }) async {
     try {
-      final workouts = await _localDataSource.getWorkouts(userId);
+      final workouts = await _localDataSource.getWorkouts(
+        userId,
+        limit: limit,
+        offset: offset,
+      );
       return workouts;
     } catch (e) {
       rethrow;
@@ -83,6 +91,30 @@ class WorkoutRepository {
       return await _localDataSource.getDraftWorkout(userId);
     } catch (e) {
       return null;
+    }
+  }
+
+  Future<List<String>> getExerciseNames({required String userId}) async {
+    try {
+      return await _localDataSource.getExerciseNames(userId);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, double>> getAllPersonalRecords({
+    required String userId,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    try {
+      return await _localDataSource.getAllPersonalRecords(
+        userId,
+        startDate: startDate,
+        endDate: endDate,
+      );
+    } catch (e) {
+      return {};
     }
   }
 

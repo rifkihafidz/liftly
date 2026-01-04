@@ -12,6 +12,9 @@ import '../../stats/pages/stats_page.dart';
 import '../../session/pages/session_page.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../settings/pages/settings_page.dart';
+import '../../../core/utils/page_transitions.dart';
+import '../../../shared/widgets/animations/scale_button_wrapper.dart';
+import '../../../shared/widgets/animations/fade_in_slide.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -65,7 +68,7 @@ class _HomePageState extends State<HomePage> {
                 context: context,
                 title: 'Resume Draft?',
                 message:
-                    'You have an unfinished workout from ${DateFormat('dd MMMM yyyy').format(draft.createdAt)}. Do you want to resume it?',
+                    'You have an unfinished workout from ${DateFormat('EEEE, dd MMMM yyyy').format(draft.createdAt)}. Do you want to resume it?',
                 confirmText: 'Resume',
                 cancelText: 'New Workout',
               );
@@ -76,26 +79,20 @@ class _HomePageState extends State<HomePage> {
                 // Resume Draft
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => SessionPage(draftSession: draft),
-                  ),
+                  SmoothPageRoute(page: SessionPage(draftSession: draft)),
                 );
               } else {
                 // Start New Workout
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const StartWorkoutPage(),
-                  ),
+                  SmoothPageRoute(page: const StartWorkoutPage()),
                 );
               }
             } else {
               // No Draft
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const StartWorkoutPage(),
-                ),
+                SmoothPageRoute(page: const StartWorkoutPage()),
               );
             }
           } else if (state is SessionError) {
@@ -171,51 +168,55 @@ class _HomePageState extends State<HomePage> {
                         : 2;
                     return SliverGrid(
                       delegate: SliverChildListDelegate([
-                        _GridCard(
-                          title: 'History',
-                          subtitle: 'Past sessions',
-                          icon: Icons.history_rounded,
-                          color: const Color(0xFF6366F1), // Indigo
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const WorkoutHistoryPage(),
+                        FadeInSlide(
+                          index: 0,
+                          child: _GridCard(
+                            title: 'History',
+                            subtitle: 'Past sessions',
+                            icon: Icons.history_rounded,
+                            color: const Color(0xFF6366F1), // Indigo
+                            onTap: () => Navigator.push(
+                              context,
+                              SmoothPageRoute(page: const WorkoutHistoryPage()),
                             ),
                           ),
                         ),
-                        _GridCard(
-                          title: 'Statistics',
-                          subtitle: 'Your progress',
-                          icon: Icons.bar_chart_rounded,
-                          color: const Color(0xFF10B981), // Emerald
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const StatsPage(),
+                        FadeInSlide(
+                          index: 1,
+                          child: _GridCard(
+                            title: 'Statistics',
+                            subtitle: 'Your progress',
+                            icon: Icons.bar_chart_rounded,
+                            color: const Color(0xFF10B981), // Emerald
+                            onTap: () => Navigator.push(
+                              context,
+                              SmoothPageRoute(page: const StatsPage()),
                             ),
                           ),
                         ),
-                        _GridCard(
-                          title: 'Plans',
-                          subtitle: 'Routines',
-                          icon: Icons.bookmarks_rounded,
-                          color: const Color(0xFFF59E0B), // Amber
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const PlansPage(),
+                        FadeInSlide(
+                          index: 2,
+                          child: _GridCard(
+                            title: 'Plans',
+                            subtitle: 'Routines',
+                            icon: Icons.bookmarks_rounded,
+                            color: const Color(0xFFF59E0B), // Amber
+                            onTap: () => Navigator.push(
+                              context,
+                              SmoothPageRoute(page: const PlansPage()),
                             ),
                           ),
                         ),
-                        _GridCard(
-                          title: 'Settings',
-                          subtitle: 'Preferences',
-                          icon: Icons.settings_rounded,
-                          color: const Color(0xFF64748B), // Slate
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const SettingsPage(),
+                        FadeInSlide(
+                          index: 3,
+                          child: _GridCard(
+                            title: 'Settings',
+                            subtitle: 'Preferences',
+                            icon: Icons.settings_rounded,
+                            color: const Color(0xFF64748B), // Slate
+                            onTap: () => Navigator.push(
+                              context,
+                              SmoothPageRoute(page: const SettingsPage()),
                             ),
                           ),
                         ),
@@ -254,94 +255,97 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.accent,
-                AppColors.accent.withValues(alpha: 0.8),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.accent.withValues(alpha: 0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+    return ScaleButtonWrapper(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.accent,
+                  AppColors.accent.withValues(alpha: 0.8),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'NEW SESSION',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          fontSize: 10,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.accent.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'NEW SESSION',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                                fontSize: 10,
+                              ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 22,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.8),
+                      const SizedBox(height: 12),
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 22,
+                            ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(icon, color: AppColors.accent, size: 28),
                 ),
-                child: Icon(icon, color: AppColors.accent, size: 28),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -366,57 +370,59 @@ class _GridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.cardBg,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.05),
-              width: 1,
+    return ScaleButtonWrapper(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.cardBg,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.05),
+                width: 1,
+              ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 22),
                 ),
-                child: Icon(icon, color: color, size: 22),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

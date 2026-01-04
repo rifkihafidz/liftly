@@ -93,9 +93,16 @@ class WorkoutLocalDataSource {
   }
 
   /// Get all workouts for a specific user
-  Future<List<WorkoutSession>> getWorkouts(String userId) async {
+  Future<List<WorkoutSession>> getWorkouts(
+    String userId, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
     try {
-      _log('SELECT', 'workouts WHERE userId=$userId');
+      _log(
+        'SELECT',
+        'workouts WHERE userId=$userId LIMIT $limit OFFSET $offset',
+      );
       final database = SQLiteService.database;
 
       final workouts = await database.query(
@@ -103,6 +110,8 @@ class WorkoutLocalDataSource {
         where: 'user_id = ? AND is_draft = 0',
         whereArgs: [userId],
         orderBy: 'workout_date DESC',
+        limit: limit > 0 ? limit : null,
+        offset: offset,
       );
 
       _log('SELECT', 'workouts: Found ${workouts.length} records');
@@ -714,6 +723,73 @@ class WorkoutLocalDataSource {
     } catch (e) {
       _log('SELECT', 'getExercisePR: FAILED - $e');
       return null;
+    }
+  }
+
+  /// Get all distinct exercise names used by a user
+  Future<List<String>> getExerciseNames(String userId) async {
+    try {
+      final database = SQLiteService.database;
+      _log('SELECT', 'DISTINCT exercise names');
+
+      final result = await database.rawQuery(
+        '''
+        SELECT DISTINCT we.name
+        FROM workout_exercises we
+        JOIN workouts w ON we.workout_id = w.id
+        WHERE w.user_id = ?
+        ORDER BY we.name ASC
+      ''',
+        [userId],
+      );
+
+      return result.map((row) => row['name'] as String).toList();
+    } catch (e) {
+      _log('SELECT', 'getExerciseNames: FAILED - $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, double>> getAllPersonalRecords(
+    String userId, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    try {
+      final database = SQLiteService.database;
+      _log('SELECT', 'Personal Records (MAX weight) with date filter');
+
+      String whereClause = 'w.user_id = ? AND w.is_draft = 0';
+      List<dynamic> args = [userId];
+
+      if (startDate != null && endDate != null) {
+        whereClause += ' AND w.workout_date BETWEEN ? AND ?';
+        args.add(SQLiteService.formatDateTime(startDate));
+        args.add(SQLiteService.formatDateTime(endDate));
+      }
+
+      final result = await database.rawQuery('''
+        SELECT we.name, MAX(ss.weight) as max_weight
+        FROM set_segments ss
+        JOIN workout_sets ws ON ss.set_id = ws.id
+        JOIN workout_exercises we ON ws.exercise_id = we.id
+        JOIN workouts w ON we.workout_id = w.id
+        WHERE $whereClause
+        GROUP BY we.name
+      ''', args);
+
+      final records = <String, double>{};
+      for (final row in result) {
+        final name = row['name'] as String;
+        final maxWeight = (row['max_weight'] as num?)?.toDouble() ?? 0.0;
+        if (maxWeight > 0) {
+          records[name] = maxWeight;
+        }
+      }
+      return records;
+    } catch (e) {
+      _log('SELECT', 'getAllPersonalRecords: FAILED - $e');
+      return {};
     }
   }
 }

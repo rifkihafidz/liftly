@@ -13,6 +13,9 @@ import 'session_page.dart';
 import '../../../shared/widgets/shimmer_widgets.dart';
 import '../../../shared/widgets/suggestion_text_field.dart';
 import '../../workout_log/repositories/workout_repository.dart';
+import '../../../core/utils/page_transitions.dart';
+import '../../../shared/widgets/animations/scale_button_wrapper.dart';
+import '../../../shared/widgets/animations/fade_in_slide.dart';
 
 enum PlanSortOption { newest, oldest, aToZ, zToA }
 
@@ -78,13 +81,12 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
         }
       }
     }
+
     try {
-      final workouts = await _workoutRepository.getWorkouts(userId: '1');
-      for (var w in workouts) {
-        for (var e in w.exercises) {
-          names.add(e.name);
-        }
-      }
+      final historyNames = await _workoutRepository.getExerciseNames(
+        userId: '1',
+      );
+      names.addAll(historyNames);
     } catch (e) {
       debugPrint('Error loading suggestions: $e');
     }
@@ -196,9 +198,8 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (context) =>
-            SessionPage(planId: _selectedPlan?.id, exercises: allExercises),
+      SmoothPageRoute(
+        page: SessionPage(planId: _selectedPlan?.id, exercises: allExercises),
       ),
     );
   }
@@ -298,7 +299,10 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                           ) {
                             final plan = _sortedPlans[index];
                             final isSelected = _selectedPlan?.id == plan.id;
-                            return _buildPlanCard(plan, isSelected);
+                            return FadeInSlide(
+                              index: index,
+                              child: _buildPlanCard(plan, isSelected),
+                            );
                           }, childCount: _sortedPlans.length),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
@@ -317,9 +321,14 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                       return SliverToBoxAdapter(
                         child: Column(
                           children: [
-                            ...plansToShow.map((plan) {
+                            ...plansToShow.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final plan = entry.value;
                               final isSelected = _selectedPlan?.id == plan.id;
-                              return _buildPlanCard(plan, isSelected);
+                              return FadeInSlide(
+                                index: index,
+                                child: _buildPlanCard(plan, isSelected),
+                              );
                             }),
                             if (_sortedPlans.length > _plansPerPage)
                               Padding(
@@ -481,9 +490,62 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                         entry.key == currentVisibleCount - 1;
 
                                     if (_editingIndex == index) {
-                                      return Container(
-                                        key: ValueKey('editing_${exercise.id}'),
-                                        padding: const EdgeInsets.all(12),
+                                      return FadeInSlide(
+                                        index: entry.key,
+                                        child: Container(
+                                          key: ValueKey(
+                                            'editing_${exercise.id}',
+                                          ),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                              bottom: isLastOnPage
+                                                  ? BorderSide.none
+                                                  : BorderSide(
+                                                      color: Colors.white
+                                                          .withValues(
+                                                            alpha: 0.05,
+                                                          ),
+                                                    ),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: SuggestionTextField(
+                                                  controller:
+                                                      _exerciseController,
+                                                  focusNode: _exerciseFocusNode,
+                                                  hintText: 'Exercise name...',
+                                                  suggestions:
+                                                      _availableExercises,
+                                                  onSubmitted: (_) =>
+                                                      _updateCustomExercise(),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              IconButton(
+                                                onPressed:
+                                                    _updateCustomExercise,
+                                                icon: const Icon(
+                                                  Icons.check_rounded,
+                                                  color: AppColors.success,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }
+
+                                    return FadeInSlide(
+                                      index: entry.key,
+                                      child: Container(
+                                        key: ValueKey(exercise.id),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
                                         decoration: BoxDecoration(
                                           border: Border(
                                             bottom: isLastOnPage
@@ -499,126 +561,87 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                         child: Row(
                                           children: [
                                             Expanded(
-                                              child: SuggestionTextField(
-                                                controller: _exerciseController,
-                                                focusNode: _exerciseFocusNode,
-                                                hintText: 'Exercise name...',
-                                                suggestions:
-                                                    _availableExercises,
-                                                onSubmitted: (_) =>
-                                                    _updateCustomExercise(),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            IconButton(
-                                              onPressed: _updateCustomExercise,
-                                              icon: const Icon(
-                                                Icons.check_rounded,
-                                                color: AppColors.success,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }
-
-                                    return Container(
-                                      key: ValueKey(exercise.id),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 12,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        border: Border(
-                                          bottom: isLastOnPage
-                                              ? BorderSide.none
-                                              : BorderSide(
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.05),
+                                              child: Text(
+                                                exercise.name,
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.w500,
+                                                  height: 1.2,
                                                 ),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              exercise.name,
-                                              style: const TextStyle(
-                                                color: AppColors.textPrimary,
-                                                fontWeight: FontWeight.w500,
-                                                height: 1.2,
                                               ),
                                             ),
-                                          ),
-                                          if (!exercise.isTemplate) ...[
-                                            IconButton(
-                                              onPressed: () {
-                                                setState(() {
-                                                  _editingIndex = index;
-                                                  _exerciseController.text =
-                                                      exercise.name;
-                                                  _exerciseFocusNode
-                                                      .requestFocus();
-                                                });
-                                              },
-                                              icon: const Icon(
-                                                Icons.edit_rounded,
-                                                size: 16,
-                                                color: AppColors.textSecondary,
+                                            if (!exercise.isTemplate) ...[
+                                              IconButton(
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _editingIndex = index;
+                                                    _exerciseController.text =
+                                                        exercise.name;
+                                                    _exerciseFocusNode
+                                                        .requestFocus();
+                                                  });
+                                                },
+                                                icon: const Icon(
+                                                  Icons.edit_rounded,
+                                                  size: 16,
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
+                                                style: IconButton.styleFrom(
+                                                  tapTargetSize:
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
+                                                ),
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                visualDensity:
+                                                    VisualDensity.compact,
                                               ),
-                                              style: IconButton.styleFrom(
-                                                tapTargetSize:
-                                                    MaterialTapTargetSize
-                                                        .shrinkWrap,
+                                              const SizedBox(width: 16),
+                                              IconButton(
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _customExercises.removeAt(
+                                                      index,
+                                                    );
+                                                    final maxPage =
+                                                        ((_customExercises
+                                                                        .length -
+                                                                    1) /
+                                                                _queuePerPage)
+                                                            .floor();
+                                                    // Check if we need to go back a page
+                                                    if (_queuePageIndex >
+                                                            maxPage &&
+                                                        maxPage >= 0) {
+                                                      _queuePageIndex = maxPage;
+                                                    } else if (_customExercises
+                                                        .isEmpty) {
+                                                      _queuePageIndex = 0;
+                                                    }
+                                                  });
+                                                },
+                                                icon: const Icon(
+                                                  Icons.close_rounded,
+                                                  size: 16,
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
+                                                style: IconButton.styleFrom(
+                                                  tapTargetSize:
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
+                                                ),
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                visualDensity:
+                                                    VisualDensity.compact,
                                               ),
-                                              padding: EdgeInsets.zero,
-                                              constraints:
-                                                  const BoxConstraints(),
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                            ),
-                                            const SizedBox(width: 16),
-                                            IconButton(
-                                              onPressed: () {
-                                                setState(() {
-                                                  _customExercises.removeAt(
-                                                    index,
-                                                  );
-                                                  final maxPage =
-                                                      ((_customExercises
-                                                                      .length -
-                                                                  1) /
-                                                              _queuePerPage)
-                                                          .floor();
-                                                  // Check if we need to go back a page
-                                                  if (_queuePageIndex >
-                                                          maxPage &&
-                                                      maxPage >= 0) {
-                                                    _queuePageIndex = maxPage;
-                                                  } else if (_customExercises
-                                                      .isEmpty) {
-                                                    _queuePageIndex = 0;
-                                                  }
-                                                });
-                                              },
-                                              icon: const Icon(
-                                                Icons.close_rounded,
-                                                size: 16,
-                                                color: AppColors.textSecondary,
-                                              ),
-                                              style: IconButton.styleFrom(
-                                                tapTargetSize:
-                                                    MaterialTapTargetSize
-                                                        .shrinkWrap,
-                                              ),
-                                              padding: EdgeInsets.zero,
-                                              constraints:
-                                                  const BoxConstraints(),
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                            ),
+                                            ],
                                           ],
-                                        ],
+                                        ),
                                       ),
                                     );
                                   }),
@@ -815,91 +838,95 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
   Widget _buildPlanCard(WorkoutPlan plan, bool isSelected) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: AppColors.cardBg,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: () {
-            setState(() {
-              _queuePageIndex = 0; // Reset queue pagination
-              if (isSelected) {
-                _selectedPlan = null;
-                if (_customExercises.isNotEmpty) {
+      child: ScaleButtonWrapper(
+        child: Material(
+          color: AppColors.cardBg,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _queuePageIndex = 0; // Reset queue pagination
+                if (isSelected) {
+                  _selectedPlan = null;
+                  if (_customExercises.isNotEmpty) {
+                    _customExercises.clear();
+                  }
+                } else {
+                  _selectedPlan = plan;
                   _customExercises.clear();
+                  _customExercises.addAll(
+                    plan.exercises.map(
+                      (e) => SessionExercise(
+                        id:
+                            DateTime.now().millisecondsSinceEpoch.toString() +
+                            e.id,
+                        name: e.name,
+                        order: e.order,
+                        isTemplate: true,
+                        sets: const [],
+                      ),
+                    ),
+                  );
                 }
-              } else {
-                _selectedPlan = plan;
-                _customExercises.clear();
-                _customExercises.addAll(
-                  plan.exercises.map(
-                    (e) => SessionExercise(
-                      id:
-                          DateTime.now().millisecondsSinceEpoch.toString() +
-                          e.id,
-                      name: e.name,
-                      order: e.order,
-                      isTemplate: true,
-                      sets: const [],
+              });
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: isSelected ? AppColors.accent : Colors.transparent,
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.accent : AppColors.darkBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      isSelected
+                          ? Icons.check_rounded
+                          : Icons.fitness_center_rounded,
+                      color: isSelected
+                          ? Colors.white
+                          : AppColors.textSecondary,
                     ),
                   ),
-                );
-              }
-            });
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: isSelected ? AppColors.accent : Colors.transparent,
-                width: 2,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          plan.name,
+                          style: TextStyle(
+                            color: isSelected
+                                ? AppColors.accent
+                                : AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${plan.exercises.length} Exercises',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppColors.accent : AppColors.darkBg,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    isSelected
-                        ? Icons.check_rounded
-                        : Icons.fitness_center_rounded,
-                    color: isSelected ? Colors.white : AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        plan.name,
-                        style: TextStyle(
-                          color: isSelected
-                              ? AppColors.accent
-                              : AppColors.textPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${plan.exercises.length} Exercises',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ),
           ),
         ),
