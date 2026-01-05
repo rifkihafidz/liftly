@@ -9,8 +9,8 @@ import '../../workout_log/bloc/workout_state.dart';
 import '../../workout_log/pages/workout_detail_page.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../core/utils/page_transitions.dart';
-import '../../../shared/widgets/animations/scale_button_wrapper.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
+import '../../../shared/widgets/cards/workout_session_card.dart';
 
 class WorkoutHistoryPage extends StatefulWidget {
   const WorkoutHistoryPage({super.key});
@@ -302,7 +302,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
             );
           }
 
-          return const Center(child: CircularProgressIndicator());
+          return const WorkoutListShimmer();
         },
       ),
     );
@@ -347,7 +347,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                 final session = entry.value;
                 return FadeInSlide(
                   index: index,
-                  child: _WorkoutHistoryCard(
+                  child: WorkoutSessionCard(
                     session: session,
                     onTap: () {
                       Navigator.push(
@@ -415,159 +415,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                 child: const Text('Clear Filter'),
               ),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WorkoutHistoryCard extends StatelessWidget {
-  final WorkoutSession session;
-  final VoidCallback onTap;
-
-  const _WorkoutHistoryCard({required this.session, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final exercises = session.exercises.where((e) => !e.skipped).toList();
-    final totalSets = exercises.fold(0, (sum, e) => sum + e.sets.length);
-    final volume = session.totalVolume;
-    final planName = session.planName ?? '-';
-
-    String formattedVolume = '${volume.toInt()}';
-    if (volume >= 1000) {
-      formattedVolume = '${(volume / 1000).toStringAsFixed(1)}k';
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ScaleButtonWrapper(
-        child: Material(
-          color: AppColors.cardBg,
-          borderRadius: BorderRadius.circular(20),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              DateFormat(
-                                'EEEE, dd MMMM yyyy',
-                              ).format(session.workoutDate),
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              session.formattedDuration,
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (planName != '-')
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.accent.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            planName,
-                            style: TextStyle(
-                              color: AppColors.accent,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _StatBadge(
-                        icon: Icons.fitness_center_rounded,
-                        label: '${exercises.length} Exercises',
-                        color: const Color(0xFF6366F1), // Indigo
-                      ),
-                      const SizedBox(width: 8),
-                      _StatBadge(
-                        icon: Icons.repeat_rounded,
-                        label: '$totalSets Sets',
-                        color: const Color(0xFF10B981), // Emerald
-                      ),
-                      const SizedBox(width: 8),
-                      _StatBadge(
-                        icon: Icons.scale_rounded,
-                        label: '$formattedVolume kg',
-                        color: const Color(0xFFF59E0B), // Amber
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatBadge extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  const _StatBadge({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
         ],
       ),
     );

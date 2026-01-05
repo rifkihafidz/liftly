@@ -141,6 +141,7 @@ class _SessionPageState extends State<SessionPage> {
                           expandedHeight: 0,
                           pinned: true,
                           floating: true,
+                          centerTitle: false,
                           backgroundColor: AppColors.darkBg,
                           elevation: 0,
                           surfaceTintColor: AppColors.darkBg,
@@ -501,20 +502,6 @@ class _SessionPageState extends State<SessionPage> {
                                         _showAddExerciseDialog(context),
                                     icon: const Icon(Icons.add_rounded),
                                     label: const Text('Add Exercise'),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      side: BorderSide(
-                                        color: AppColors.accent.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                      ),
-                                      foregroundColor: AppColors.accent,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
@@ -522,15 +509,6 @@ class _SessionPageState extends State<SessionPage> {
                                   width: double.infinity,
                                   child: FilledButton(
                                     onPressed: () => _onFinishWorkout(context),
-                                    style: FilledButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      backgroundColor: AppColors.accent,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ),
                                     child: const Text(
                                       'Finish Workout',
                                       style: TextStyle(
@@ -747,6 +725,20 @@ class _SessionPageState extends State<SessionPage> {
   }
 
   void _onFinishWorkout(BuildContext context) {
+    final state = context.read<SessionBloc>().state;
+    if (state is SessionInProgress) {
+      final allSkipped = state.session.exercises.every((e) => e.skipped);
+      if (allSkipped) {
+        AppDialogs.showErrorDialog(
+          context: context,
+          title: 'Cannot Finish Workout',
+          message:
+              'All exercises are skipped. You must perform at least one exercise to finish the workout.',
+        );
+        return;
+      }
+    }
+
     AppDialogs.showConfirmationDialog(
       context: context,
       title: 'Finish Workout',

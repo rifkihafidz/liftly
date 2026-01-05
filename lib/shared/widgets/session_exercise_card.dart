@@ -56,6 +56,20 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
         _isExpanded = true;
       });
     }
+
+    // Collapse if skipped
+    if (widget.exercise.skipped && !oldWidget.exercise.skipped) {
+      setState(() {
+        _isExpanded = false;
+      });
+    }
+
+    // Expand if unskipped
+    if (!widget.exercise.skipped && oldWidget.exercise.skipped) {
+      setState(() {
+        _isExpanded = true;
+      });
+    }
   }
 
   @override
@@ -90,7 +104,9 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
         children: [
           // Header (Always visible)
           InkWell(
-            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            onTap: isSkipped
+                ? null
+                : () => setState(() => _isExpanded = !_isExpanded),
             borderRadius: BorderRadius.vertical(
               top: const Radius.circular(16),
               bottom: Radius.circular(_isExpanded ? 0 : 16),
@@ -102,106 +118,127 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
           ),
 
           // Body (Collapsible)
-          if (_isExpanded && !isSkipped)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Column(
-                children: [
-                  const Divider(height: 1),
-                  const SizedBox(height: 16),
-                  ...List.generate(sets.length, (setIndex) {
-                    final set = sets[setIndex];
-                    final segments = set.segments;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: _isExpanded && !isSkipped
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
                       children: [
-                        _buildSetHeader(
-                          context,
-                          set,
-                          segments.length > 1,
-                          setIndex,
-                        ),
-                        const SizedBox(height: 12),
-                        ...List.generate(segments.length, (segIndex) {
-                          final segment = segments[segIndex];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  flex: 2,
-                                  child: WeightField(
-                                    initialValue: segment.weight.toString(),
-                                    autofocus:
-                                        widget.focusedSetIndex == setIndex &&
-                                        widget.focusedSegmentIndex == segIndex,
-                                    onChanged: (v) => widget.onUpdateSegment(
-                                      setIndex,
-                                      segIndex,
-                                      'weight',
-                                      double.tryParse(v) ?? 0,
-                                    ),
+                        const Divider(height: 1),
+                        const SizedBox(height: 16),
+                        ...List.generate(sets.length, (setIndex) {
+                          final set = sets[setIndex];
+                          final segments = set.segments;
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSetHeader(
+                                context,
+                                set,
+                                segments.length > 1,
+                                setIndex,
+                              ),
+                              const SizedBox(height: 12),
+                              ...List.generate(segments.length, (segIndex) {
+                                final segment = segments[segIndex];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 2,
+                                        child: WeightField(
+                                          initialValue: segment.weight
+                                              .toString(),
+                                          autofocus:
+                                              widget.focusedSetIndex ==
+                                                  setIndex &&
+                                              widget.focusedSegmentIndex ==
+                                                  segIndex,
+                                          onChanged: (v) =>
+                                              widget.onUpdateSegment(
+                                                setIndex,
+                                                segIndex,
+                                                'weight',
+                                                double.tryParse(v) ?? 0,
+                                              ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: NumberField(
+                                          label: 'From',
+                                          initialValue: segment.repsFrom
+                                              .toString(),
+                                          onChanged: (v) =>
+                                              widget.onUpdateSegment(
+                                                setIndex,
+                                                segIndex,
+                                                'repsFrom',
+                                                int.tryParse(v) ?? 0,
+                                              ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: ToField(
+                                          initialValue: segment.repsTo
+                                              .toString(),
+                                          onChanged: (v) =>
+                                              widget.onUpdateSegment(
+                                                setIndex,
+                                                segIndex,
+                                                'repsTo',
+                                                int.tryParse(v) ?? 0,
+                                              ),
+                                          onDeleteTap:
+                                              (segments.length > 1 &&
+                                                  segIndex > 0)
+                                              ? () => widget.onRemoveDropSet(
+                                                  setIndex,
+                                                  segIndex,
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                              const SizedBox(height: 8),
+                              if (segments.isNotEmpty)
+                                NotesField(
+                                  initialValue: segments[0].notes,
+                                  onChanged: (v) => widget.onUpdateSegment(
+                                    setIndex,
+                                    0,
+                                    'notes',
+                                    v,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: NumberField(
-                                    label: 'From',
-                                    initialValue: segment.repsFrom.toString(),
-                                    onChanged: (v) => widget.onUpdateSegment(
-                                      setIndex,
-                                      segIndex,
-                                      'repsFrom',
-                                      int.tryParse(v) ?? 0,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: ToField(
-                                    initialValue: segment.repsTo.toString(),
-                                    onChanged: (v) => widget.onUpdateSegment(
-                                      setIndex,
-                                      segIndex,
-                                      'repsTo',
-                                      int.tryParse(v) ?? 0,
-                                    ),
-                                    onDeleteTap:
-                                        (segments.length > 1 && segIndex > 0)
-                                        ? () => widget.onRemoveDropSet(
-                                            setIndex,
-                                            segIndex,
-                                          )
-                                        : null,
-                                  ),
-                                ),
-                              ],
-                            ),
+                              const SizedBox(height: 16),
+                              _buildActionButtons(
+                                context,
+                                setIndex,
+                                sets.length,
+                              ),
+                            ],
                           );
                         }),
-                        const SizedBox(height: 8),
-                        if (segments.isNotEmpty)
-                          NotesField(
-                            initialValue: segments[0].notes,
-                            onChanged: (v) =>
-                                widget.onUpdateSegment(setIndex, 0, 'notes', v),
-                          ),
-                        const SizedBox(height: 16),
-                        _buildActionButtons(context, setIndex, sets.length),
                       ],
-                    );
-                  }),
-                ],
-              ),
-            ),
-
-          // Summary when collapsed
-          if (!_isExpanded && !isSkipped)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: _buildCollapsedSummary(context),
-            ),
+                    ),
+                  )
+                : (!_isExpanded && !isSkipped)
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: _buildCollapsedSummary(context),
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );
@@ -271,16 +308,55 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
             onPressed: widget.onHistoryTap,
           ),
 
-        // Skip Button (Compact)
-        InkWell(
-          onTap: widget.onSkipToggle,
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Icon(
-              isSkipped ? Icons.check_box : Icons.check_box_outline_blank,
-              size: 20,
-              color: isSkipped ? AppColors.accent : AppColors.textSecondary,
+        // Skip Button (Compact Chip)
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onSkipToggle,
+            borderRadius: BorderRadius.circular(20),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSkipped
+                    ? AppColors.textSecondary.withValues(alpha: 0.1)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSkipped
+                      ? Colors.transparent
+                      : AppColors.borderLight.withValues(alpha: 0.5),
+                ),
+              ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Row(
+                  key: ValueKey(isSkipped),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isSkipped
+                          ? Icons.check_circle_outline
+                          : Icons.circle_outlined,
+                      size: 14,
+                      color: isSkipped
+                          ? AppColors.textSecondary
+                          : AppColors.textSecondary.withValues(alpha: 0.7),
+                    ),
+                    if (isSkipped) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        'Skipped',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),

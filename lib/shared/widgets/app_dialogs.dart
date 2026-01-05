@@ -48,12 +48,12 @@ class AppDialogs {
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: FilledButton(
                   onPressed: () {
                     Navigator.pop(context); // Close dialog
                     onConfirm?.call();
                   },
-                  style: ElevatedButton.styleFrom(
+                  style: FilledButton.styleFrom(
                     backgroundColor: AppColors.success,
                   ),
                   child: Text(confirmText),
@@ -111,12 +111,12 @@ class AppDialogs {
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: FilledButton(
                   onPressed: () {
                     Navigator.pop(context);
                     onConfirm?.call();
                   },
-                  style: ElevatedButton.styleFrom(
+                  style: FilledButton.styleFrom(
                     backgroundColor: AppColors.error,
                   ),
                   child: Text(confirmText),
@@ -181,9 +181,9 @@ class AppDialogs {
                     child: Text(cancelText),
                   ),
                   const SizedBox(width: 12),
-                  ElevatedButton(
+                  FilledButton(
                     onPressed: () => Navigator.pop(context, true),
-                    style: ElevatedButton.styleFrom(
+                    style: FilledButton.styleFrom(
                       backgroundColor: isDangerous
                           ? AppColors.error
                           : AppColors.accent,

@@ -16,6 +16,7 @@ import '../../workout_log/repositories/workout_repository.dart';
 import '../../../core/utils/page_transitions.dart';
 import '../../../shared/widgets/animations/scale_button_wrapper.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
+import '../../plans/pages/create_plan_page.dart';
 
 enum PlanSortOption { newest, oldest, aToZ, zToA }
 
@@ -274,13 +275,38 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
               ),
 
               if (_sortedPlans.isEmpty)
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: Center(
                     child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text(
-                        'No plans available',
-                        style: TextStyle(color: AppColors.textSecondary),
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        children: [
+                          Text(
+                            'No plans available',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                SmoothPageRoute(page: const CreatePlanPage()),
+                              );
+                            },
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('CREATE PLAN'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.accent,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -809,13 +835,8 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                         ? _startSession
                         : null,
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.accent,
                       disabledBackgroundColor: AppColors.accent.withValues(
                         alpha: 0.3,
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                     child: const Text(

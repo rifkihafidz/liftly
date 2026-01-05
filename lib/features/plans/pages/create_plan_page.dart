@@ -440,22 +440,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                                   },
                             icon: const Icon(Icons.add_rounded),
                             label: const Text('Add Exercise'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.all(16),
-                              side: BorderSide(
-                                color:
-                                    (_isAddingExercise || _editingIndex != null)
-                                    ? AppColors.textSecondary
-                                    : AppColors.accent,
-                              ),
-                              foregroundColor:
-                                  (_isAddingExercise || _editingIndex != null)
-                                  ? AppColors.textSecondary
-                                  : AppColors.accent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -466,13 +450,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                               final isLoading = state is PlanLoading;
                               return FilledButton(
                                 onPressed: isLoading ? null : _savePlan,
-                                style: FilledButton.styleFrom(
-                                  padding: const EdgeInsets.all(16),
-                                  backgroundColor: AppColors.accent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
                                 child: isLoading
                                     ? const SizedBox(
                                         width: 20,

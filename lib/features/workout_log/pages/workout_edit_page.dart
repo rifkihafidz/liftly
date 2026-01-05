@@ -55,6 +55,17 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
   }
 
   void _saveChanges() {
+    final allSkipped = _editedWorkout.exercises.every((e) => e.skipped);
+    if (allSkipped) {
+      AppDialogs.showErrorDialog(
+        context: context,
+        title: 'Cannot Save Workout',
+        message:
+            'All exercises are skipped. You must perform at least one exercise to save the workout.',
+      );
+      return;
+    }
+
     AppDialogs.showConfirmationDialog(
       context: context,
       title: 'Save Changes',
@@ -123,7 +134,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                   surfaceTintColor: AppColors.darkBg,
                   leading: IconButton(
                     icon: const Icon(
-                      Icons.close_rounded,
+                      Icons.arrow_back,
                       color: AppColors.textPrimary,
                     ),
                     onPressed: () => Navigator.maybePop(context),
@@ -137,6 +148,14 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                   ),
                   actions: [
                     IconButton(
+                      icon: const Icon(
+                        Icons.save_rounded,
+                        color: AppColors.textPrimary,
+                      ),
+                      tooltip: 'Save Changes',
+                      onPressed: _saveChanges,
+                    ),
+                    IconButton(
                       onPressed: _showReorderExercisesSheet,
                       icon: const Icon(
                         Icons.reorder_rounded,
@@ -144,17 +163,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                       ),
                       tooltip: 'Reorder Exercises',
                     ),
-                    TextButton(
-                      onPressed: _saveChanges,
-                      child: const Text(
-                        'Save',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.accent,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                   ],
                 ),
                 SliverToBoxAdapter(
@@ -561,23 +569,31 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 48),
                   sliver: SliverToBoxAdapter(
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showAddExerciseDialog(context),
-                        icon: const Icon(Icons.add_rounded),
-                        label: const Text('Add Exercise'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(
-                            color: AppColors.accent.withValues(alpha: 0.5),
-                          ),
-                          foregroundColor: AppColors.accent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showAddExerciseDialog(context),
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('Add Exercise'),
                           ),
                         ),
-                      ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: _saveChanges,
+                            child: const Text(
+                              'Save Changes',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

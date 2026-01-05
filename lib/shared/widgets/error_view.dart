@@ -77,19 +77,11 @@ class GlobalErrorView extends StatelessWidget {
               const SizedBox(height: 48),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
+                child: FilledButton.icon(
                   onPressed: () {
                     // Navigate back or restart app logic
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
                   icon: const Icon(Icons.home_rounded),
                   label: const Text(
                     'Back to Home',

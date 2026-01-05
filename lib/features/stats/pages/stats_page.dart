@@ -15,6 +15,7 @@ import '../bloc/stats_event.dart';
 import '../bloc/stats_state.dart';
 import 'stats_shimmer.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
+import '../../../shared/widgets/cards/stat_overview_card.dart';
 
 class StatsPage extends StatefulWidget {
   const StatsPage({super.key});
@@ -187,21 +188,7 @@ class _StatsPageState extends State<StatsPage> {
                           const StatsFetched(userId: '1'),
                         );
                       },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.all(16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text(
-                        'Retry',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
+                      child: const Text('Retry'),
                     ),
                   ],
                 ),
@@ -343,7 +330,7 @@ class _StatsPageState extends State<StatsPage> {
               children: [
                 FadeInSlide(
                   index: 0,
-                  child: _StatBox(
+                  child: StatOverviewCard(
                     label: 'Workouts',
                     value: filteredSessions.length.toString(),
                     icon: Icons.fitness_center,
@@ -352,7 +339,7 @@ class _StatsPageState extends State<StatsPage> {
                 ),
                 FadeInSlide(
                   index: 1,
-                  child: _StatBox(
+                  child: StatOverviewCard(
                     label: 'Total Volume',
                     value: _formatNumber(
                       _calculateTotalVolume(filteredSessions),
@@ -364,7 +351,7 @@ class _StatsPageState extends State<StatsPage> {
                 ),
                 FadeInSlide(
                   index: 2,
-                  child: _StatBox(
+                  child: StatOverviewCard(
                     label: 'Avg Time',
                     value: _calculateAverageDuration(filteredSessions),
                     icon: Icons.timer_outlined,
@@ -1178,6 +1165,30 @@ class _VolumeChartCard extends StatelessWidget {
                     );
                   },
                 ),
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (_) => AppColors.cardBg,
+                    tooltipBorder: BorderSide(
+                      color: AppColors.success.withValues(alpha: 0.3),
+                    ),
+                    tooltipPadding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    tooltipMargin: 8,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      return BarTooltipItem(
+                        '${rod.toY.toInt()} kg',
+                        const TextStyle(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      );
+                    },
+                  ),
+                ),
                 titlesData: FlTitlesData(
                   show: true,
                   rightTitles: AxisTitles(
@@ -1283,6 +1294,7 @@ class _VolumeChartCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                minY: 0,
                 maxY: finalMaxY,
                 alignment: BarChartAlignment.spaceAround,
               ),
@@ -1639,6 +1651,30 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                       strokeWidth: 1,
                     );
                   },
+                ),
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (_) => AppColors.cardBg,
+                    tooltipBorder: BorderSide(
+                      color: AppColors.accent.withValues(alpha: 0.3),
+                    ),
+                    tooltipPadding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    tooltipMargin: 8,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      return BarTooltipItem(
+                        '${rod.toY.toInt()} workouts',
+                        const TextStyle(
+                          color: AppColors.accent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 titlesData: FlTitlesData(
                   show: true,
@@ -2586,96 +2622,6 @@ class _MonthPickerDialogState extends State<_MonthPickerDialog> {
 }
 
 /// Simple Stat Box Widget
-class _StatBox extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final String? unit;
-
-  const _StatBox({
-    required this.label,
-    required this.value,
-    this.unit,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.cardBg,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [color.withValues(alpha: 0.1), Colors.transparent],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.15), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                value,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18,
-                ),
-              ),
-              if (unit != null) ...[
-                const SizedBox(width: 2),
-                Text(
-                  unit!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label.toUpperCase(),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-              fontSize: 10,
-              letterSpacing: 0.5,
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// Empty State Card Widget
 class _EmptyStateCard extends StatelessWidget {

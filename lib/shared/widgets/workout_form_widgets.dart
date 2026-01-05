@@ -177,7 +177,7 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: () {
                       final start = DateTime(
                         selectedDate.year,
@@ -210,11 +210,6 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                         'endedAt': end,
                       });
                     },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      elevation: 4,
-                      shadowColor: AppColors.accent.withValues(alpha: 0.3),
-                    ),
                     child: const Text('Confirm'),
                   ),
                 ),
