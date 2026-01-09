@@ -13,6 +13,8 @@ import 'workout_edit_page.dart';
 import '../widgets/workout_share_sheet.dart';
 import '../../../core/utils/page_transitions.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
+import '../../../shared/widgets/cards/exercise_detail_card.dart';
+import '../../../shared/widgets/text/detail_stat_item.dart';
 
 class WorkoutDetailPage extends StatefulWidget {
   final WorkoutSession workout;
@@ -261,7 +263,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                           Row(
                             children: [
                               Expanded(
-                                child: _DetailStatItem(
+                                child: DetailStatItem(
                                   icon: Icons.timer_rounded,
                                   value: duration != null
                                       ? _formatDuration(duration)
@@ -272,7 +274,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                child: _DetailStatItem(
+                                child: DetailStatItem(
                                   icon: Icons.fitness_center_rounded,
                                   value: '$nonSkippedExercises',
                                   label: 'Exercises',
@@ -286,7 +288,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                           Row(
                             children: [
                               Expanded(
-                                child: _DetailStatItem(
+                                child: DetailStatItem(
                                   icon: Icons.format_list_numbered_rounded,
                                   value: '$totalSets',
                                   label: 'Total Sets',
@@ -295,7 +297,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                child: _DetailStatItem(
+                                child: DetailStatItem(
                                   icon: Icons.scale_rounded,
                                   value: formatNumber(totalVolume),
                                   label: 'Total Volume',
@@ -316,7 +318,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                         final exercise = exercises[index];
                         return FadeInSlide(
                           index: index,
-                          child: _ExerciseCard(
+                          child: ExerciseDetailCard(
                             exercise: exercise,
                             index: index,
                             formatNumber: formatNumber,
@@ -382,324 +384,6 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => WorkoutShareSheet(workout: _currentWorkout),
-    );
-  }
-}
-
-class _DetailStatItem extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color color;
-  final String? unit;
-
-  const _DetailStatItem({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.color,
-    this.unit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Flexible(
-              child: Text(
-                value,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (unit != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 2),
-                child: Text(
-                  unit!,
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _ExerciseCard extends StatefulWidget {
-  final SessionExercise exercise;
-  final int index;
-  final String Function(double) formatNumber;
-
-  const _ExerciseCard({
-    required this.exercise,
-    required this.index,
-    required this.formatNumber,
-  });
-
-  @override
-  State<_ExerciseCard> createState() => _ExerciseCardState();
-}
-
-class _ExerciseCardState extends State<_ExerciseCard> {
-  bool _isExpanded = true;
-
-  @override
-  Widget build(BuildContext context) {
-    final isSkipped = widget.exercise.skipped;
-    final sets = widget.exercise.sets;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Material(
-        color: AppColors.cardBg,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(
-            color: isSkipped
-                ? Colors.transparent
-                : Colors.white.withValues(alpha: 0.05),
-            width: 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            GestureDetector(
-              onTap: () => setState(() => _isExpanded = !_isExpanded),
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  '${widget.index + 1}. ${widget.exercise.name}',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: isSkipped
-                                            ? AppColors.textSecondary
-                                            : AppColors.textPrimary,
-                                        decoration: isSkipped
-                                            ? TextDecoration.lineThrough
-                                            : null,
-                                        decorationColor:
-                                            AppColors.textSecondary,
-                                      ),
-                                ),
-                              ),
-                              if (isSkipped) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.textSecondary.withValues(
-                                      alpha: 0.2,
-                                    ),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    'Skipped',
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          if (!isSkipped)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                '${sets.length} sets',
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    if (!isSkipped)
-                      Icon(
-                        _isExpanded
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                        color: AppColors.textSecondary,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            if (_isExpanded && !isSkipped)
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(20),
-                  ),
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: sets.asMap().entries.map((entry) {
-                    final setIndex = entry.key;
-                    final set = entry.value;
-                    final segments = set.segments;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (setIndex > 0)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Divider(
-                              height: 1,
-                              color: Colors.white.withValues(alpha: 0.05),
-                            ),
-                          ),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.accent.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'SET ${set.setNumber}',
-                                style: const TextStyle(
-                                  color: AppColors.accent,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 10,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                            if (segments.length > 1)
-                              Padding(
-                                padding: const EdgeInsets.only(left: 8),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFFF59E0B,
-                                    ).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Text(
-                                    'DROP SET',
-                                    style: TextStyle(
-                                      color: Color(0xFFF59E0B),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 10,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        if (segments.isNotEmpty &&
-                            segments.first.notes.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Text(
-                              'Notes: ${segments.first.notes}',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontStyle: FontStyle.italic,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ...segments.map((segment) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  '${segment.weight}kg × ${segment.repsFrom}-${segment.repsTo}',
-                                  style: const TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                Text(
-                                  'Vol: ${widget.formatNumber(segment.weight * (segment.repsTo - segment.repsFrom + 1))}kg',
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }

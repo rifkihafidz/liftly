@@ -17,8 +17,8 @@ class StatsPageShimmer extends StatelessWidget {
             backgroundColor: AppColors.darkBg,
             surfaceTintColor: AppColors.darkBg,
             title: Shimmer.fromColors(
-              baseColor: const Color(0xFF2A2A2A),
-              highlightColor: const Color(0xFF404040),
+              baseColor: AppColors.shimmerBase,
+              highlightColor: AppColors.shimmerHighlight,
               child: Container(
                 width: 150,
                 height: 24,
@@ -53,8 +53,8 @@ class StatsPageShimmer extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Shimmer.fromColors(
-                            baseColor: const Color(0xFF2A2A2A),
-                            highlightColor: const Color(0xFF404040),
+                            baseColor: AppColors.shimmerBase,
+                            highlightColor: AppColors.shimmerHighlight,
                             child: Container(
                               height: 36,
                               decoration: BoxDecoration(
@@ -67,8 +67,8 @@ class StatsPageShimmer extends StatelessWidget {
                         Expanded(
                           child: Center(
                             child: Shimmer.fromColors(
-                              baseColor: const Color(0xFF2A2A2A),
-                              highlightColor: const Color(0xFF404040),
+                              baseColor: AppColors.shimmerBase,
+                              highlightColor: AppColors.shimmerHighlight,
                               child: Container(
                                 width: 40,
                                 height: 14,
@@ -83,8 +83,8 @@ class StatsPageShimmer extends StatelessWidget {
                         Expanded(
                           child: Center(
                             child: Shimmer.fromColors(
-                              baseColor: const Color(0xFF2A2A2A),
-                              highlightColor: const Color(0xFF404040),
+                              baseColor: AppColors.shimmerBase,
+                              highlightColor: AppColors.shimmerHighlight,
                               child: Container(
                                 width: 40,
                                 height: 14,
@@ -106,16 +106,16 @@ class StatsPageShimmer extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Shimmer.fromColors(
-                            baseColor: const Color(0xFF2A2A2A),
-                            highlightColor: const Color(0xFF404040),
+                            baseColor: AppColors.shimmerBase,
+                            highlightColor: AppColors.shimmerHighlight,
                             child: const Icon(
                               Icons.chevron_left,
                               color: Colors.white,
                             ),
                           ),
                           Shimmer.fromColors(
-                            baseColor: const Color(0xFF2A2A2A),
-                            highlightColor: const Color(0xFF404040),
+                            baseColor: AppColors.shimmerBase,
+                            highlightColor: AppColors.shimmerHighlight,
                             child: Container(
                               width: 140,
                               height: 16,
@@ -126,8 +126,8 @@ class StatsPageShimmer extends StatelessWidget {
                             ),
                           ),
                           Shimmer.fromColors(
-                            baseColor: const Color(0xFF2A2A2A),
-                            highlightColor: const Color(0xFF404040),
+                            baseColor: AppColors.shimmerBase,
+                            highlightColor: AppColors.shimmerHighlight,
                             child: const Icon(
                               Icons.chevron_right,
                               color: Colors.white,
@@ -165,8 +165,8 @@ class StatsContentShimmer extends StatelessWidget {
         ), // Matches the 44px top gap in the live page's _buildOverview
         // Overview Section Header
         Shimmer.fromColors(
-          baseColor: const Color(0xFF2A2A2A),
-          highlightColor: const Color(0xFF404040),
+          baseColor: AppColors.shimmerBase,
+          highlightColor: AppColors.shimmerHighlight,
           child: Container(
             width: 100,
             height: 28, // Title Large size
@@ -198,8 +198,8 @@ class StatsContentShimmer extends StatelessWidget {
 
         // Trends Section
         Shimmer.fromColors(
-          baseColor: const Color(0xFF2A2A2A),
-          highlightColor: const Color(0xFF404040),
+          baseColor: AppColors.shimmerBase,
+          highlightColor: AppColors.shimmerHighlight,
           child: Container(
             width: 80,
             height: 28,
@@ -222,8 +222,8 @@ class StatsContentShimmer extends StatelessWidget {
             border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           child: Shimmer.fromColors(
-            baseColor: const Color(0xFF2A2A2A),
-            highlightColor: const Color(0xFF404040),
+            baseColor: AppColors.shimmerBase,
+            highlightColor: AppColors.shimmerHighlight,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -272,8 +272,8 @@ class StatsContentShimmer extends StatelessWidget {
             border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           child: Shimmer.fromColors(
-            baseColor: const Color(0xFF2A2A2A),
-            highlightColor: const Color(0xFF404040),
+            baseColor: AppColors.shimmerBase,
+            highlightColor: AppColors.shimmerHighlight,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -308,8 +308,8 @@ class StatsContentShimmer extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Shimmer.fromColors(
-              baseColor: const Color(0xFF2A2A2A),
-              highlightColor: const Color(0xFF404040),
+              baseColor: AppColors.shimmerBase,
+              highlightColor: AppColors.shimmerHighlight,
               child: Container(
                 width: 160,
                 height: 28,
@@ -320,8 +320,8 @@ class StatsContentShimmer extends StatelessWidget {
               ),
             ),
             Shimmer.fromColors(
-              baseColor: const Color(0xFF2A2A2A),
-              highlightColor: const Color(0xFF404040),
+              baseColor: AppColors.shimmerBase,
+              highlightColor: AppColors.shimmerHighlight,
               child: Container(
                 width: 24,
                 height: 24,
@@ -361,8 +361,8 @@ class StatsContentShimmer extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(12),
       child: Shimmer.fromColors(
-        baseColor: const Color(0xFF2A2A2A),
-        highlightColor: const Color(0xFF404040),
+        baseColor: AppColors.shimmerBase,
+        highlightColor: AppColors.shimmerHighlight,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -393,8 +393,8 @@ class StatsContentShimmer extends StatelessWidget {
         border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Shimmer.fromColors(
-        baseColor: const Color(0xFF2A2A2A),
-        highlightColor: const Color(0xFF404040),
+        baseColor: AppColors.shimmerBase,
+        highlightColor: AppColors.shimmerHighlight,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [

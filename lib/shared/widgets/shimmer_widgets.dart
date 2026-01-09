@@ -11,15 +11,15 @@ class WorkoutCardShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.cardBg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Shimmer.fromColors(
-        baseColor: const Color(0xFF2A2A2A),
-        highlightColor: const Color(0xFF404040),
+        baseColor: AppColors.shimmerBase,
+        highlightColor: AppColors.shimmerHighlight,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -144,8 +144,8 @@ class WorkoutListShimmer extends StatelessWidget {
           backgroundColor: AppColors.darkBg,
           surfaceTintColor: AppColors.darkBg,
           title: Shimmer.fromColors(
-            baseColor: const Color(0xFF2A2A2A),
-            highlightColor: const Color(0xFF404040),
+            baseColor: AppColors.shimmerBase,
+            highlightColor: AppColors.shimmerHighlight,
             child: Container(
               width: 150,
               height: 24,
@@ -171,8 +171,8 @@ class WorkoutListShimmer extends StatelessWidget {
                         horizontal: 4,
                       ),
                       child: Shimmer.fromColors(
-                        baseColor: const Color(0xFF2A2A2A),
-                        highlightColor: const Color(0xFF404040),
+                        baseColor: AppColors.shimmerBase,
+                        highlightColor: AppColors.shimmerHighlight,
                         child: Container(
                           width: 140,
                           height: 20,
@@ -206,8 +206,8 @@ class StatsCardShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: const Color(0xFF2A2A2A),
-      highlightColor: const Color(0xFF404040),
+      baseColor: AppColors.shimmerBase,
+      highlightColor: AppColors.shimmerHighlight,
       child: Container(
         width: double.infinity,
         height: height,
@@ -236,8 +236,8 @@ class TextLineShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: const Color(0xFF2A2A2A),
-      highlightColor: const Color(0xFF404040),
+      baseColor: AppColors.shimmerBase,
+      highlightColor: AppColors.shimmerHighlight,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: List.generate(
@@ -270,8 +270,8 @@ class CircleShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: const Color(0xFF2A2A2A),
-      highlightColor: const Color(0xFF404040),
+      baseColor: AppColors.shimmerBase,
+      highlightColor: AppColors.shimmerHighlight,
       child: Container(
         width: size,
         height: size,
@@ -299,8 +299,8 @@ class PlanCardShimmer extends StatelessWidget {
         border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Shimmer.fromColors(
-        baseColor: const Color(0xFF2A2A2A),
-        highlightColor: const Color(0xFF404040),
+        baseColor: AppColors.shimmerBase,
+        highlightColor: AppColors.shimmerHighlight,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -394,8 +394,8 @@ class PlanListShimmer extends StatelessWidget {
           backgroundColor: AppColors.darkBg,
           surfaceTintColor: AppColors.darkBg,
           title: Shimmer.fromColors(
-            baseColor: const Color(0xFF2A2A2A),
-            highlightColor: const Color(0xFF404040),
+            baseColor: AppColors.shimmerBase,
+            highlightColor: AppColors.shimmerHighlight,
             child: Container(
               width: 150,
               height: 24,
@@ -435,8 +435,8 @@ class EditWorkoutShimmer extends StatelessWidget {
           backgroundColor: AppColors.darkBg,
           surfaceTintColor: AppColors.darkBg,
           title: Shimmer.fromColors(
-            baseColor: const Color(0xFF2A2A2A),
-            highlightColor: const Color(0xFF404040),
+            baseColor: AppColors.shimmerBase,
+            highlightColor: AppColors.shimmerHighlight,
             child: Container(
               height: 20,
               width: 120,
@@ -451,8 +451,8 @@ class EditWorkoutShimmer extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Shimmer.fromColors(
-              baseColor: const Color(0xFF2A2A2A),
-              highlightColor: const Color(0xFF404040),
+              baseColor: AppColors.shimmerBase,
+              highlightColor: AppColors.shimmerHighlight,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -514,8 +514,8 @@ class SessionPageShimmer extends StatelessWidget {
           backgroundColor: AppColors.darkBg,
           surfaceTintColor: AppColors.darkBg,
           title: Shimmer.fromColors(
-            baseColor: const Color(0xFF2A2A2A),
-            highlightColor: const Color(0xFF404040),
+            baseColor: AppColors.shimmerBase,
+            highlightColor: AppColors.shimmerHighlight,
             child: Container(
               height: 20,
               width: 120,
@@ -530,8 +530,8 @@ class SessionPageShimmer extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Shimmer.fromColors(
-              baseColor: const Color(0xFF2A2A2A),
-              highlightColor: const Color(0xFF404040),
+              baseColor: AppColors.shimmerBase,
+              highlightColor: AppColors.shimmerHighlight,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

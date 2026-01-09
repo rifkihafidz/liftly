@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
@@ -16,6 +17,7 @@ import '../../workout_log/repositories/workout_repository.dart';
 import '../../../core/utils/page_transitions.dart';
 import '../../../shared/widgets/animations/scale_button_wrapper.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
+import '../../plans/pages/create_plan_page.dart';
 
 enum PlanSortOption { newest, oldest, aToZ, zToA }
 
@@ -34,7 +36,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
   final List<SessionExercise> _customExercises = [];
   final _exerciseFocusNode = FocusNode();
   bool _isAddingExercise = false;
-  final PlanSortOption _sortOption = PlanSortOption.newest;
+  PlanSortOption _sortOption = PlanSortOption.newest;
 
   List<WorkoutPlan> _sortedPlans = [];
   final List<String> _availableExercises = [];
@@ -87,8 +89,13 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
         userId: '1',
       );
       names.addAll(historyNames);
-    } catch (e) {
-      debugPrint('Error loading suggestions: $e');
+    } catch (e, stackTrace) {
+      log(
+        'Error loading suggestions',
+        name: 'StartWorkoutPage',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
     if (mounted) {
       setState(() {
@@ -116,6 +123,19 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
           (a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()),
         );
         break;
+    }
+  }
+
+  String _getSortLabel(PlanSortOption option) {
+    switch (option) {
+      case PlanSortOption.newest:
+        return 'Newest First';
+      case PlanSortOption.oldest:
+        return 'Oldest First';
+      case PlanSortOption.aToZ:
+        return 'Name (A-Z)';
+      case PlanSortOption.zToA:
+        return 'Name (Z-A)';
     }
   }
 
@@ -250,6 +270,56 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                   ),
                   onPressed: () => Navigator.pop(context),
                 ),
+                actions: [
+                  PopupMenuButton<PlanSortOption>(
+                    icon: const Icon(
+                      Icons.sort_rounded,
+                      color: AppColors.textPrimary,
+                    ),
+                    tooltip: 'Sort Plans',
+                    position: PopupMenuPosition.under,
+                    color: AppColors.darkBg,
+                    elevation: 0,
+                    surfaceTintColor: AppColors.darkBg,
+                    onSelected: (option) {
+                      setState(() {
+                        _sortOption = option;
+                        _sortPlans();
+                      });
+                    },
+                    itemBuilder: (context) =>
+                        PlanSortOption.values.map((option) {
+                          return PopupMenuItem(
+                            value: option,
+                            child: Row(
+                              children: [
+                                if (_sortOption == option)
+                                  const Icon(
+                                    Icons.check,
+                                    size: 16,
+                                    color: AppColors.accent,
+                                  )
+                                else
+                                  const SizedBox(width: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _getSortLabel(option),
+                                  style: TextStyle(
+                                    color: _sortOption == option
+                                        ? AppColors.accent
+                                        : AppColors.textPrimary,
+                                    fontWeight: _sortOption == option
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                  ),
+                  const SizedBox(width: 8),
+                ],
               ),
 
               // Plans Section
@@ -274,13 +344,38 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
               ),
 
               if (_sortedPlans.isEmpty)
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: Center(
                     child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text(
-                        'No plans available',
-                        style: TextStyle(color: AppColors.textSecondary),
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        children: [
+                          Text(
+                            'No plans available',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                SmoothPageRoute(page: const CreatePlanPage()),
+                              );
+                            },
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('CREATE PLAN'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.accent,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -809,13 +904,8 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                         ? _startSession
                         : null,
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.accent,
                       disabledBackgroundColor: AppColors.accent.withValues(
                         alpha: 0.3,
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                     child: const Text(

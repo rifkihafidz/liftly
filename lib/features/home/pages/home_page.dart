@@ -16,6 +16,8 @@ import '../../../core/utils/page_transitions.dart';
 import '../../../shared/widgets/animations/scale_button_wrapper.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
 
+import '../../../shared/widgets/cards/menu_grid_item.dart';
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -170,7 +172,7 @@ class _HomePageState extends State<HomePage> {
                       delegate: SliverChildListDelegate([
                         FadeInSlide(
                           index: 0,
-                          child: _GridCard(
+                          child: MenuGridItem(
                             title: 'History',
                             subtitle: 'Past sessions',
                             icon: Icons.history_rounded,
@@ -183,7 +185,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         FadeInSlide(
                           index: 1,
-                          child: _GridCard(
+                          child: MenuGridItem(
                             title: 'Statistics',
                             subtitle: 'Your progress',
                             icon: Icons.bar_chart_rounded,
@@ -196,7 +198,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         FadeInSlide(
                           index: 2,
-                          child: _GridCard(
+                          child: MenuGridItem(
                             title: 'Plans',
                             subtitle: 'Routines',
                             icon: Icons.bookmarks_rounded,
@@ -209,7 +211,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         FadeInSlide(
                           index: 3,
-                          child: _GridCard(
+                          child: MenuGridItem(
                             title: 'Settings',
                             subtitle: 'Preferences',
                             icon: Icons.settings_rounded,
@@ -343,83 +345,6 @@ class _HeroCard extends StatelessWidget {
                     ],
                   ),
                   child: Icon(icon, color: AppColors.accent, size: 28),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GridCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _GridCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ScaleButtonWrapper(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(24),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.cardBg,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.05),
-                width: 1,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: color, size: 22),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
