@@ -98,7 +98,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
       // For standard session tracking, the card MUST manage its own scroll.
       if (!isAddSet || !widget.isAlwaysExpanded) {
         // Schedule scroll after build with a slight delay to ensure layout is ready
-        Future.delayed(const Duration(milliseconds: 200), () {
+        Future.delayed(const Duration(milliseconds: 400), () {
           if (mounted && _scrollTargetKey.currentContext != null) {
             debugPrint(
               '[SessionExerciseCard] Internal Scroll to buttons of set: $_scrollToSetIndex',
