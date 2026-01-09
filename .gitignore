@@ -98,5 +98,6 @@ xcuserdata/
 **/generated_plugin_registrant.dart
 **/generated_plugin_registrant.cc
 
-# FVM Version Cache
-.fvm/
+# FVM
+.fvm/flutter_sdk
+.fvm/versions
