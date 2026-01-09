@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -61,8 +62,13 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
           ], text: 'My workout on Liftly!');
         }
       }
-    } catch (e) {
-      debugPrint('Error sharing image: $e');
+    } catch (e, stackTrace) {
+      log(
+        'Error sharing image',
+        name: 'WorkoutShareSheet',
+        error: e,
+        stackTrace: stackTrace,
+      );
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }
@@ -198,7 +204,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                               ),
                               const SizedBox(height: 12),
                               _buildStatGroup(
-                                'Time',
+                                'Duration',
                                 _formatDuration(duration),
                               ),
 

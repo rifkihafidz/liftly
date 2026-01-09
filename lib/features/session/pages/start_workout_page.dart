@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
@@ -35,7 +36,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
   final List<SessionExercise> _customExercises = [];
   final _exerciseFocusNode = FocusNode();
   bool _isAddingExercise = false;
-  final PlanSortOption _sortOption = PlanSortOption.newest;
+  PlanSortOption _sortOption = PlanSortOption.newest;
 
   List<WorkoutPlan> _sortedPlans = [];
   final List<String> _availableExercises = [];
@@ -88,8 +89,13 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
         userId: '1',
       );
       names.addAll(historyNames);
-    } catch (e) {
-      debugPrint('Error loading suggestions: $e');
+    } catch (e, stackTrace) {
+      log(
+        'Error loading suggestions',
+        name: 'StartWorkoutPage',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
     if (mounted) {
       setState(() {
@@ -117,6 +123,19 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
           (a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()),
         );
         break;
+    }
+  }
+
+  String _getSortLabel(PlanSortOption option) {
+    switch (option) {
+      case PlanSortOption.newest:
+        return 'Newest First';
+      case PlanSortOption.oldest:
+        return 'Oldest First';
+      case PlanSortOption.aToZ:
+        return 'Name (A-Z)';
+      case PlanSortOption.zToA:
+        return 'Name (Z-A)';
     }
   }
 
@@ -251,6 +270,56 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                   ),
                   onPressed: () => Navigator.pop(context),
                 ),
+                actions: [
+                  PopupMenuButton<PlanSortOption>(
+                    icon: const Icon(
+                      Icons.sort_rounded,
+                      color: AppColors.textPrimary,
+                    ),
+                    tooltip: 'Sort Plans',
+                    position: PopupMenuPosition.under,
+                    color: AppColors.darkBg,
+                    elevation: 0,
+                    surfaceTintColor: AppColors.darkBg,
+                    onSelected: (option) {
+                      setState(() {
+                        _sortOption = option;
+                        _sortPlans();
+                      });
+                    },
+                    itemBuilder: (context) =>
+                        PlanSortOption.values.map((option) {
+                          return PopupMenuItem(
+                            value: option,
+                            child: Row(
+                              children: [
+                                if (_sortOption == option)
+                                  const Icon(
+                                    Icons.check,
+                                    size: 16,
+                                    color: AppColors.accent,
+                                  )
+                                else
+                                  const SizedBox(width: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _getSortLabel(option),
+                                  style: TextStyle(
+                                    color: _sortOption == option
+                                        ? AppColors.accent
+                                        : AppColors.textPrimary,
+                                    fontWeight: _sortOption == option
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                  ),
+                  const SizedBox(width: 8),
+                ],
               ),
 
               // Plans Section

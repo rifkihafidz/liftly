@@ -318,14 +318,14 @@ class _StatsPageState extends State<StatsPage> {
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) {
-            final crossAxisCount = constraints.maxWidth > 500 ? 5 : 3;
+            final crossAxisCount = constraints.maxWidth > 500 ? 5 : 2;
             return GridView.count(
               crossAxisCount: crossAxisCount,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
               shrinkWrap: true,
               padding: EdgeInsets.zero,
-              childAspectRatio: 0.85,
+              childAspectRatio: 1.1,
               physics: const NeverScrollableScrollPhysics(),
               children: [
                 FadeInSlide(
@@ -351,6 +351,15 @@ class _StatsPageState extends State<StatsPage> {
                 ),
                 FadeInSlide(
                   index: 2,
+                  child: StatOverviewCard(
+                    label: 'Total Time',
+                    value: _calculateTotalDuration(filteredSessions),
+                    icon: Icons.access_time_filled,
+                    color: Colors.blue,
+                  ),
+                ),
+                FadeInSlide(
+                  index: 3,
                   child: StatOverviewCard(
                     label: 'Avg Time',
                     value: _calculateAverageDuration(filteredSessions),
@@ -686,6 +695,28 @@ class _StatsPageState extends State<StatsPage> {
     return total;
   }
 
+  String _calculateTotalDuration(List<WorkoutSession> sessions) {
+    final durations = sessions
+        .where((s) => s.duration != null)
+        .map((s) => s.duration!)
+        .toList();
+
+    if (durations.isEmpty) return '-';
+
+    final totalDuration = durations.fold<Duration>(
+      Duration.zero,
+      (sum, d) => sum + d,
+    );
+
+    final hours = totalDuration.inHours;
+    final minutes = totalDuration.inMinutes % 60;
+
+    if (hours > 0) {
+      return '${hours}h ${minutes}m';
+    }
+    return '${minutes}m';
+  }
+
   String _calculateAverageDuration(List<WorkoutSession> sessions) {
     final durations = sessions
         .where((s) => s.duration != null)
@@ -725,6 +756,28 @@ class _StatsSharePreview extends StatelessWidget {
       total += session.totalVolume;
     }
     return total;
+  }
+
+  String _calculateTotalDuration(List<WorkoutSession> sessions) {
+    final durations = sessions
+        .where((s) => s.duration != null)
+        .map((s) => s.duration!)
+        .toList();
+
+    if (durations.isEmpty) return '-';
+
+    final totalDuration = durations.fold<Duration>(
+      Duration.zero,
+      (sum, d) => sum + d,
+    );
+
+    final hours = totalDuration.inHours;
+    final minutes = totalDuration.inMinutes % 60;
+
+    if (hours > 0) {
+      return '${hours}h ${minutes}m';
+    }
+    return '${minutes}m';
   }
 
   String _calculateAverageDuration(List<WorkoutSession> sessions) {
@@ -865,6 +918,14 @@ class _StatsSharePreview extends StatelessWidget {
                     '${_formatNumber(_calculateTotalVolume(filteredSessions))}kg',
                     Icons.fitness_center,
                     AppColors.success,
+                  ),
+                  const SizedBox(width: 6),
+                  _buildMiniStat(
+                    context,
+                    'TOTAL TIME',
+                    _calculateTotalDuration(filteredSessions),
+                    Icons.access_time_filled,
+                    Colors.blue,
                   ),
                   const SizedBox(width: 6),
                   _buildMiniStat(
@@ -1179,7 +1240,7 @@ class _VolumeChartCard extends StatelessWidget {
                     tooltipMargin: 8,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       return BarTooltipItem(
-                        '${rod.toY.toInt()} kg',
+                        '${NumberFormat('#,###').format(rod.toY.toInt())} kg',
                         const TextStyle(
                           color: AppColors.success,
                           fontWeight: FontWeight.bold,

@@ -142,8 +142,8 @@ class SettingsPage extends StatelessWidget {
                       child: MenuListItem(
                         title: 'Export Data',
                         subtitle: 'Download your workout history',
-                        icon: Icons.download_rounded,
-                        color: AppColors.accent,
+                        icon: Icons.upload_rounded,
+                        color: AppColors.success,
                         onTap: () => _handleExport(context),
                       ),
                     ),
@@ -153,8 +153,8 @@ class SettingsPage extends StatelessWidget {
                       child: MenuListItem(
                         title: 'Import Data',
                         subtitle: 'Restore your history from file',
-                        icon: Icons.upload_rounded,
-                        color: AppColors.success,
+                        icon: Icons.download_rounded,
+                        color: AppColors.accent,
                         onTap: () => _handleImport(context),
                       ),
                     ),

@@ -51,6 +51,7 @@ class WorkoutLocalDataSource {
           'name': exercise.name,
           'exercise_order': exercise.order,
           'skipped': exercise.skipped ? 1 : 0,
+          'is_template': exercise.isTemplate ? 1 : 0,
         }, conflictAlgorithm: ConflictAlgorithm.replace);
 
         // Insert sets and segments for this exercise

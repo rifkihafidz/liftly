@@ -46,176 +46,179 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: AppColors.cardBg,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(
-          color: AppColors.borderLight.withValues(alpha: 0.5),
-          width: 1,
-        ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-        decoration: BoxDecoration(
+    return PopScope(
+      canPop: false,
+      child: Dialog(
+        backgroundColor: AppColors.cardBg,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.cardBg,
-              AppColors.cardBg.withValues(alpha: 0.95),
-            ],
+          side: BorderSide(
+            color: AppColors.borderLight.withValues(alpha: 0.5),
+            width: 1,
           ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.event_repeat_rounded,
-                    color: AppColors.accent,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Workout Timing',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
-                  ),
-                ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.cardBg,
+                AppColors.cardBg.withValues(alpha: 0.95),
               ],
             ),
-            const SizedBox(height: 24),
-
-            // Date Picker Section
-            _buildPickerSection(
-              context,
-              label: 'Workout Date',
-              value: _formatDate(selectedDate),
-              icon: Icons.calendar_month_rounded,
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: selectedDate,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2100),
-                );
-                if (picked != null) {
-                  setState(() => selectedDate = picked);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Time Row
-            Row(
-              children: [
-                Expanded(
-                  child: _buildPickerSection(
-                    context,
-                    label: 'Started At',
-                    value: startTime.format(context),
-                    icon: Icons.play_circle_outline_rounded,
-                    onTap: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: startTime,
-                      );
-                      if (picked != null) {
-                        setState(() => startTime = picked);
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildPickerSection(
-                    context,
-                    label: 'Ended At',
-                    value: endTime.format(context),
-                    icon: Icons.stop_circle_outlined,
-                    onTap: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: endTime,
-                      );
-                      if (picked != null) {
-                        setState(() => endTime = picked);
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      foregroundColor: AppColors.textSecondary,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Text('Cancel'),
+                    child: Icon(
+                      Icons.event_repeat_rounded,
+                      color: AppColors.accent,
+                      size: 20,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      final start = DateTime(
-                        selectedDate.year,
-                        selectedDate.month,
-                        selectedDate.day,
-                        startTime.hour,
-                        startTime.minute,
-                      );
-                      final end = DateTime(
-                        selectedDate.year,
-                        selectedDate.month,
-                        selectedDate.day,
-                        endTime.hour,
-                        endTime.minute,
-                      );
+                  const SizedBox(width: 12),
+                  Text(
+                    'Workout Timing',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
 
-                      if (end.isBefore(start)) {
-                        AppDialogs.showErrorDialog(
+              // Date Picker Section
+              _buildPickerSection(
+                context,
+                label: 'Workout Date',
+                value: _formatDate(selectedDate),
+                icon: Icons.calendar_month_rounded,
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    setState(() => selectedDate = picked);
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Time Row
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildPickerSection(
+                      context,
+                      label: 'Started At',
+                      value: startTime.format(context),
+                      icon: Icons.play_circle_outline_rounded,
+                      onTap: () async {
+                        final picked = await showTimePicker(
                           context: context,
-                          title: 'Invalid Timeline',
-                          message:
-                              'Workout end time cannot be earlier than the start time.',
+                          initialTime: startTime,
                         );
-                        return;
-                      }
-
-                      Navigator.pop(context, {
-                        'workoutDate': selectedDate,
-                        'startedAt': start,
-                        'endedAt': end,
-                      });
-                    },
-                    child: const Text('Confirm'),
+                        if (picked != null) {
+                          setState(() => startTime = picked);
+                        }
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildPickerSection(
+                      context,
+                      label: 'Ended At',
+                      value: endTime.format(context),
+                      icon: Icons.stop_circle_outlined,
+                      onTap: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: endTime,
+                        );
+                        if (picked != null) {
+                          setState(() => endTime = picked);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        foregroundColor: AppColors.textSecondary,
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        final start = DateTime(
+                          selectedDate.year,
+                          selectedDate.month,
+                          selectedDate.day,
+                          startTime.hour,
+                          startTime.minute,
+                        );
+                        final end = DateTime(
+                          selectedDate.year,
+                          selectedDate.month,
+                          selectedDate.day,
+                          endTime.hour,
+                          endTime.minute,
+                        );
+
+                        if (end.isBefore(start)) {
+                          AppDialogs.showErrorDialog(
+                            context: context,
+                            title: 'Invalid Timeline',
+                            message:
+                                'Workout end time cannot be earlier than the start time.',
+                          );
+                          return;
+                        }
+
+                        Navigator.pop(context, {
+                          'workoutDate': selectedDate,
+                          'startedAt': start,
+                          'endedAt': end,
+                        });
+                      },
+                      child: const Text('Confirm'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -275,41 +278,36 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
 class WeightField extends StatefulWidget {
   final String initialValue;
   final Function(String) onChanged;
-  final bool autofocus;
 
   const WeightField({
     super.key,
     required this.initialValue,
     required this.onChanged,
-    this.autofocus = false,
   });
 
   @override
-  State<WeightField> createState() => _WeightFieldState();
+  State<WeightField> createState() => WeightFieldState();
 }
 
-class _WeightFieldState extends State<WeightField> {
+class WeightFieldState extends State<WeightField> {
   late TextEditingController controller;
-  final FocusNode focusNode = FocusNode();
+  late FocusNode _focusNode;
   Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     controller = TextEditingController(text: widget.initialValue);
-    focusNode.addListener(() {
-      if (focusNode.hasFocus) {
-        controller.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: controller.text.length,
-        );
-      }
-    });
+    _focusNode = FocusNode();
+    _focusNode.addListener(_handleFocusChange);
+  }
 
-    if (widget.autofocus) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        focusNode.requestFocus();
-      });
+  void _handleFocusChange() {
+    if (_focusNode.hasFocus) {
+      controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: controller.text.length,
+      );
     }
   }
 
@@ -317,7 +315,8 @@ class _WeightFieldState extends State<WeightField> {
   void dispose() {
     _debounce?.cancel();
     controller.dispose();
-    focusNode.dispose();
+    _focusNode.removeListener(_handleFocusChange);
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -325,7 +324,7 @@ class _WeightFieldState extends State<WeightField> {
   void didUpdateWidget(covariant WeightField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialValue != controller.text) {
-      if (!focusNode.hasFocus) {
+      if (!_focusNode.hasFocus) {
         controller.text = widget.initialValue;
       }
     }
@@ -345,7 +344,7 @@ class _WeightFieldState extends State<WeightField> {
         const SizedBox(height: 4),
         TextField(
           controller: controller,
-          focusNode: focusNode,
+          focusNode: _focusNode,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
@@ -381,14 +380,12 @@ class NumberField extends StatefulWidget {
   final String label;
   final String initialValue;
   final Function(String) onChanged;
-  final bool autofocus;
 
   const NumberField({
     super.key,
     required this.label,
     required this.initialValue,
     required this.onChanged,
-    this.autofocus = false,
   });
 
   @override
@@ -397,26 +394,23 @@ class NumberField extends StatefulWidget {
 
 class _NumberFieldState extends State<NumberField> {
   late TextEditingController controller;
-  final FocusNode focusNode = FocusNode();
+  late FocusNode _focusNode;
   Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     controller = TextEditingController(text: widget.initialValue);
-    focusNode.addListener(() {
-      if (focusNode.hasFocus) {
-        controller.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: controller.text.length,
-        );
-      }
-    });
+    _focusNode = FocusNode();
+    _focusNode.addListener(_handleFocusChange);
+  }
 
-    if (widget.autofocus) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        focusNode.requestFocus();
-      });
+  void _handleFocusChange() {
+    if (_focusNode.hasFocus) {
+      controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: controller.text.length,
+      );
     }
   }
 
@@ -424,7 +418,8 @@ class _NumberFieldState extends State<NumberField> {
   void dispose() {
     _debounce?.cancel();
     controller.dispose();
-    focusNode.dispose();
+    _focusNode.removeListener(_handleFocusChange);
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -432,7 +427,7 @@ class _NumberFieldState extends State<NumberField> {
   void didUpdateWidget(covariant NumberField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialValue != controller.text) {
-      if (!focusNode.hasFocus) {
+      if (!_focusNode.hasFocus) {
         controller.text = widget.initialValue;
       }
     }
@@ -452,7 +447,7 @@ class _NumberFieldState extends State<NumberField> {
         const SizedBox(height: 4),
         TextField(
           controller: controller,
-          focusNode: focusNode,
+          focusNode: _focusNode,
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
@@ -602,16 +597,21 @@ class NotesField extends StatefulWidget {
 
 class _NotesFieldState extends State<NotesField> {
   late TextEditingController controller;
+  late FocusNode focusNode;
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     controller = TextEditingController(text: widget.initialValue);
+    focusNode = FocusNode();
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     controller.dispose();
+    focusNode.dispose();
     super.dispose();
   }
 
@@ -619,7 +619,9 @@ class _NotesFieldState extends State<NotesField> {
   void didUpdateWidget(covariant NotesField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialValue != controller.text) {
-      controller.text = widget.initialValue;
+      if (!focusNode.hasFocus) {
+        controller.text = widget.initialValue;
+      }
     }
   }
 
@@ -637,8 +639,14 @@ class _NotesFieldState extends State<NotesField> {
         const SizedBox(height: 4),
         TextField(
           controller: controller,
+          focusNode: focusNode,
           maxLines: 2,
-          onChanged: widget.onChanged,
+          onChanged: (v) {
+            if (_debounce?.isActive ?? false) _debounce!.cancel();
+            _debounce = Timer(const Duration(milliseconds: 500), () {
+              widget.onChanged(v);
+            });
+          },
           decoration: InputDecoration(
             hintText: 'Wide grip, feels good, etc.',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),

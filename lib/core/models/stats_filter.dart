@@ -13,10 +13,8 @@ class StatsFilter {
   final TimePeriod timePeriod;
   final DateTime referenceDate;
 
-  StatsFilter({
-    required this.timePeriod,
-    DateTime? referenceDate,
-  }) : referenceDate = referenceDate ?? DateTime.now();
+  StatsFilter({required this.timePeriod, DateTime? referenceDate})
+    : referenceDate = referenceDate ?? DateTime.now();
 
   /// Get start date based on time period
   DateTime getStartDate() {
@@ -26,7 +24,14 @@ class StatsFilter {
         // Monday of the week (weekday 1 = Monday, 7 = Sunday)
         final dayOfWeek = now.weekday;
         final startDate = now.subtract(Duration(days: dayOfWeek - 1));
-        return DateTime(startDate.year, startDate.month, startDate.day, 0, 0, 0);
+        return DateTime(
+          startDate.year,
+          startDate.month,
+          startDate.day,
+          0,
+          0,
+          0,
+        );
       case TimePeriod.month:
         return DateTime(now.year, now.month, 1);
       case TimePeriod.year:
@@ -45,7 +50,7 @@ class StatsFilter {
         final endDate = now.add(Duration(days: 7 - dayOfWeek));
         return DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
       case TimePeriod.month:
-        final nextMonth = now.month == 12 
+        final nextMonth = now.month == 12
             ? DateTime(now.year + 1, 1, 1)
             : DateTime(now.year, now.month + 1, 1);
         return nextMonth.subtract(const Duration(seconds: 1));
@@ -56,6 +61,9 @@ class StatsFilter {
 
   /// Check if a date falls within the period
   bool isInPeriod(DateTime date) {
-    return date.isAfter(getStartDate()) && date.isBefore(getEndDate());
+    final start = getStartDate();
+    final end = getEndDate();
+    return (date.isAfter(start) || date.isAtSameMomentAs(start)) &&
+        (date.isBefore(end) || date.isAtSameMomentAs(end));
   }
 }

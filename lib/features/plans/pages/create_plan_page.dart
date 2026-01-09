@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
@@ -70,8 +71,13 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
           names.add(e.name);
         }
       }
-    } catch (e) {
-      debugPrint('Error loading suggestions: $e');
+    } catch (e, stackTrace) {
+      log(
+        'Error loading suggestions',
+        name: 'CreatePlanPage',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
 
     if (mounted) {
@@ -150,6 +156,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.darkBg,
       body: BlocListener<PlanBloc, PlanState>(
         listener: (context, state) {
@@ -317,26 +324,30 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                                   ),
                                 ),
                                 child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.drag_handle_rounded,
-                                          color: AppColors.textSecondary,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          exercise.name,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                            color: AppColors.textPrimary,
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.drag_handle_rounded,
+                                            color: AppColors.textSecondary,
+                                            size: 20,
                                           ),
-                                        ),
-                                      ],
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Text(
+                                              exercise.name,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [

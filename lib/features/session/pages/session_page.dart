@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -79,6 +80,7 @@ class _SessionPageState extends State<SessionPage> {
         _showUnsavedChangesDialog(context);
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: true,
         backgroundColor: AppColors.darkBg,
         body: BlocListener<SessionBloc, SessionState>(
           listenWhen: (previous, current) =>
@@ -246,6 +248,7 @@ class _SessionPageState extends State<SessionPage> {
                                                   Map<String, DateTime?>
                                                 >(
                                                   context: context,
+                                                  barrierDismissible: false,
                                                   builder: (context) =>
                                                       WorkoutDateTimeDialog(
                                                         initialWorkoutDate:
@@ -282,6 +285,7 @@ class _SessionPageState extends State<SessionPage> {
                                                   Map<String, DateTime?>
                                                 >(
                                                   context: context,
+                                                  barrierDismissible: false,
                                                   builder: (context) =>
                                                       WorkoutDateTimeDialog(
                                                         initialWorkoutDate:
@@ -466,6 +470,8 @@ class _SessionPageState extends State<SessionPage> {
                                                   exIndex,
                                                   exercise.name,
                                                 ),
+                                          isLastExercise:
+                                              exIndex == exercises.length - 1,
                                         ),
                                       ),
                                       // Clear focus flags after rendering
@@ -473,12 +479,6 @@ class _SessionPageState extends State<SessionPage> {
                                           state.focusedExerciseIndex == exIndex)
                                         Builder(
                                           builder: (context) {
-                                            WidgetsBinding.instance
-                                                .addPostFrameCallback((_) {
-                                                  context.read<SessionBloc>().add(
-                                                    const SessionFocusCleared(),
-                                                  );
-                                                });
                                             return const SizedBox.shrink();
                                           },
                                         ),
@@ -572,45 +572,51 @@ class _SessionPageState extends State<SessionPage> {
   void _showUnsavedChangesDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.cardBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Unsaved Changes',
-          style: TextStyle(color: AppColors.textPrimary),
-        ),
-        content: const Text(
-          'You have unsaved progress. What would you like to do?',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+      barrierDismissible: false,
+      builder: (dialogContext) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          backgroundColor: AppColors.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext); // Close dialog
-              context.read<SessionBloc>().add(const SessionDiscarded());
-              Navigator.pop(context); // Close page (Discard)
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Discard'),
+          title: const Text(
+            'Unsaved Changes',
+            style: TextStyle(color: AppColors.textPrimary),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext); // Close dialog
-              context.read<SessionBloc>().add(
-                const SessionSaveDraftRequested(),
-              );
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.accent,
-              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+          content: const Text(
+            'You have unsaved progress. What would you like to do?',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
             ),
-            child: const Text('Save Draft'),
-          ),
-        ],
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Close dialog
+                context.read<SessionBloc>().add(const SessionDiscarded());
+                Navigator.pop(context); // Close page (Discard)
+              },
+              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+              child: const Text('Discard'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Close dialog
+                context.read<SessionBloc>().add(
+                  const SessionSaveDraftRequested(),
+                );
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.accent,
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              child: const Text('Save Draft'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -644,8 +650,13 @@ class _SessionPageState extends State<SessionPage> {
       }
 
       availableExercises = uniqueNames.toList()..sort();
-    } catch (e) {
-      debugPrint('Error loading suggestions: $e');
+    } catch (e, stackTrace) {
+      log(
+        'Error loading suggestions',
+        name: 'SessionPage',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
 
     if (!context.mounted) return;
@@ -705,8 +716,13 @@ class _SessionPageState extends State<SessionPage> {
       }
 
       availableExercises = uniqueNames.toList()..sort();
-    } catch (e) {
-      debugPrint('Error loading suggestions: $e');
+    } catch (e, stackTrace) {
+      log(
+        'Error loading suggestions',
+        name: 'SessionPage',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
 
     if (!context.mounted) return;

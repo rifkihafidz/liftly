@@ -16,6 +16,10 @@ import 'shared/widgets/error_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   // Custom Error UI for Framework errors
   ErrorWidget.builder = (FlutterErrorDetails details) {
@@ -39,12 +43,36 @@ void main() async {
   };
 
   await SQLiteService.initDatabase();
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const Liftly());
 }
 
-class Liftly extends StatelessWidget {
+class Liftly extends StatefulWidget {
   const Liftly({super.key});
+
+  @override
+  State<Liftly> createState() => _LiftlyState();
+}
+
+class _LiftlyState extends State<Liftly> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Force a rebuild to ensure the UI is painted when returning from background
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -358,36 +358,41 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     SessionSetAdded event,
     Emitter<SessionState> emit,
   ) async {
-    int? focusedSetIndex;
-    int? focusedSegmentIndex;
+    if (state is! SessionInProgress) return;
+    final currentState = state as SessionInProgress;
+
+    // Calculate focus indices BEFORE calling _updateSessionState
+    final exercises = currentState.session.exercises;
+    if (event.exerciseIndex >= exercises.length) return;
+
+    final exercise = exercises[event.exerciseIndex];
+    final focusedSetIndex =
+        exercise.sets.length; // This will be the index of the new set
+    const focusedSegmentIndex = 0;
 
     _updateSessionState(
       emit,
       (exercises) {
-        if (event.exerciseIndex < exercises.length) {
-          final exercise = exercises[event.exerciseIndex];
-          final timestamp = DateTime.now().millisecondsSinceEpoch;
-          final setNumber = exercise.sets.length + 1;
-          final newSet = ExerciseSet(
-            id: 'set_${timestamp}_ex${event.exerciseIndex}_s$setNumber',
-            segments: [
-              SetSegment(
-                id: 'seg_${timestamp}_ex${event.exerciseIndex}_s${setNumber}_0',
-                weight: event.weight ?? 0.0,
-                repsFrom: event.repsFrom ?? 1,
-                repsTo: event.repsTo ?? 12,
-                segmentOrder: 0,
-                notes: event.notes ?? '',
-              ),
-            ],
-            setNumber: setNumber,
-          );
+        final exercise = exercises[event.exerciseIndex];
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final setNumber = exercise.sets.length + 1;
+        final newSet = ExerciseSet(
+          id: 'set_${timestamp}_ex${event.exerciseIndex}_s$setNumber',
+          segments: [
+            SetSegment(
+              id: 'seg_${timestamp}_ex${event.exerciseIndex}_s${setNumber}_0',
+              weight: event.weight ?? 0.0,
+              repsFrom: event.repsFrom ?? 1,
+              repsTo: event.repsTo ?? 12,
+              segmentOrder: 0,
+              notes: event.notes ?? '',
+            ),
+          ],
+          setNumber: setNumber,
+        );
 
-          final updatedSets = [...exercise.sets, newSet];
-          exercises[event.exerciseIndex] = exercise.copyWith(sets: updatedSets);
-          focusedSetIndex = updatedSets.length - 1;
-          focusedSegmentIndex = 0;
-        }
+        final updatedSets = [...exercise.sets, newSet];
+        exercises[event.exerciseIndex] = exercise.copyWith(sets: updatedSets);
         return exercises;
       },
       focusedExerciseIndex: event.exerciseIndex,
@@ -422,33 +427,39 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     SessionSegmentAdded event,
     Emitter<SessionState> emit,
   ) async {
-    int? focusedSegmentIndex;
+    if (state is! SessionInProgress) return;
+    final currentState = state as SessionInProgress;
+
+    // Calculate focus indices BEFORE calling _updateSessionState
+    final exercises = currentState.session.exercises;
+    if (event.exerciseIndex >= exercises.length) return;
+
+    final exercise = exercises[event.exerciseIndex];
+    if (event.setIndex >= exercise.sets.length) return;
+
+    final set = exercise.sets[event.setIndex];
+    final focusedSegmentIndex =
+        set.segments.length; // This will be the index of the new segment
 
     _updateSessionState(
       emit,
       (exercises) {
-        if (event.exerciseIndex < exercises.length) {
-          final exercise = exercises[event.exerciseIndex];
-          final sets = List<ExerciseSet>.from(exercise.sets);
+        final exercise = exercises[event.exerciseIndex];
+        final sets = List<ExerciseSet>.from(exercise.sets);
+        final set = sets[event.setIndex];
+        final segmentOrder = set.segments.length;
+        final newSegment = SetSegment(
+          id: 'seg_${DateTime.now().millisecondsSinceEpoch}_ex${event.exerciseIndex}_s${event.setIndex}_seg$segmentOrder',
+          weight: 0.0,
+          repsFrom: 1,
+          repsTo: 12,
+          segmentOrder: segmentOrder,
+          notes: '',
+        );
 
-          if (event.setIndex < sets.length) {
-            final set = sets[event.setIndex];
-            final segmentOrder = set.segments.length;
-            final newSegment = SetSegment(
-              id: 'seg_${DateTime.now().millisecondsSinceEpoch}_ex${event.exerciseIndex}_s${event.setIndex}_seg$segmentOrder',
-              weight: 0.0,
-              repsFrom: 1,
-              repsTo: 12,
-              segmentOrder: segmentOrder,
-              notes: '',
-            );
-
-            final updatedSegments = [...set.segments, newSegment];
-            sets[event.setIndex] = set.copyWith(segments: updatedSegments);
-            exercises[event.exerciseIndex] = exercise.copyWith(sets: sets);
-            focusedSegmentIndex = updatedSegments.length - 1;
-          }
-        }
+        final updatedSegments = [...set.segments, newSegment];
+        sets[event.setIndex] = set.copyWith(segments: updatedSegments);
+        exercises[event.exerciseIndex] = exercise.copyWith(sets: sets);
         return exercises;
       },
       focusedExerciseIndex: event.exerciseIndex,
@@ -571,9 +582,9 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       planId: currentState.session.planId,
       workoutDate: currentState.session.workoutDate,
       startedAt: currentState.session.startedAt,
-      endedAt: DateTime.now(),
       exercises: currentState.session.exercises,
       createdAt: currentState.session.createdAt,
+      endedAt: currentState.session.endedAt,
       updatedAt: DateTime.now(),
     );
 

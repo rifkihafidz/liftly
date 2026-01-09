@@ -26,7 +26,6 @@
 .classpath
 .factorypath
 
-
 # Flutter/Dart/Pub related
 **/doc/api/
 .dart_tool/
@@ -98,3 +97,6 @@ xcuserdata/
 **/GeneratedPluginRegistrant.java
 **/generated_plugin_registrant.dart
 **/generated_plugin_registrant.cc
+
+# FVM Version Cache
+.fvm/

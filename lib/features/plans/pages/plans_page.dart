@@ -291,19 +291,25 @@ class _PlansPageState extends State<PlansPage> {
                                 delegate: SliverChildBuilderDelegate(
                                   (context, index) => FadeInSlide(
                                     index: index,
-                                    child: PlanCard(
-                                      plan: sortedPlans[index],
-                                      onTap: () => _navigateToCreatePlan(
-                                        context,
-                                        sortedPlans[index],
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 16,
                                       ),
-                                      onEdit: () => _navigateToCreatePlan(
-                                        context,
-                                        sortedPlans[index],
-                                      ),
-                                      onDelete: () => _showDeleteConfirmDialog(
-                                        context,
-                                        sortedPlans[index],
+                                      child: PlanCard(
+                                        plan: sortedPlans[index],
+                                        onTap: () => _navigateToCreatePlan(
+                                          context,
+                                          sortedPlans[index],
+                                        ),
+                                        onEdit: () => _navigateToCreatePlan(
+                                          context,
+                                          sortedPlans[index],
+                                        ),
+                                        onDelete: () =>
+                                            _showDeleteConfirmDialog(
+                                              context,
+                                              sortedPlans[index],
+                                            ),
                                       ),
                                     ),
                                   ),
