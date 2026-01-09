@@ -308,6 +308,33 @@ class WeightFieldState extends State<WeightField> {
         baseOffset: 0,
         extentOffset: controller.text.length,
       );
+    } else {
+      // Flush changes immediately on focus loss
+      if (_debounce?.isActive ?? false) _debounce!.cancel();
+      _flushValue();
+    }
+  }
+
+  void _flushValue() {
+    final text = controller.text;
+    if (text.isEmpty || text == '.') {
+      widget.onChanged('0');
+      controller.text = '0'; // Instant feedback
+    } else {
+      // Optimistic formatting
+      final val = double.tryParse(text);
+      if (val != null) {
+        // Standardize to double string (e.g. "50.0") if integer, to match BLoC
+        final formatted = val.toString();
+
+        // Update local controller immediately to avoid jump later
+        if (text != formatted) {
+          controller.text = formatted;
+        }
+        widget.onChanged(formatted);
+      } else {
+        widget.onChanged(text);
+      }
     }
   }
 
@@ -325,7 +352,13 @@ class WeightFieldState extends State<WeightField> {
     super.didUpdateWidget(oldWidget);
     if (widget.initialValue != controller.text) {
       if (!_focusNode.hasFocus) {
-        controller.text = widget.initialValue;
+        // Only update if value is mathematically different to avoid jumping
+        // e.g. "50" vs "50.0"
+        final d1 = double.tryParse(widget.initialValue) ?? 0;
+        final d2 = double.tryParse(controller.text) ?? 0;
+        if ((d1 - d2).abs() > 0.001) {
+          controller.text = widget.initialValue;
+        }
       }
     }
   }
@@ -353,13 +386,16 @@ class WeightFieldState extends State<WeightField> {
           onChanged: (v) {
             if (_debounce?.isActive ?? false) _debounce!.cancel();
             _debounce = Timer(const Duration(milliseconds: 500), () {
-              // Allow empty or single dot while typing
               if (v.isEmpty || v == '.') {
                 widget.onChanged('0');
               } else {
                 widget.onChanged(v);
               }
             });
+          },
+          onSubmitted: (_) {
+            if (_debounce?.isActive ?? false) _debounce!.cancel();
+            _flushValue();
           },
           decoration: InputDecoration(
             hintText: '50',
@@ -411,7 +447,16 @@ class _NumberFieldState extends State<NumberField> {
         baseOffset: 0,
         extentOffset: controller.text.length,
       );
+    } else {
+      // Flush on focus lost
+      if (_debounce?.isActive ?? false) _debounce!.cancel();
+      _flushValue();
     }
+  }
+
+  void _flushValue() {
+    final text = controller.text;
+    widget.onChanged(text.isEmpty ? '0' : text);
   }
 
   @override
@@ -459,6 +504,10 @@ class _NumberFieldState extends State<NumberField> {
               widget.onChanged(v.isEmpty ? '0' : v);
             });
           },
+          onSubmitted: (_) {
+            if (_debounce?.isActive ?? false) _debounce!.cancel();
+            _flushValue();
+          },
           decoration: InputDecoration(
             hintText: widget.label == 'From' ? '6' : '8',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
@@ -499,20 +548,31 @@ class _ToFieldState extends State<ToField> {
   void initState() {
     super.initState();
     controller = TextEditingController(text: widget.initialValue);
-    focusNode.addListener(() {
-      if (focusNode.hasFocus) {
-        controller.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: controller.text.length,
-        );
-      }
-    });
+    focusNode.addListener(_handleFocusChange);
+  }
+
+  void _handleFocusChange() {
+    if (focusNode.hasFocus) {
+      controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: controller.text.length,
+      );
+    } else {
+      if (_debounce?.isActive ?? false) _debounce!.cancel();
+      _flushValue();
+    }
+  }
+
+  void _flushValue() {
+    final text = controller.text;
+    widget.onChanged(text.isEmpty ? '0' : text);
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     controller.dispose();
+    focusNode.removeListener(_handleFocusChange);
     focusNode.dispose();
     super.dispose();
   }
@@ -566,6 +626,10 @@ class _ToFieldState extends State<ToField> {
               widget.onChanged(v.isEmpty ? '0' : v);
             });
           },
+          onSubmitted: (_) {
+            if (_debounce?.isActive ?? false) _debounce!.cancel();
+            _flushValue();
+          },
           decoration: InputDecoration(
             hintText: '8',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
@@ -605,12 +669,21 @@ class _NotesFieldState extends State<NotesField> {
     super.initState();
     controller = TextEditingController(text: widget.initialValue);
     focusNode = FocusNode();
+    focusNode.addListener(_handleFocusChange);
+  }
+
+  void _handleFocusChange() {
+    if (!focusNode.hasFocus) {
+      if (_debounce?.isActive ?? false) _debounce!.cancel();
+      widget.onChanged(controller.text);
+    }
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     controller.dispose();
+    focusNode.removeListener(_handleFocusChange);
     focusNode.dispose();
     super.dispose();
   }
