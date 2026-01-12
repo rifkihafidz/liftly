@@ -50,9 +50,7 @@ class SessionExerciseCard extends StatefulWidget {
 
 class _SessionExerciseCardState extends State<SessionExerciseCard> {
   bool _isExpanded = true;
-  // Track which set/segment to scroll to (one-shot, cleared after use)
   int? _scrollToSetIndex;
-  // GlobalKey to identify the target widget for scrolling
   final GlobalKey _scrollTargetKey = GlobalKey();
 
   @override
@@ -64,7 +62,6 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
   void didUpdateWidget(SessionExerciseCard oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Scroll logic: if new focus indices are set, scroll to that set
     final isAddSet =
         widget.exercise.sets.length > oldWidget.exercise.sets.length;
     final hasNewScrollTarget =
@@ -83,57 +80,37 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                         .length));
 
     if (hasNewScrollTarget) {
-      // Save the scroll target
       _scrollToSetIndex = widget.focusedSetIndex;
 
-      // Ensure expanded first
       if (!_isExpanded) {
         setState(() {
           _isExpanded = true;
         });
       }
 
-      // ONLY perform internal scroll if it's NOT a new set being added OR if we are not in always-expanded mode.
-      // For new sets in always-expanded mode (Edit Sheet), the parent handle it.
-      // For standard session tracking, the card MUST manage its own scroll.
       if (!isAddSet || !widget.isAlwaysExpanded) {
-        // Schedule scroll after build with a slight delay to ensure layout is ready
         Future.delayed(const Duration(milliseconds: 400), () {
           if (mounted && _scrollTargetKey.currentContext != null) {
-            debugPrint(
-              '[SessionExerciseCard] Internal Scroll to buttons of set: $_scrollToSetIndex',
-            );
             Scrollable.ensureVisible(
               _scrollTargetKey.currentContext!,
               duration: const Duration(milliseconds: 500),
               curve: Curves.fastOutSlowIn,
               alignment: widget.isLastExercise ? 0.85 : 0.8,
             );
-            // Clear scroll target after scrolling
             _scrollToSetIndex = null;
-          } else {
-            debugPrint(
-              '[SessionExerciseCard] Internal Scroll bypassed or context null',
-            );
           }
         });
       } else {
-        debugPrint(
-          '[SessionExerciseCard] Passing scroll responsibility to parent for Add Set (AlwaysExpanded mode)',
-        );
-        // Still clear indices so they don't trigger again on next update
         _scrollToSetIndex = null;
       }
     }
 
-    // Collapse if skipped
     if (widget.exercise.skipped && !oldWidget.exercise.skipped) {
       setState(() {
         _isExpanded = false;
       });
     }
 
-    // Expand if unskipped
     if (!widget.exercise.skipped && oldWidget.exercise.skipped) {
       setState(() {
         _isExpanded = true;
@@ -187,138 +164,73 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
               ),
             ),
 
-            // Body (Collapsible)
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              alignment: Alignment.topCenter,
-              child: (_isExpanded || widget.isAlwaysExpanded) && !isSkipped
-                  ? Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: Column(
-                        children: [
-                          const Divider(height: 1),
-                          const SizedBox(height: 16),
-                          ...List.generate(sets.length, (setIndex) {
-                            final set = sets[setIndex];
-                            final segments = set.segments;
-
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildSetHeader(
-                                  context,
-                                  set,
-                                  segments.length > 1,
-                                  setIndex,
-                                ),
-                                const SizedBox(height: 12),
-                                ...List.generate(segments.length, (segIndex) {
-                                  final segment = segments[segIndex];
-
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          flex: 2,
-                                          child: WeightField(
-                                            key: ValueKey(
-                                              'weight_${set.id}_${segment.id}',
-                                            ),
-                                            initialValue: segment.weight
-                                                .toString(),
-                                            onChanged: (v) =>
-                                                widget.onUpdateSegment(
-                                                  setIndex,
-                                                  segIndex,
-                                                  'weight',
-                                                  double.tryParse(v) ?? 0,
-                                                ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: NumberField(
-                                            key: ValueKey(
-                                              'repsFrom_${set.id}_${segment.id}',
-                                            ),
-                                            label: 'From',
-                                            initialValue: segment.repsFrom
-                                                .toString(),
-                                            onChanged: (v) =>
-                                                widget.onUpdateSegment(
-                                                  setIndex,
-                                                  segIndex,
-                                                  'repsFrom',
-                                                  int.tryParse(v) ?? 0,
-                                                ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: ToField(
-                                            key: ValueKey(
-                                              'repsTo_${set.id}_${segment.id}',
-                                            ),
-                                            initialValue: segment.repsTo
-                                                .toString(),
-                                            onChanged: (v) =>
-                                                widget.onUpdateSegment(
-                                                  setIndex,
-                                                  segIndex,
-                                                  'repsTo',
-                                                  int.tryParse(v) ?? 0,
-                                                ),
-                                            onDeleteTap:
-                                                (segments.length > 1 &&
-                                                    segIndex > 0)
-                                                ? () => widget.onRemoveDropSet(
-                                                    setIndex,
-                                                    segIndex,
-                                                  )
-                                                : null,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }),
-                                const SizedBox(height: 8),
-                                if (segments.isNotEmpty)
-                                  NotesField(
-                                    initialValue: segments[0].notes,
-                                    onChanged: (v) => widget.onUpdateSegment(
-                                      setIndex,
-                                      0,
-                                      'notes',
-                                      v,
-                                    ),
-                                  ),
-                                Padding(
-                                  key: setIndex == _scrollToSetIndex
-                                      ? _scrollTargetKey
-                                      : null,
-                                  padding: const EdgeInsets.only(top: 16),
-                                  child: _buildActionButtons(
-                                    context,
-                                    setIndex,
-                                    sets.length,
-                                  ),
-                                ),
-                              ],
-                            );
-                          }),
-                        ],
+            // Body (Collapsible) - Skip AnimatedSize when always expanded for better performance
+            if (widget.isAlwaysExpanded && !isSkipped)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  children: [
+                    const Divider(height: 1),
+                    const SizedBox(height: 16),
+                    for (int setIndex = 0; setIndex < sets.length; setIndex++)
+                      _SetRow(
+                        key: ValueKey('set_row_${sets[setIndex].id}'),
+                        set: sets[setIndex],
+                        setIndex: setIndex,
+                        totalSets: sets.length,
+                        scrollTargetKey: setIndex == _scrollToSetIndex
+                            ? _scrollTargetKey
+                            : null,
+                        onUpdateSegment: widget.onUpdateSegment,
+                        onRemoveSet: widget.onRemoveSet,
+                        onAddSet: widget.onAddSet,
+                        onAddDropSet: widget.onAddDropSet,
+                        onRemoveDropSet: widget.onRemoveDropSet,
                       ),
-                    )
-                  : (!(_isExpanded || widget.isAlwaysExpanded) && !isSkipped)
-                  ? Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: _buildCollapsedSummary(context),
-                    )
-                  : const SizedBox.shrink(),
-            ),
+                  ],
+                ),
+              )
+            else
+              AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                alignment: Alignment.topCenter,
+                child: _isExpanded && !isSkipped
+                    ? Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Column(
+                          children: [
+                            const Divider(height: 1),
+                            const SizedBox(height: 16),
+                            for (
+                              int setIndex = 0;
+                              setIndex < sets.length;
+                              setIndex++
+                            )
+                              _SetRow(
+                                key: ValueKey('set_row_${sets[setIndex].id}'),
+                                set: sets[setIndex],
+                                setIndex: setIndex,
+                                totalSets: sets.length,
+                                scrollTargetKey: setIndex == _scrollToSetIndex
+                                    ? _scrollTargetKey
+                                    : null,
+                                onUpdateSegment: widget.onUpdateSegment,
+                                onRemoveSet: widget.onRemoveSet,
+                                onAddSet: widget.onAddSet,
+                                onAddDropSet: widget.onAddDropSet,
+                                onRemoveDropSet: widget.onRemoveDropSet,
+                              ),
+                          ],
+                        ),
+                      )
+                    : (!_isExpanded && !isSkipped)
+                    ? Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: _buildCollapsedSummary(context),
+                      )
+                    : const SizedBox.shrink(),
+              ),
           ],
         ),
       ),
@@ -498,13 +410,102 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
       ],
     );
   }
+}
 
-  Widget _buildSetHeader(
-    BuildContext context,
-    ExerciseSet set,
-    bool isDropSet,
-    int setIndex,
-  ) {
+/// Extracted widget for a single set row - allows Flutter to skip rebuilding
+/// unchanged sets when only one set changes.
+class _SetRow extends StatelessWidget {
+  final ExerciseSet set;
+  final int setIndex;
+  final int totalSets;
+  final GlobalKey? scrollTargetKey;
+  final Function(int setIndex, int segmentIndex, String field, dynamic value)
+  onUpdateSegment;
+  final Function(int setIndex) onRemoveSet;
+  final VoidCallback onAddSet;
+  final Function(int setIndex) onAddDropSet;
+  final Function(int setIndex, int segmentIndex) onRemoveDropSet;
+
+  const _SetRow({
+    super.key,
+    required this.set,
+    required this.setIndex,
+    required this.totalSets,
+    this.scrollTargetKey,
+    required this.onUpdateSegment,
+    required this.onRemoveSet,
+    required this.onAddSet,
+    required this.onAddDropSet,
+    required this.onRemoveDropSet,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final segments = set.segments;
+    final isDropSet = segments.length > 1;
+
+    return RepaintBoundary(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SetHeader(
+            set: set,
+            setIndex: setIndex,
+            isDropSet: isDropSet,
+            onRemoveSet: onRemoveSet,
+          ),
+          const SizedBox(height: 12),
+          // Use indexed iteration instead of List.generate
+          for (int segIndex = 0; segIndex < segments.length; segIndex++)
+            _SegmentRow(
+              key: ValueKey('seg_row_${set.id}_${segments[segIndex].id}'),
+              segment: segments[segIndex],
+              setIndex: setIndex,
+              segmentIndex: segIndex,
+              setId: set.id,
+              canDelete: segments.length > 1 && segIndex > 0,
+              onUpdateSegment: onUpdateSegment,
+              onRemoveDropSet: onRemoveDropSet,
+            ),
+          const SizedBox(height: 8),
+          if (segments.isNotEmpty)
+            NotesField(
+              key: ValueKey('notes_${set.id}'),
+              initialValue: segments[0].notes,
+              onChanged: (v) => onUpdateSegment(setIndex, 0, 'notes', v),
+            ),
+          Padding(
+            key: scrollTargetKey,
+            padding: const EdgeInsets.only(top: 16),
+            child: _ActionButtons(
+              setIndex: setIndex,
+              totalSets: totalSets,
+              onAddSet: onAddSet,
+              onAddDropSet: onAddDropSet,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Extracted widget for set header - static UI that rarely changes
+class _SetHeader extends StatelessWidget {
+  final ExerciseSet set;
+  final int setIndex;
+  final bool isDropSet;
+  final Function(int setIndex) onRemoveSet;
+
+  const _SetHeader({
+    required this.set,
+    required this.setIndex,
+    required this.isDropSet,
+    required this.onRemoveSet,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
         if (setIndex > 0)
@@ -517,7 +518,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.cardBg, // Transparent relative to bg
+                color: AppColors.cardBg,
                 border: Border.all(color: AppColors.accent, width: 1),
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -551,15 +552,11 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
             const Spacer(),
             if (setIndex > 0)
               InkWell(
-                onTap: () => widget.onRemoveSet(setIndex),
+                onTap: () => onRemoveSet(setIndex),
                 borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: const Icon(
-                    Icons.close,
-                    size: 18,
-                    color: AppColors.error,
-                  ),
+                child: const Padding(
+                  padding: EdgeInsets.all(4.0),
+                  child: Icon(Icons.close, size: 18, color: AppColors.error),
                 ),
               ),
           ],
@@ -567,12 +564,104 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
       ],
     );
   }
+}
 
-  Widget _buildActionButtons(
-    BuildContext context,
-    int setIndex,
-    int totalSets,
-  ) {
+/// Extracted widget for a single segment row - allows Flutter to skip rebuilding
+/// unchanged segments when only one segment is edited.
+class _SegmentRow extends StatelessWidget {
+  final SetSegment segment;
+  final int setIndex;
+  final int segmentIndex;
+  final String setId;
+  final bool canDelete;
+  final Function(int setIndex, int segmentIndex, String field, dynamic value)
+  onUpdateSegment;
+  final Function(int setIndex, int segmentIndex) onRemoveDropSet;
+
+  const _SegmentRow({
+    super.key,
+    required this.segment,
+    required this.setIndex,
+    required this.segmentIndex,
+    required this.setId,
+    required this.canDelete,
+    required this.onUpdateSegment,
+    required this.onRemoveDropSet,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: WeightField(
+                key: ValueKey('weight_${setId}_${segment.id}'),
+                initialValue: segment.weight.toString(),
+                onChanged: (v) => onUpdateSegment(
+                  setIndex,
+                  segmentIndex,
+                  'weight',
+                  double.tryParse(v) ?? 0,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: NumberField(
+                key: ValueKey('repsFrom_${setId}_${segment.id}'),
+                label: 'From',
+                initialValue: segment.repsFrom.toString(),
+                onChanged: (v) => onUpdateSegment(
+                  setIndex,
+                  segmentIndex,
+                  'repsFrom',
+                  int.tryParse(v) ?? 0,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ToField(
+                key: ValueKey('repsTo_${setId}_${segment.id}'),
+                initialValue: segment.repsTo.toString(),
+                onChanged: (v) => onUpdateSegment(
+                  setIndex,
+                  segmentIndex,
+                  'repsTo',
+                  int.tryParse(v) ?? 0,
+                ),
+                onDeleteTap: canDelete
+                    ? () => onRemoveDropSet(setIndex, segmentIndex)
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Extracted widget for action buttons - static UI that only depends on position
+class _ActionButtons extends StatelessWidget {
+  final int setIndex;
+  final int totalSets;
+  final VoidCallback onAddSet;
+  final Function(int setIndex) onAddDropSet;
+
+  const _ActionButtons({
+    required this.setIndex,
+    required this.totalSets,
+    required this.onAddSet,
+    required this.onAddDropSet,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final bool isLastSet = setIndex == totalSets - 1;
 
     return Row(
@@ -584,7 +673,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
               child: TextButton.icon(
                 onPressed: () {
                   FocusScope.of(context).unfocus();
-                  widget.onAddSet();
+                  onAddSet();
                 },
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text('Add Set'),
@@ -606,7 +695,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
             child: TextButton.icon(
               onPressed: () {
                 FocusScope.of(context).unfocus();
-                widget.onAddDropSet(setIndex);
+                onAddDropSet(setIndex);
               },
               icon: const Icon(Icons.subdirectory_arrow_right, size: 16),
               label: const Text('Drop Set'),

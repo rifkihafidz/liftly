@@ -363,6 +363,13 @@ class WeightFieldState extends State<WeightField> {
     }
   }
 
+  static final _decoration = InputDecoration(
+    hintText: '50',
+    isDense: true,
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+  );
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -386,25 +393,14 @@ class WeightFieldState extends State<WeightField> {
           onChanged: (v) {
             if (_debounce?.isActive ?? false) _debounce!.cancel();
             _debounce = Timer(const Duration(milliseconds: 500), () {
-              if (v.isEmpty || v == '.') {
-                widget.onChanged('0');
-              } else {
-                widget.onChanged(v);
-              }
+              widget.onChanged(v.isEmpty || v == '.' ? '0' : v);
             });
           },
           onSubmitted: (_) {
             if (_debounce?.isActive ?? false) _debounce!.cancel();
             _flushValue();
           },
-          decoration: InputDecoration(
-            hintText: '50',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 8,
-            ),
-          ),
+          decoration: _decoration,
         ),
       ],
     );
@@ -478,6 +474,20 @@ class _NumberFieldState extends State<NumberField> {
     }
   }
 
+  static final _decorationFrom = InputDecoration(
+    hintText: '6',
+    isDense: true,
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+  );
+
+  static final _decorationTo = InputDecoration(
+    hintText: '8',
+    isDense: true,
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+  );
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -508,14 +518,7 @@ class _NumberFieldState extends State<NumberField> {
             if (_debounce?.isActive ?? false) _debounce!.cancel();
             _flushValue();
           },
-          decoration: InputDecoration(
-            hintText: widget.label == 'From' ? '6' : '8',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 8,
-            ),
-          ),
+          decoration: widget.label == 'From' ? _decorationFrom : _decorationTo,
         ),
       ],
     );
@@ -587,6 +590,13 @@ class _ToFieldState extends State<ToField> {
     }
   }
 
+  static final _decoration = InputDecoration(
+    hintText: '8',
+    isDense: true,
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+  );
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -604,9 +614,10 @@ class _ToFieldState extends State<ToField> {
             if (widget.onDeleteTap != null)
               GestureDetector(
                 onTap: widget.onDeleteTap,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 0),
-                  child: Icon(Icons.close, size: 14, color: AppColors.error),
+                child: const Icon(
+                  Icons.close,
+                  size: 14,
+                  color: AppColors.error,
                 ),
               ),
           ],
@@ -630,14 +641,7 @@ class _ToFieldState extends State<ToField> {
             if (_debounce?.isActive ?? false) _debounce!.cancel();
             _flushValue();
           },
-          decoration: InputDecoration(
-            hintText: '8',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 8,
-            ),
-          ),
+          decoration: _decoration,
         ),
       ],
     );

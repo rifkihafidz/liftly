@@ -16,6 +16,7 @@ import '../../plans/bloc/plan_bloc.dart';
 import '../../plans/bloc/plan_event.dart';
 import '../../plans/bloc/plan_state.dart';
 import '../../session/widgets/session_exercise_history_sheet.dart';
+import '../widgets/exercise_view_widgets.dart';
 
 class WorkoutEditPage extends StatefulWidget {
   final WorkoutSession workout;
@@ -826,8 +827,7 @@ class _ExerciseEditSheet extends StatefulWidget {
 
 class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
   late SessionExercise _currentExercise;
-  int? _focusedSetIndex;
-  int? _focusedSegmentIndex;
+  bool _isEditing = false; // Start in view mode for smooth initial load
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _saveButtonKey = GlobalKey();
 
@@ -844,22 +844,17 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
   }
 
   void _scrollToBottom() {
-    debugPrint('[ExerciseEditSheet] _scrollToBottom triggered');
-    // Wait slightly longer for layout and keyboard to settle
     Future.delayed(const Duration(milliseconds: 500), () {
       if (!mounted) return;
       if (_saveButtonKey.currentContext != null) {
-        debugPrint('[ExerciseEditSheet] Scrolling to Save button key');
         Scrollable.ensureVisible(
           _saveButtonKey.currentContext!,
           duration: const Duration(milliseconds: 500),
           curve: Curves.fastOutSlowIn,
         );
       } else if (_scrollController.hasClients) {
-        final target = _scrollController.position.maxScrollExtent;
-        debugPrint('[ExerciseEditSheet] Fallback to Bottom: $target');
         _scrollController.animateTo(
-          target,
+          _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 500),
           curve: Curves.fastOutSlowIn,
         );
@@ -875,237 +870,246 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
         color: AppColors.darkBg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(
+      child: Stack(
         children: [
-          // Handle
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.textSecondary.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(2),
-            ),
+          Column(
+            children: [
+              // Handle
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textSecondary.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+
+              // Content
+              Expanded(child: _isEditing ? _buildEditMode() : _buildViewMode()),
+            ],
           ),
 
-          // Content
-          Expanded(
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-              child: Column(
-                children: [
-                  SessionExerciseCard(
-                    exercise: _currentExercise,
-                    exerciseIndex: widget.exerciseIndex,
-                    history: widget.history,
-                    pr: widget.pr,
-                    // Force expanded mode
-                    isAlwaysExpanded: true,
-                    // Focus handling
-                    focusedSetIndex: _focusedSetIndex,
-                    focusedSegmentIndex: _focusedSegmentIndex,
-
-                    onSkipToggle: () {
-                      setState(() {
-                        _currentExercise = _currentExercise.copyWith(
-                          skipped: !_currentExercise.skipped,
-                        );
-                        _focusedSetIndex = null;
-                        _focusedSegmentIndex = null;
-                      });
-                    },
-                    onUpdateSegment: (setIndex, segmentIndex, field, value) {
-                      setState(() {
-                        final currentSets = List<ExerciseSet>.from(
-                          _currentExercise.sets,
-                        );
-                        final currentSegments = List<SetSegment>.from(
-                          currentSets[setIndex].segments,
-                        );
-
-                        final segment = currentSegments[segmentIndex];
-                        final updatedSegment = segment.copyWith(
-                          weight: field == 'weight'
-                              ? value as double
-                              : segment.weight,
-                          repsFrom: field == 'repsFrom'
-                              ? value as int
-                              : segment.repsFrom,
-                          repsTo: field == 'repsTo'
-                              ? value as int
-                              : segment.repsTo,
-                          notes: field == 'notes'
-                              ? value as String
-                              : segment.notes,
-                        );
-
-                        currentSegments[segmentIndex] = updatedSegment;
-                        currentSets[setIndex] = currentSets[setIndex].copyWith(
-                          segments: currentSegments,
-                        );
-                        _currentExercise = _currentExercise.copyWith(
-                          sets: currentSets,
-                        );
-                      });
-                    },
-                    onHistoryTap: widget.onHistoryTap ?? () {},
-                    onAddSet: () {
-                      setState(() {
-                        final currentSets = List<ExerciseSet>.from(
-                          _currentExercise.sets,
-                        );
-                        final timestamp = DateTime.now().millisecondsSinceEpoch;
-
-                        final newSet = ExerciseSet(
-                          id: 'set_${timestamp}_${currentSets.length}',
-                          setNumber: currentSets.length + 1,
-                          segments: [
-                            SetSegment(
-                              id: 'seg_${timestamp}_${currentSets.length}_0',
-                              weight: 0.0,
-                              repsFrom: 1,
-                              repsTo: 12,
-                              notes: '',
-                              segmentOrder: 0,
-                            ),
-                          ],
-                        );
-
-                        currentSets.add(newSet);
-                        _currentExercise = _currentExercise.copyWith(
-                          sets: currentSets,
-                        );
-
-                        // Focus new set
-                        _focusedSetIndex = currentSets.length - 1;
-                        _focusedSegmentIndex = 0;
-
-                        // Force scroll to manual bottom
-                        _scrollToBottom();
-                      });
-                    },
-                    onRemoveSet: (setIndex) {
-                      setState(() {
-                        final currentSets = List<ExerciseSet>.from(
-                          _currentExercise.sets,
-                        );
-
-                        if (setIndex < currentSets.length) {
-                          currentSets.removeAt(setIndex);
-                          for (int i = 0; i < currentSets.length; i++) {
-                            currentSets[i] = currentSets[i].copyWith(
-                              setNumber: i + 1,
-                            );
-                          }
-                          _currentExercise = _currentExercise.copyWith(
-                            sets: currentSets,
-                          );
-                          _focusedSetIndex = null;
-                          _focusedSegmentIndex = null;
-                        }
-                      });
-                    },
-                    onAddDropSet: (setIndex) {
-                      setState(() {
-                        final currentSets = List<ExerciseSet>.from(
-                          _currentExercise.sets,
-                        );
-                        if (setIndex < currentSets.length) {
-                          final targetSet = currentSets[setIndex];
-                          final segments = List<SetSegment>.from(
-                            targetSet.segments,
-                          );
-                          final timestamp =
-                              DateTime.now().millisecondsSinceEpoch;
-
-                          segments.add(
-                            SetSegment(
-                              id: 'seg_${timestamp}_${setIndex}_${segments.length}',
-                              weight: 0.0,
-                              repsFrom: 1,
-                              repsTo: 12,
-                              notes: '',
-                              segmentOrder: segments.length,
-                            ),
-                          );
-
-                          currentSets[setIndex] = targetSet.copyWith(
-                            segments: segments,
-                          );
-                          _currentExercise = _currentExercise.copyWith(
-                            sets: currentSets,
-                          );
-
-                          // Focus new segment
-                          _focusedSetIndex = setIndex;
-                          _focusedSegmentIndex = segments.length - 1;
-                        }
-                      });
-                    },
-                    onRemoveDropSet: (setIndex, segmentIndex) {
-                      setState(() {
-                        final currentSets = List<ExerciseSet>.from(
-                          _currentExercise.sets,
-                        );
-                        if (setIndex < currentSets.length) {
-                          final targetSet = currentSets[setIndex];
-                          final segments = List<SetSegment>.from(
-                            targetSet.segments,
-                          );
-
-                          if (segmentIndex < segments.length) {
-                            segments.removeAt(segmentIndex);
-                            for (int i = 0; i < segments.length; i++) {
-                              segments[i] = segments[i].copyWith(
-                                segmentOrder: i,
-                              );
-                            }
-
-                            currentSets[setIndex] = targetSet.copyWith(
-                              segments: segments,
-                            );
-                            _currentExercise = _currentExercise.copyWith(
-                              sets: currentSets,
-                            );
-                            _focusedSetIndex = null;
-                            _focusedSegmentIndex = null;
-                          }
-                        }
-                      });
-                    },
-                    onEditName:
-                        widget.onEditName ??
-                        (_currentExercise.isTemplate ? null : () {}),
-                    onDelete: widget.onDelete,
+          // Floating Edit Button (only in view mode)
+          if (!_isEditing)
+            Positioned(
+              bottom: 24,
+              right: 16,
+              left: 16,
+              child: FilledButton.icon(
+                onPressed: () => setState(() => _isEditing = true),
+                icon: const Icon(Icons.edit_rounded),
+                label: const Text('Edit Exercise'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
-                  // Save Button (Scrollable, at bottom)
-                  Padding(
-                    key: _saveButtonKey,
-                    padding: const EdgeInsets.only(top: 24, bottom: 32),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () => widget.onSave(_currentExercise),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Save',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+  /// VIEW MODE - Lightweight read-only widget for smooth scrolling
+  Widget _buildViewMode() {
+    final sets = _currentExercise.sets;
+
+    return ListView(
+      controller: _scrollController,
+      physics: const ClampingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        100,
+      ), // Extra padding for FAB
+      children: [
+        ExerciseViewHeader(
+          exercise: _currentExercise,
+          history: widget.history,
+          pr: widget.pr,
+          onHistoryTap: widget.onHistoryTap,
+        ),
+        const SizedBox(height: 16),
+        ...sets.map(
+          (set) => ViewSetRow(key: ValueKey('view_set_${set.id}'), set: set),
+        ),
+      ],
+    );
+  }
+
+  /// EDIT MODE - Full editable widgets with TextFields
+  Widget _buildEditMode() {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      physics: const ClampingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      child: Column(
+        children: [
+          SessionExerciseCard(
+            exercise: _currentExercise,
+            exerciseIndex: widget.exerciseIndex,
+            history: widget.history,
+            pr: widget.pr,
+            isAlwaysExpanded: true,
+            onSkipToggle: () {
+              setState(() {
+                _currentExercise = _currentExercise.copyWith(
+                  skipped: !_currentExercise.skipped,
+                );
+              });
+            },
+            onUpdateSegment: (setIndex, segmentIndex, field, value) {
+              setState(() {
+                final currentSets = List<ExerciseSet>.from(
+                  _currentExercise.sets,
+                );
+                final currentSegments = List<SetSegment>.from(
+                  currentSets[setIndex].segments,
+                );
+
+                final segment = currentSegments[segmentIndex];
+                final updatedSegment = segment.copyWith(
+                  weight: field == 'weight' ? value as double : segment.weight,
+                  repsFrom: field == 'repsFrom'
+                      ? value as int
+                      : segment.repsFrom,
+                  repsTo: field == 'repsTo' ? value as int : segment.repsTo,
+                  notes: field == 'notes' ? value as String : segment.notes,
+                );
+
+                currentSegments[segmentIndex] = updatedSegment;
+                currentSets[setIndex] = currentSets[setIndex].copyWith(
+                  segments: currentSegments,
+                );
+                _currentExercise = _currentExercise.copyWith(sets: currentSets);
+              });
+            },
+            onHistoryTap: widget.onHistoryTap ?? () {},
+            onAddSet: () {
+              setState(() {
+                final currentSets = List<ExerciseSet>.from(
+                  _currentExercise.sets,
+                );
+                final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+                final newSet = ExerciseSet(
+                  id: 'set_${timestamp}_${currentSets.length}',
+                  setNumber: currentSets.length + 1,
+                  segments: [
+                    SetSegment(
+                      id: 'seg_${timestamp}_${currentSets.length}_0',
+                      weight: 0.0,
+                      repsFrom: 1,
+                      repsTo: 12,
+                      notes: '',
+                      segmentOrder: 0,
                     ),
+                  ],
+                );
+
+                currentSets.add(newSet);
+                _currentExercise = _currentExercise.copyWith(sets: currentSets);
+                _scrollToBottom();
+              });
+            },
+            onRemoveSet: (setIndex) {
+              setState(() {
+                final currentSets = List<ExerciseSet>.from(
+                  _currentExercise.sets,
+                );
+                if (setIndex < currentSets.length) {
+                  currentSets.removeAt(setIndex);
+                  for (int i = 0; i < currentSets.length; i++) {
+                    currentSets[i] = currentSets[i].copyWith(setNumber: i + 1);
+                  }
+                  _currentExercise = _currentExercise.copyWith(
+                    sets: currentSets,
+                  );
+                }
+              });
+            },
+            onAddDropSet: (setIndex) {
+              setState(() {
+                final currentSets = List<ExerciseSet>.from(
+                  _currentExercise.sets,
+                );
+                if (setIndex < currentSets.length) {
+                  final targetSet = currentSets[setIndex];
+                  final segments = List<SetSegment>.from(targetSet.segments);
+                  final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+                  segments.add(
+                    SetSegment(
+                      id: 'seg_${timestamp}_${setIndex}_${segments.length}',
+                      weight: 0.0,
+                      repsFrom: 1,
+                      repsTo: 12,
+                      notes: '',
+                      segmentOrder: segments.length,
+                    ),
+                  );
+
+                  currentSets[setIndex] = targetSet.copyWith(
+                    segments: segments,
+                  );
+                  _currentExercise = _currentExercise.copyWith(
+                    sets: currentSets,
+                  );
+                }
+              });
+            },
+            onRemoveDropSet: (setIndex, segmentIndex) {
+              setState(() {
+                final currentSets = List<ExerciseSet>.from(
+                  _currentExercise.sets,
+                );
+                if (setIndex < currentSets.length) {
+                  final targetSet = currentSets[setIndex];
+                  final segments = List<SetSegment>.from(targetSet.segments);
+
+                  if (segmentIndex < segments.length) {
+                    segments.removeAt(segmentIndex);
+                    for (int i = 0; i < segments.length; i++) {
+                      segments[i] = segments[i].copyWith(segmentOrder: i);
+                    }
+                    currentSets[setIndex] = targetSet.copyWith(
+                      segments: segments,
+                    );
+                    _currentExercise = _currentExercise.copyWith(
+                      sets: currentSets,
+                    );
+                  }
+                }
+              });
+            },
+            onEditName:
+                widget.onEditName ??
+                (_currentExercise.isTemplate ? null : () {}),
+            onDelete: widget.onDelete,
+          ),
+
+          // Save Button
+          Padding(
+            key: _saveButtonKey,
+            padding: const EdgeInsets.only(top: 24, bottom: 32),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => widget.onSave(_currentExercise),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
+                ),
+                child: const Text(
+                  'Save',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ),

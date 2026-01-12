@@ -140,8 +140,12 @@ class ExerciseListSummaryCard extends StatelessWidget {
                 ),
               ),
 
-              // Edit Icon
-              const Icon(Icons.edit_rounded, color: AppColors.accent, size: 20),
+              // View Icon (eye)
+              const Icon(
+                Icons.visibility_rounded,
+                color: AppColors.accent,
+                size: 20,
+              ),
             ],
           ),
         ),
