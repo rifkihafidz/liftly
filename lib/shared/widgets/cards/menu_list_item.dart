@@ -9,6 +9,8 @@ class MenuListItem extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
   final bool isDestructive;
+  final Widget? trailing;
+  final EdgeInsetsGeometry? padding;
 
   const MenuListItem({
     super.key,
@@ -18,6 +20,8 @@ class MenuListItem extends StatelessWidget {
     required this.color,
     required this.onTap,
     this.isDestructive = false,
+    this.trailing,
+    this.padding,
   });
 
   @override
@@ -29,7 +33,7 @@ class MenuListItem extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: padding ?? const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: AppColors.cardBg,
               borderRadius: BorderRadius.circular(20),
@@ -57,6 +61,8 @@ class MenuListItem extends StatelessWidget {
                     children: [
                       Text(
                         title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(
                               fontWeight: FontWeight.w600,
@@ -69,6 +75,8 @@ class MenuListItem extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                           fontSize: 12,
@@ -77,11 +85,14 @@ class MenuListItem extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.textSecondary.withValues(alpha: 0.5),
-                  size: 24,
-                ),
+                if (trailing != null)
+                  trailing!
+                else
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                    size: 24,
+                  ),
               ],
             ),
           ),

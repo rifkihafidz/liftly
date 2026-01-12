@@ -10,6 +10,12 @@
 .history
 .svn/
 .swiftpm/
+.env
+*.xlsx
+
+# Google Services
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
 
 # IntelliJ related
 *.iml

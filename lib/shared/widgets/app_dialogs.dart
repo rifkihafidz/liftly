@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
-import 'suggestion_text_field.dart';
 
 class AppDialogs {
   /// Show success dialog
@@ -239,6 +238,47 @@ class AppDialogs {
       ),
     );
   }
+
+  /// Show a non-dismissible loading dialog
+  static void showLoadingDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: Dialog(
+          backgroundColor: AppColors.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(color: AppColors.accent),
+                const SizedBox(height: 24),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Close any open dialog (like the loading one)
+  static void hideLoadingDialog(BuildContext context) {
+    Navigator.of(context, rootNavigator: true).pop();
+  }
 }
 
 class _ExerciseEntryDialog extends StatefulWidget {
@@ -262,17 +302,43 @@ class _ExerciseEntryDialog extends StatefulWidget {
 
 class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
   late TextEditingController _controller;
+  List<String> _filteredSuggestions = [];
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialValue);
+    _controller.addListener(_onTextChanged);
   }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onTextChanged() {
+    final query = _controller.text.trim().toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredSuggestions = [];
+      } else {
+        _filteredSuggestions = widget.suggestions.where((s) {
+          final sLower = s.toLowerCase();
+          return sLower.contains(query) && sLower != query;
+        }).toList();
+      }
+    });
+  }
+
+  void _selectSuggestion(String suggestion) {
+    _controller.value = TextEditingValue(
+      text: suggestion,
+      selection: TextSelection.collapsed(offset: suggestion.length),
+    );
+    setState(() {
+      _filteredSuggestions = [];
+    });
   }
 
   @override
@@ -285,11 +351,31 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
         width: double.maxFinite,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SuggestionTextField(
+            TextField(
               controller: _controller,
-              hintText: widget.hintText ?? 'Exercise Name',
-              suggestions: widget.suggestions,
+              autofocus: true,
+              textCapitalization: TextCapitalization.sentences,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                hintText: widget.hintText ?? 'Exercise Name',
+                hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                filled: true,
+                fillColor: AppColors.inputBg,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+              ),
               onSubmitted: (value) {
                 if (value.trim().isNotEmpty) {
                   widget.onConfirm(value.trim());
@@ -297,6 +383,55 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
                 }
               },
             ),
+            if (_filteredSuggestions.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Flexible(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 200),
+                  decoration: BoxDecoration(
+                    color: AppColors.inputBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.borderLight),
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: _filteredSuggestions.length,
+                    separatorBuilder: (context, index) => Divider(
+                      height: 1,
+                      color: AppColors.borderLight.withValues(alpha: 0.5),
+                    ),
+                    itemBuilder: (context, index) {
+                      final suggestion = _filteredSuggestions[index];
+                      return InkWell(
+                        onTap: () => _selectSuggestion(suggestion),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(index == 0 ? 12 : 0),
+                          topRight: Radius.circular(index == 0 ? 12 : 0),
+                          bottomLeft: Radius.circular(
+                            index == _filteredSuggestions.length - 1 ? 12 : 0,
+                          ),
+                          bottomRight: Radius.circular(
+                            index == _filteredSuggestions.length - 1 ? 12 : 0,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Text(
+                            suggestion,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppColors.textPrimary),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -305,7 +440,7 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        TextButton(
+        FilledButton(
           onPressed: () {
             if (_controller.text.trim().isNotEmpty) {
               widget.onConfirm(_controller.text.trim());

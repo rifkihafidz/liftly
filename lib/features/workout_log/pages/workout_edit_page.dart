@@ -578,13 +578,10 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     try {
       // 1. Load from history
       const userId = '1';
-      final historyWorkouts = await _workoutRepository.getWorkouts(
+      final historyNames = await _workoutRepository.getExerciseNames(
         userId: userId,
       );
-      final historyNames = historyWorkouts
-          .expand((w) => w.exercises)
-          .map((e) => e.name)
-          .toSet();
+      final uniqueNames = historyNames.toSet();
 
       if (!context.mounted) return;
 
@@ -595,12 +592,12 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
             .expand((p) => p.exercises)
             .map((e) => e.name)
             .toSet();
-        historyNames.addAll(planNames);
+        uniqueNames.addAll(planNames);
       } else {
         context.read<PlanBloc>().add(const PlansFetchRequested(userId: userId));
       }
 
-      availableExercises = historyNames.toList()..sort();
+      availableExercises = uniqueNames.toList()..sort();
     } catch (e, stackTrace) {
       log(
         'Error loading suggestions',

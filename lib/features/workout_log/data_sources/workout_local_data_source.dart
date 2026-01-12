@@ -101,13 +101,15 @@ class WorkoutLocalDataSource {
   }) async {
     try {
       _log(
-        'SELECT',
-        'workouts WHERE userId=$userId LIMIT $limit OFFSET $offset',
+        'SELECT_OPTIMIZED',
+        'workouts JOIN exercises JOIN sets JOIN segments WHERE userId=$userId',
       );
       final database = SQLiteService.database;
 
-      final workouts = await database.query(
+      // 1. Get the workout IDs first to apply limit correctly
+      final workoutIdsResult = await database.query(
         'workouts',
+        columns: ['id'],
         where: 'user_id = ? AND is_draft = 0',
         whereArgs: [userId],
         orderBy: 'workout_date DESC',
@@ -115,24 +117,109 @@ class WorkoutLocalDataSource {
         offset: offset,
       );
 
-      _log('SELECT', 'workouts: Found ${workouts.length} records');
-      final result = await Future.wait(
-        workouts.map((w) => _buildWorkoutFromRows(w['id'] as String)),
-      );
+      if (workoutIdsResult.isEmpty) return [];
+      final workoutIds = workoutIdsResult
+          .map((w) => w['id'] as String)
+          .toList();
+      final placeholders = List.filled(workoutIds.length, '?').join(',');
 
-      // Log the result
-      for (final workout in result) {
-        int totalSets = 0;
-        for (final ex in workout.exercises) {
-          totalSets += ex.sets.length;
+      // 2. Fetch EVERYTHING in one big joined query
+      // We join all related tables to get all data at once
+      final bigQuery = await database.rawQuery('''
+        SELECT 
+          w.*, 
+          p.name as plan_name,
+          we.id as ex_id, we.name as ex_name, we.exercise_order as ex_order, we.skipped as ex_skipped, we.is_template as ex_is_template,
+          ws.id as set_id, ws.set_number as set_num,
+          ss.id as seg_id, ss.weight as seg_weight, ss.reps_from as seg_reps_f, ss.reps_to as seg_reps_t, ss.segment_order as seg_order, ss.notes as seg_notes
+        FROM workouts w
+        LEFT JOIN plans p ON w.plan_id = p.id
+        LEFT JOIN workout_exercises we ON w.id = we.workout_id
+        LEFT JOIN workout_sets ws ON we.id = ws.exercise_id
+        LEFT JOIN set_segments ss ON ws.id = ss.set_id
+        WHERE w.id IN ($placeholders)
+        ORDER BY w.workout_date DESC, we.exercise_order ASC, ws.set_number ASC, ss.segment_order ASC
+      ''', workoutIds);
+
+      // 3. Process the flat result into objects
+      final Map<String, WorkoutSession> workoutMap = {};
+      final Map<String, SessionExercise> exerciseMap = {};
+      final Map<String, ExerciseSet> setMap = {};
+
+      for (final row in bigQuery) {
+        final workoutId = row['id'] as String;
+
+        // Build WorkoutSession if not exists
+        if (!workoutMap.containsKey(workoutId)) {
+          workoutMap[workoutId] = WorkoutSession(
+            id: workoutId,
+            userId: row['user_id'] as String,
+            planId: row['plan_id'] as String?,
+            planName: row['plan_name'] as String?,
+            workoutDate: SQLiteService.parseDateTime(
+              row['workout_date'] as String,
+            ),
+            startedAt: row['started_at'] != null
+                ? SQLiteService.parseDateTime(row['started_at'] as String)
+                : null,
+            endedAt: row['ended_at'] != null
+                ? SQLiteService.parseDateTime(row['ended_at'] as String)
+                : null,
+            exercises: [],
+            createdAt: SQLiteService.parseDateTime(row['created_at'] as String),
+            updatedAt: SQLiteService.parseDateTime(row['updated_at'] as String),
+            isDraft: (row['is_draft'] as int?) == 1,
+          );
         }
-        _log(
-          'SELECT',
-          'Loaded workout ${workout.id}: ${workout.exercises.length} exercises, $totalSets total sets',
-        );
+
+        // Build Exercise if not exists
+        final exId = row['ex_id'] as String?;
+        if (exId != null) {
+          if (!exerciseMap.containsKey(exId)) {
+            final exercise = SessionExercise(
+              id: exId,
+              name: row['ex_name'] as String,
+              order: row['ex_order'] as int,
+              sets: [],
+              skipped: (row['ex_skipped'] as int) == 1,
+              isTemplate: (row['ex_is_template'] as int? ?? 0) == 1,
+            );
+            exerciseMap[exId] = exercise;
+            workoutMap[workoutId]!.exercises.add(exercise);
+          }
+
+          // Build Set if not exists
+          final setId = row['set_id'] as String?;
+          if (setId != null) {
+            if (!setMap.containsKey(setId)) {
+              final workoutSet = ExerciseSet(
+                id: setId,
+                setNumber: row['set_num'] as int,
+                segments: [],
+              );
+              setMap[setId] = workoutSet;
+              exerciseMap[exId]!.sets.add(workoutSet);
+            }
+
+            // Build Segment
+            final segId = row['seg_id'] as String?;
+            if (segId != null) {
+              final segment = SetSegment(
+                id: segId,
+                weight: (row['seg_weight'] as num).toDouble(),
+                repsFrom: row['seg_reps_f'] as int,
+                repsTo: row['seg_reps_t'] as int,
+                segmentOrder: row['seg_order'] as int,
+                notes: row['seg_notes'] as String? ?? '',
+              );
+              setMap[setId]!.segments.add(segment);
+            }
+          }
+        }
       }
 
-      return result;
+      // Preserve original order from workoutIds
+      return workoutIds.map((id) => workoutMap[id]!).toList();
     } catch (e) {
       _log('SELECT', 'workouts: FAILED - $e');
       rethrow;

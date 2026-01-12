@@ -23,13 +23,14 @@ class SQLiteService {
 
       _database = await openDatabase(
         path,
-        version: 6,
+        version: 7,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
         },
         onCreate: (Database db, int version) async {
           _log('INIT', 'Creating tables (version $version)');
           await _createTables(db);
+          await _createIndexes(db);
         },
         onUpgrade: (Database db, int oldVersion, int newVersion) async {
           _log('INIT', 'Upgrading database from v$oldVersion to v$newVersion');
@@ -71,35 +72,9 @@ class SQLiteService {
               _log('INIT', 'Error migrate is_template: $e');
             }
           }
-          if (oldVersion < 6) {
-            _log('INIT', 'Creating indexes for performance optimization');
-            try {
-              // Workouts indexes
-              await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_workouts_user_draft ON workouts(user_id, is_draft)',
-              );
-              await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_workouts_date ON workouts(workout_date DESC)',
-              );
-
-              // Exercises indexes
-              await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_exercises_workout_id ON workout_exercises(workout_id)',
-              );
-              await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_exercises_name ON workout_exercises(name)',
-              );
-
-              // Sets & Segments indexes
-              await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_sets_exercise_id ON workout_sets(exercise_id)',
-              );
-              await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_segments_set_id ON set_segments(set_id)',
-              );
-            } catch (e) {
-              _log('INIT', 'Error creating indexes: $e');
-            }
+          if (oldVersion < 7) {
+            _log('INIT', 'Updating/Creating indexes for version 7');
+            await _createIndexes(db);
           }
         },
       );
@@ -109,6 +84,41 @@ class SQLiteService {
     } catch (e) {
       _log('INIT', 'Database initialization failed: $e');
       rethrow;
+    }
+  }
+
+  static Future<void> _createIndexes(Database db) async {
+    _log('INIT', 'Creating indexes for performance optimization');
+    try {
+      // Workouts indexes
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_workouts_user_draft ON workouts(user_id, is_draft)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_workouts_date ON workouts(workout_date DESC)',
+      );
+
+      // Exercises indexes
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_exercises_workout_id ON workout_exercises(workout_id)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_exercises_name ON workout_exercises(name)',
+      );
+      // New index for history/PR lookups
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_exercises_name_workout ON workout_exercises(name, workout_id)',
+      );
+
+      // Sets & Segments indexes
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sets_exercise_id ON workout_sets(exercise_id)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_segments_set_id ON set_segments(set_id)',
+      );
+    } catch (e) {
+      _log('INIT', 'Error creating indexes: $e');
     }
   }
 
@@ -210,15 +220,11 @@ class SQLiteService {
 
   /// Parse DateTime from dd-MM-yyyy HH:mm:ss format or ISO 8601 format
   static DateTime parseDateTime(String dateTimeStr) {
-    // Handle both formats: dd-MM-yyyy HH:mm:ss and ISO 8601 (2024-01-01T12:00:00.000)
     if (dateTimeStr.contains('T')) {
-      // ISO 8601 format
       return DateTime.parse(dateTimeStr);
     } else {
-      // dd-MM-yyyy HH:mm:ss format
       final parts = dateTimeStr.split(' ');
       if (parts.length < 2) {
-        // Fallback: try to parse as ISO
         return DateTime.parse(dateTimeStr);
       }
       final dateParts = parts[0].split('-'); // dd-MM-yyyy

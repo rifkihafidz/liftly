@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/models/workout_session.dart';
+import '../../../core/services/backup_service.dart';
 import '../../workout_log/repositories/workout_repository.dart';
 import 'session_event.dart';
 import 'session_state.dart';
@@ -615,6 +616,10 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       );
 
       emit(SessionSaved(session: savedSession));
+
+      // Trigger auto-backup in background
+      // Fire and forget - don't block the UI
+      BackupService().backupIfEnabled();
     } catch (e) {
       emit(SessionError(message: 'Failed to save session: $e'));
     }

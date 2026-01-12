@@ -24,6 +24,8 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   bool _sortDescending = true;
   String? _selectedPlanName;
 
+  bool _isLoadingMore = false; // Flag to prevent multiple fetches
+
   @override
   void initState() {
     super.initState();
@@ -38,8 +40,14 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   }
 
   void _onScroll() {
-    if (_isBottom) {
-      context.read<WorkoutBloc>().add(const WorkoutsFetched());
+    if (_isBottom && !_isLoadingMore) {
+      final state = context.read<WorkoutBloc>().state;
+      if (state is WorkoutsLoaded && !state.hasReachedMax) {
+        setState(() {
+          _isLoadingMore = true;
+        });
+        context.read<WorkoutBloc>().add(const WorkoutsFetched());
+      }
     }
   }
 
@@ -166,144 +174,155 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.darkBg,
-      body: BlocBuilder<WorkoutBloc, WorkoutState>(
-        builder: (context, state) {
-          if (state is WorkoutLoading) {
-            return const WorkoutListShimmer();
+      body: BlocListener<WorkoutBloc, WorkoutState>(
+        listener: (context, state) {
+          if (state is WorkoutsLoaded || state is WorkoutError) {
+            if (mounted) {
+              setState(() {
+                _isLoadingMore = false;
+              });
+            }
           }
-
-          if (state is WorkoutError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline_rounded,
-                    size: 64,
-                    color: AppColors.error,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error loading workouts',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    state.message,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _loadWorkouts,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.all(16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: const Text(
-                      'Retry',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          if (state is WorkoutsLoaded) {
-            var workouts = List<WorkoutSession>.from(state.workouts);
-            if (_selectedPlanName != null) {
-              workouts = workouts
-                  .where((w) => w.planName == _selectedPlanName)
-                  .toList();
+        },
+        child: BlocBuilder<WorkoutBloc, WorkoutState>(
+          builder: (context, state) {
+            if (state is WorkoutLoading) {
+              return const WorkoutListShimmer();
             }
 
-            workouts.sort((a, b) {
-              if (_sortDescending) {
-                return b.workoutDate.compareTo(a.workoutDate);
-              } else {
-                return a.workoutDate.compareTo(b.workoutDate);
-              }
-            });
-
-            return CustomScrollView(
-              controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverAppBar(
-                  pinned: true,
-                  centerTitle: false,
-                  backgroundColor: AppColors.darkBg,
-                  surfaceTintColor: AppColors.darkBg,
-                  title: Text(
-                    'Workout History',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
+            if (state is WorkoutError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 64,
+                      color: AppColors.error,
                     ),
-                  ),
-
-                  actions: [
-                    IconButton(
-                      icon: Icon(
-                        _sortDescending
-                            ? Icons.arrow_downward_rounded
-                            : Icons.arrow_upward_rounded,
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error loading workouts',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: AppColors.textPrimary,
+                        fontWeight: FontWeight.bold,
                       ),
-                      tooltip: _sortDescending
-                          ? 'Newest First'
-                          : 'Oldest First',
-                      onPressed: () =>
-                          setState(() => _sortDescending = !_sortDescending),
                     ),
-                    IconButton(
-                      icon: Icon(
-                        _selectedPlanName != null
-                            ? Icons.filter_list_alt
-                            : Icons.filter_list_rounded,
-                        color: _selectedPlanName != null
-                            ? AppColors.accent
-                            : AppColors.textPrimary,
+                    const SizedBox(height: 8),
+                    Text(
+                      state.message,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: _loadWorkouts,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.all(16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
-                      tooltip: 'Filter by Plan',
-                      onPressed: () => _showFilterDialog(state.workouts),
+                      child: const Text(
+                        'Retry',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 8),
                   ],
                 ),
-                if (workouts.isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _buildEmptyState(context),
-                  )
-                else ...[
-                  _buildWorkoutList(workouts),
-                  if (!state.hasReachedMax)
-                    const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.all(24.0),
-                        child: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            if (state is WorkoutsLoaded) {
+              var workouts = List<WorkoutSession>.from(state.workouts);
+              if (_selectedPlanName != null) {
+                workouts = workouts
+                    .where((w) => w.planName == _selectedPlanName)
+                    .toList();
+              }
+
+              workouts.sort((a, b) {
+                if (_sortDescending) {
+                  return b.workoutDate.compareTo(a.workoutDate);
+                } else {
+                  return a.workoutDate.compareTo(b.workoutDate);
+                }
+              });
+
+              return CustomScrollView(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverAppBar(
+                    pinned: true,
+                    centerTitle: false,
+                    backgroundColor: AppColors.darkBg,
+                    surfaceTintColor: AppColors.darkBg,
+                    title: Text(
+                      'Workout History',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
                       ),
                     ),
-                ],
-              ],
-            );
-          }
 
-          return const WorkoutListShimmer();
-        },
+                    actions: [
+                      IconButton(
+                        icon: Icon(
+                          _sortDescending
+                              ? Icons.arrow_downward_rounded
+                              : Icons.arrow_upward_rounded,
+                          color: AppColors.textPrimary,
+                        ),
+                        tooltip: _sortDescending
+                            ? 'Newest First'
+                            : 'Oldest First',
+                        onPressed: () =>
+                            setState(() => _sortDescending = !_sortDescending),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          _selectedPlanName != null
+                              ? Icons.filter_list_alt
+                              : Icons.filter_list_rounded,
+                          color: _selectedPlanName != null
+                              ? AppColors.accent
+                              : AppColors.textPrimary,
+                        ),
+                        tooltip: 'Filter by Plan',
+                        onPressed: () => _showFilterDialog(state.workouts),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ),
+                  if (workouts.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _buildEmptyState(context),
+                    )
+                  else ...[
+                    _buildWorkoutList(workouts),
+                    if (!state.hasReachedMax)
+                      const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                      ),
+                  ],
+                ],
+              );
+            }
+
+            return const WorkoutListShimmer();
+          },
+        ),
       ),
     );
   }

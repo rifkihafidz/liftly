@@ -18,70 +18,64 @@ class DataManagementService {
     'plan_exercises',
   ];
 
+  /// Generate Excel file bytes from database data
+  static Future<Uint8List> generateExcelBytes() async {
+    final db = SQLiteService.database;
+    final excel = Excel.createExcel();
+
+    for (final table in _tables) {
+      List<Map<String, dynamic>> data;
+
+      if (table == 'workouts') {
+        data = await db.query(table, where: 'is_draft = 0');
+      } else if (table == 'workout_exercises') {
+        data = await db.rawQuery(
+          'SELECT * FROM workout_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE is_draft = 0)',
+        );
+      } else if (table == 'workout_sets') {
+        data = await db.rawQuery(
+          'SELECT * FROM workout_sets WHERE exercise_id IN (SELECT id FROM workout_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE is_draft = 0))',
+        );
+      } else if (table == 'set_segments') {
+        data = await db.rawQuery(
+          'SELECT * FROM set_segments WHERE set_id IN (SELECT id FROM workout_sets WHERE exercise_id IN (SELECT id FROM workout_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE is_draft = 0)))',
+        );
+      } else {
+        data = await db.query(table);
+      }
+
+      if (data.isNotEmpty) {
+        final sheetObject = excel[table];
+        final headers = data.first.keys.toList();
+        sheetObject.appendRow(headers.map((e) => TextCellValue(e)).toList());
+
+        for (final row in data) {
+          final rowData = headers.map((header) {
+            final value = row[header];
+            if (value == null) return TextCellValue('');
+            if (value is String) return TextCellValue(value);
+            if (value is int) return IntCellValue(value);
+            if (value is double) return DoubleCellValue(value);
+            return TextCellValue(value.toString());
+          }).toList();
+          sheetObject.appendRow(rowData);
+        }
+      }
+    }
+
+    if (excel.sheets.length > 1 && excel.sheets.keys.contains('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final bytes = excel.save();
+    if (bytes == null) throw Exception('Failed to generate Excel file');
+    return Uint8List.fromList(bytes);
+  }
+
   /// Export all data to an Excel file and prompt user to share/save it
   static Future<void> exportData() async {
     try {
-      final db = SQLiteService.database;
-      final excel = Excel.createExcel();
-
-      // Remove default 'Sheet1' if possible, or just ignore it
-      // excel.delete('Sheet1'); // Excel package creates default Sheet1
-
-      for (final table in _tables) {
-        List<Map<String, dynamic>> data;
-
-        // Specialized queries to exclude drafts and their orphans
-        if (table == 'workouts') {
-          data = await db.query(table, where: 'is_draft = 0');
-        } else if (table == 'workout_exercises') {
-          data = await db.rawQuery(
-            'SELECT * FROM workout_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE is_draft = 0)',
-          );
-        } else if (table == 'workout_sets') {
-          data = await db.rawQuery(
-            'SELECT * FROM workout_sets WHERE exercise_id IN (SELECT id FROM workout_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE is_draft = 0))',
-          );
-        } else if (table == 'set_segments') {
-          data = await db.rawQuery(
-            'SELECT * FROM set_segments WHERE set_id IN (SELECT id FROM workout_sets WHERE exercise_id IN (SELECT id FROM workout_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE is_draft = 0)))',
-          );
-        } else {
-          // Default query for tables like 'plans' and 'plan_exercises'
-          data = await db.query(table);
-        }
-
-        if (data.isNotEmpty) {
-          final sheetObject = excel[table];
-
-          // Add Headers
-          final headers = data.first.keys.toList();
-          sheetObject.appendRow(headers.map((e) => TextCellValue(e)).toList());
-
-          // Add Rows
-          for (final row in data) {
-            final rowData = headers.map((header) {
-              final value = row[header];
-              if (value == null) return TextCellValue('');
-              if (value is String) return TextCellValue(value);
-              if (value is int) return IntCellValue(value);
-              if (value is double) return DoubleCellValue(value);
-              return TextCellValue(value.toString());
-            }).toList();
-            sheetObject.appendRow(rowData);
-          }
-        }
-      }
-
-      // Delete the default sheet if we added others and it's empty/unused
-      if (excel.sheets.length > 1 && excel.sheets.keys.contains('Sheet1')) {
-        excel.delete('Sheet1');
-      }
-
-      final fileBytes = excel.save();
-      if (fileBytes == null) {
-        throw Exception('Failed to generate Excel file');
-      }
-
+      final fileBytes = await generateExcelBytes();
       final directory = await getTemporaryDirectory();
       final dateStr = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final fileName = 'liftly_backup_$dateStr.xlsx';
@@ -92,17 +86,14 @@ class DataManagementService {
       // ignore: deprecated_member_use
       await Share.shareXFiles([
         XFile(file.path),
-      ], text: 'Liftly Backup $dateStr');
+      ], subject: 'Liftly Backup $dateStr');
     } catch (e) {
-      if (kDebugMode) {
-        print('Export error: $e');
-      }
+      if (kDebugMode) print('Export error: $e');
       rethrow;
     }
   }
 
   /// Import data from an Excel file
-  /// Returns a summary message of the operation
   static Future<String> importData() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -116,6 +107,15 @@ class DataManagementService {
 
       final file = File(result.files.single.path!);
       final bytes = await file.readAsBytes();
+      return await importDataFromBytes(bytes);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Generic import logic from bytes
+  static Future<String> importDataFromBytes(Uint8List bytes) async {
+    try {
       final excel = Excel.decodeBytes(bytes);
       final db = SQLiteService.database;
 
@@ -131,7 +131,6 @@ class DataManagementService {
               importedTables++;
 
               // Get headers from first row
-              // The excel package returns List<Data?> for row
               final headerRow = sheet.rows.first;
               final headers = headerRow
                   .map((e) => e?.value.toString() ?? '')
@@ -147,7 +146,6 @@ class DataManagementService {
                     final header = headers[j];
                     if (header.isNotEmpty) {
                       final cellValue = row[j]?.value;
-                      // Handle cell values (convert back to primitive types expected by DB)
                       if (cellValue is TextCellValue) {
                         final val = cellValue.value.toString();
                         rowMap[header] = val.isEmpty ? null : val;
@@ -159,7 +157,6 @@ class DataManagementService {
                         rowMap[header] = cellValue.toString();
                       }
 
-                      // Handle nulls string "null" if accidentally exported that way (defensive)
                       if (rowMap[header] == 'null') {
                         rowMap[header] = null;
                       }
@@ -168,7 +165,6 @@ class DataManagementService {
                 }
 
                 if (rowMap.isNotEmpty && rowMap.containsKey('id')) {
-                  // Skip draft workouts during import
                   if (table == 'workouts' &&
                       (rowMap['is_draft'] == 1 || rowMap['is_draft'] == '1')) {
                     continue;
