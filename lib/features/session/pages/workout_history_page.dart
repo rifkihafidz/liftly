@@ -66,7 +66,9 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
 
   void _showFilterDialog(List<WorkoutSession> allWorkouts) {
     final planNames = allWorkouts
-        .map((w) => w.planName ?? '-')
+        .map((w) => w.planName)
+        .where((name) => name != null && name.isNotEmpty)
+        .cast<String>()
         .toSet()
         .toList();
     planNames.sort();
