@@ -1,7 +1,7 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
+
 import 'package:intl/date_symbol_data_local.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
@@ -12,6 +12,7 @@ import '../../workout_log/pages/workout_detail_page.dart';
 import '../bloc/session_bloc.dart';
 import '../bloc/session_event.dart';
 import '../bloc/session_state.dart';
+import '../../stats/bloc/stats_state.dart';
 import '../widgets/session_exercise_history_sheet.dart';
 import '../../../shared/widgets/shimmer_widgets.dart';
 import '../../../core/utils/page_transitions.dart';
@@ -43,7 +44,7 @@ class _SessionPageState extends State<SessionPage> {
   @override
   void initState() {
     super.initState();
-    initializeDateFormatting('id_ID');
+    initializeDateFormatting('pt_BR');
 
     // Start session with actual exercises or resume draft
     _sessionBloc = context.read<SessionBloc>();
@@ -215,103 +216,37 @@ class _SessionPageState extends State<SessionPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.calendar_today_rounded,
-                                        size: 16,
-                                        color: AppColors.accent,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        DateFormat(
-                                          'EEEE, dd MMMM yyyy',
-                                        ).format(session.workoutDate),
-                                        style: const TextStyle(
-                                          color: AppColors.textPrimary,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 20),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: DateTimeInput(
-                                          label: 'Started At',
-                                          dateTime: session.startedAt,
-                                          onTap: () async {
-                                            final result =
-                                                await showDialog<
-                                                  Map<String, DateTime?>
-                                                >(
-                                                  context: context,
-                                                  barrierDismissible: false,
-                                                  builder: (context) =>
-                                                      WorkoutDateTimeDialog(
-                                                        initialWorkoutDate:
-                                                            session.workoutDate,
-                                                        initialStartedAt:
-                                                            session.startedAt,
-                                                        initialEndedAt:
-                                                            session.endedAt,
-                                                      ),
-                                                );
-                                            if (result != null &&
-                                                context.mounted) {
-                                              context.read<SessionBloc>().add(
-                                                SessionDateTimesUpdated(
-                                                  workoutDate:
-                                                      result['workoutDate'],
-                                                  startedAt:
-                                                      result['startedAt'],
-                                                  endedAt: result['endedAt'],
+                                  WorkoutDateTimeCard(
+                                    workoutDate: session.workoutDate,
+                                    startedAt: session.startedAt,
+                                    endedAt: session.endedAt,
+                                    onTap: () async {
+                                      final result =
+                                          await showDialog<
+                                            Map<String, DateTime?>
+                                          >(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (context) =>
+                                                WorkoutDateTimeDialog(
+                                                  initialWorkoutDate:
+                                                      session.workoutDate,
+                                                  initialStartedAt:
+                                                      session.startedAt,
+                                                  initialEndedAt:
+                                                      session.endedAt,
                                                 ),
-                                              );
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: DateTimeInput(
-                                          label: 'Ended At',
-                                          dateTime: session.endedAt,
-                                          onTap: () async {
-                                            final result =
-                                                await showDialog<
-                                                  Map<String, DateTime?>
-                                                >(
-                                                  context: context,
-                                                  barrierDismissible: false,
-                                                  builder: (context) =>
-                                                      WorkoutDateTimeDialog(
-                                                        initialWorkoutDate:
-                                                            session.workoutDate,
-                                                        initialStartedAt:
-                                                            session.startedAt,
-                                                        initialEndedAt:
-                                                            session.endedAt,
-                                                      ),
-                                                );
-                                            if (result != null &&
-                                                context.mounted) {
-                                              context.read<SessionBloc>().add(
-                                                SessionDateTimesUpdated(
-                                                  workoutDate:
-                                                      result['workoutDate'],
-                                                  startedAt:
-                                                      result['startedAt'],
-                                                  endedAt: result['endedAt'],
-                                                ),
-                                              );
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                    ],
+                                          );
+                                      if (result != null && context.mounted) {
+                                        context.read<SessionBloc>().add(
+                                          SessionDateTimesUpdated(
+                                            workoutDate: result['workoutDate'],
+                                            startedAt: result['startedAt'],
+                                            endedAt: result['endedAt'],
+                                          ),
+                                        );
+                                      }
+                                    },
                                   ),
                                 ],
                               ),
@@ -551,7 +486,7 @@ class _SessionPageState extends State<SessionPage> {
     BuildContext context,
     String exerciseName,
     SessionExercise? history,
-    SetSegment? pr,
+    PersonalRecord? pr,
   ) {
     showModalBottomSheet(
       context: context,

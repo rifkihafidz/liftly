@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
+import '../../stats/bloc/stats_state.dart';
 
 /// Lightweight header for view mode - only shows exercise info, no editing
 class ExerciseViewHeader extends StatelessWidget {
   final SessionExercise exercise;
   final SessionExercise? history;
-  final SetSegment? pr;
+  final PersonalRecord? pr;
   final VoidCallback? onHistoryTap;
 
   const ExerciseViewHeader({
@@ -98,7 +99,7 @@ class ExerciseViewHeader extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               Text(
-                '${exercise.totalVolume > 0 ? NumberFormat('#,###').format(exercise.totalVolume.toInt()) : "-"} kg',
+                '${exercise.totalVolume > 0 ? NumberFormat('#,##0.##', 'pt_BR').format(exercise.totalVolume) : "-"} kg',
                 style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 14,
@@ -106,6 +107,77 @@ class ExerciseViewHeader extends StatelessWidget {
               ),
             ],
           ),
+          if (pr != null) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: AppColors.borderLight),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Best Heavy',
+                        style: TextStyle(
+                          color: AppColors.accent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${pr!.maxWeight == pr!.maxWeight.toInt() ? pr!.maxWeight.toInt() : pr!.maxWeight} kg',
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${pr!.maxWeightReps} reps',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Best Volume',
+                        style: TextStyle(
+                          color: AppColors.accent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${pr!.maxVolume == pr!.maxVolume.toInt() ? pr!.maxVolume.toInt() : pr!.maxVolume} kg',
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        pr!.maxVolumeBreakdown.isNotEmpty
+                            ? pr!.maxVolumeBreakdown
+                            : '${pr!.maxVolumeWeight == pr!.maxVolumeWeight.toInt() ? pr!.maxVolumeWeight.toInt() : pr!.maxVolumeWeight} kg x ${pr!.maxVolumeReps}',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

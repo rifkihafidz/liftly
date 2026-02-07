@@ -46,7 +46,9 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
         setState(() {
           _isLoadingMore = true;
         });
-        context.read<WorkoutBloc>().add(const WorkoutsFetched());
+        context.read<WorkoutBloc>().add(
+          WorkoutsFetched(offset: state.workouts.length),
+        );
       }
     }
   }
@@ -250,9 +252,9 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
 
               workouts.sort((a, b) {
                 if (_sortDescending) {
-                  return b.workoutDate.compareTo(a.workoutDate);
+                  return b.effectiveDate.compareTo(a.effectiveDate);
                 } else {
-                  return a.workoutDate.compareTo(b.workoutDate);
+                  return a.effectiveDate.compareTo(b.effectiveDate);
                 }
               });
 
@@ -332,7 +334,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   Widget _buildWorkoutList(List<WorkoutSession> workouts) {
     final groupedWorkouts = <String, List<WorkoutSession>>{};
     for (final workout in workouts) {
-      final monthYear = DateFormat('MMMM yyyy').format(workout.workoutDate);
+      final monthYear = DateFormat('MMMM yyyy').format(workout.effectiveDate);
       if (!groupedWorkouts.containsKey(monthYear)) {
         groupedWorkouts[monthYear] = [];
       }

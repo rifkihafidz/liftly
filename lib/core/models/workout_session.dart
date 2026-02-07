@@ -164,6 +164,11 @@ class WorkoutSession extends Equatable {
     return endedAt!.difference(startedAt!);
   }
 
+  /// Returns the effective date for this workout.
+  /// Prioritizes startedAt (when workout actually began) over workoutDate (manual selection).
+  /// This handles workouts that cross midnight correctly.
+  DateTime get effectiveDate => startedAt ?? workoutDate;
+
   String get formattedDuration {
     final dur = duration;
     if (dur == null) return '-';

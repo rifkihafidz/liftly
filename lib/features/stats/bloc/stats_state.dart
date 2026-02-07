@@ -13,12 +13,54 @@ class StatsInitial extends StatsState {}
 
 class StatsLoading extends StatsState {}
 
+class PersonalRecord extends Equatable {
+  // Metric 1: Max Weight (Heaviest Set - individual segment)
+  final double maxWeight;
+  final int maxWeightReps;
+
+  // Metric 2: Max Volume Set (Best volume in a single set - aggregated segments)
+  final double maxVolume;
+  final double maxVolumeWeight;
+  final int maxVolumeReps;
+  final String maxVolumeBreakdown; // e.g., "(10 kg x 10 + 5 kg x 2)"
+
+  // Metric 3: Best Session (Highest total volume in one workout)
+  final double bestSessionVolume;
+  final String? bestSessionDate;
+  final List<ExerciseSet>? bestSessionSets;
+
+  const PersonalRecord({
+    this.maxWeight = 0,
+    this.maxWeightReps = 0,
+    this.maxVolume = 0,
+    this.maxVolumeWeight = 0,
+    this.maxVolumeReps = 0,
+    this.maxVolumeBreakdown = '',
+    this.bestSessionVolume = 0,
+    this.bestSessionDate,
+    this.bestSessionSets,
+  });
+
+  @override
+  List<Object?> get props => [
+    maxWeight,
+    maxWeightReps,
+    maxVolume,
+    maxVolumeWeight,
+    maxVolumeReps,
+    maxVolumeBreakdown,
+    bestSessionVolume,
+    bestSessionDate,
+    bestSessionSets,
+  ];
+}
+
 class StatsLoaded extends StatsState {
   final List<WorkoutSession> allSessions; // Cache for everything
   final List<WorkoutSession> filteredSessions; // For current view
   final TimePeriod timePeriod;
   final DateTime referenceDate;
-  final Map<String, double> personalRecords;
+  final Map<String, PersonalRecord> personalRecords;
   final Set<String>? prFilter; // Null means all
 
   const StatsLoaded({
@@ -35,7 +77,7 @@ class StatsLoaded extends StatsState {
     List<WorkoutSession>? filteredSessions,
     TimePeriod? timePeriod,
     DateTime? referenceDate,
-    Map<String, double>? personalRecords,
+    Map<String, PersonalRecord>? personalRecords,
     Set<String>? prFilter,
   }) {
     return StatsLoaded(

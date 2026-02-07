@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../core/models/workout_session.dart';
+import '../../stats/bloc/stats_state.dart';
 
 abstract class SessionState extends Equatable {
   const SessionState();
@@ -30,7 +31,7 @@ class SessionDraftCheckSuccess extends SessionState {
 class SessionInProgress extends SessionState {
   final WorkoutSession session;
   final Map<String, SessionExercise> previousSessions;
-  final Map<String, SetSegment> exercisePRs;
+  final Map<String, PersonalRecord> exercisePRs;
   final int? focusedExerciseIndex;
   final int? focusedSetIndex;
   final int? focusedSegmentIndex;

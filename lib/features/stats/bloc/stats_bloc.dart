@@ -71,8 +71,8 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
       // So filtering by the dates present in the workout list is actually 100% accurate for "PRs in these workouts".
 
       if (filtered.isNotEmpty) {
-        startDate = filtered.last.workoutDate; // Sorted DESC, so last is oldest
-        endDate = filtered.first.workoutDate; // First is newest
+        startDate = filtered.last.effectiveDate; // Sorted DESC, so last is oldest
+        endDate = filtered.first.effectiveDate; // First is newest
 
         // Adjust for exact day boundaries
         startDate = DateTime(
@@ -131,8 +131,8 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
     DateTime? startDate;
     DateTime? endDate;
     if (filtered.isNotEmpty) {
-      startDate = filtered.last.workoutDate;
-      endDate = filtered.first.workoutDate;
+      startDate = filtered.last.effectiveDate;
+      endDate = filtered.first.effectiveDate;
       startDate = DateTime(
         startDate.year,
         startDate.month,
@@ -176,8 +176,8 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
     DateTime? startDate;
     DateTime? endDate;
     if (filtered.isNotEmpty) {
-      startDate = filtered.last.workoutDate;
-      endDate = filtered.first.workoutDate;
+      startDate = filtered.last.effectiveDate;
+      endDate = filtered.first.effectiveDate;
       startDate = DateTime(
         startDate.year,
         startDate.month,
@@ -226,6 +226,6 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
     // but looking at previous code, it used `getStartDate` etc.
     // Let's rely on `isInPeriod`.
 
-    return sessions.where((s) => filter.isInPeriod(s.workoutDate)).toList();
+    return sessions.where((s) => filter.isInPeriod(s.effectiveDate)).toList();
   }
 }

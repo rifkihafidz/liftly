@@ -22,10 +22,8 @@ class WorkoutSessionCard extends StatelessWidget {
     final volume = session.totalVolume;
     final planName = session.planName ?? '-';
 
-    String formattedVolume = '${volume.toInt()}';
-    if (volume >= 1000) {
-      formattedVolume = '${(volume / 1000).toStringAsFixed(1)}k';
-    }
+    final volumeFormatter = NumberFormat('#,##0.##', 'pt_BR');
+    String formattedVolume = volumeFormatter.format(volume);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -52,7 +50,7 @@ class WorkoutSessionCard extends StatelessWidget {
                             Text(
                               DateFormat(
                                 'EEEE, dd MMMM yyyy',
-                              ).format(session.workoutDate),
+                              ).format(session.effectiveDate),
                               style: const TextStyle(
                                 color: AppColors.textPrimary,
                                 fontWeight: FontWeight.w700,
@@ -68,6 +66,17 @@ class WorkoutSessionCard extends StatelessWidget {
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
+                            if (session.startedAt != null &&
+                                session.endedAt != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '${DateFormat('HH:mm').format(session.startedAt!)} - ${DateFormat('HH:mm').format(session.endedAt!)}',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

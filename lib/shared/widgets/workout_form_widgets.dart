@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/constants/colors.dart';
-import 'app_dialogs.dart';
 import 'package:intl/intl.dart';
 
 // Reusable datetime dialog untuk session/workout form
@@ -188,7 +187,7 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                           startTime.hour,
                           startTime.minute,
                         );
-                        final end = DateTime(
+                        var end = DateTime(
                           selectedDate.year,
                           selectedDate.month,
                           selectedDate.day,
@@ -196,14 +195,9 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                           endTime.minute,
                         );
 
+                        // Handle cross-midnight workouts: if end is before start, add 1 day
                         if (end.isBefore(start)) {
-                          AppDialogs.showErrorDialog(
-                            context: context,
-                            title: 'Invalid Timeline',
-                            message:
-                                'Workout end time cannot be earlier than the start time.',
-                          );
-                          return;
+                          end = end.add(const Duration(days: 1));
                         }
 
                         Navigator.pop(context, {
@@ -412,12 +406,14 @@ class NumberField extends StatefulWidget {
   final String label;
   final String initialValue;
   final Function(String) onChanged;
+  final bool hasError;
 
   const NumberField({
     super.key,
     required this.label,
     required this.initialValue,
     required this.onChanged,
+    this.hasError = false,
   });
 
   @override
@@ -427,7 +423,6 @@ class NumberField extends StatefulWidget {
 class _NumberFieldState extends State<NumberField> {
   late TextEditingController controller;
   late FocusNode _focusNode;
-  Timer? _debounce;
 
   @override
   void initState() {
@@ -444,8 +439,6 @@ class _NumberFieldState extends State<NumberField> {
         extentOffset: controller.text.length,
       );
     } else {
-      // Flush on focus lost
-      if (_debounce?.isActive ?? false) _debounce!.cancel();
       _flushValue();
     }
   }
@@ -457,7 +450,6 @@ class _NumberFieldState extends State<NumberField> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
     controller.dispose();
     _focusNode.removeListener(_handleFocusChange);
     _focusNode.dispose();
@@ -474,19 +466,28 @@ class _NumberFieldState extends State<NumberField> {
     }
   }
 
-  static final _decorationFrom = InputDecoration(
-    hintText: '6',
-    isDense: true,
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-  );
+  InputDecoration get _decoration {
+    final baseColor = widget.hasError
+        ? AppColors.error
+        : AppColors.borderLight.withValues(alpha: 0.5);
 
-  static final _decorationTo = InputDecoration(
-    hintText: '8',
-    isDense: true,
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-  );
+    return InputDecoration(
+      hintText: widget.label == 'From' ? '6' : '8',
+      isDense: true,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: baseColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(
+          color: widget.hasError ? AppColors.error : AppColors.accent,
+        ),
+      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -509,16 +510,12 @@ class _NumberFieldState extends State<NumberField> {
             LengthLimitingTextInputFormatter(2),
           ],
           onChanged: (v) {
-            if (_debounce?.isActive ?? false) _debounce!.cancel();
-            _debounce = Timer(const Duration(milliseconds: 500), () {
-              widget.onChanged(v.isEmpty ? '0' : v);
-            });
+            widget.onChanged(v.isEmpty ? '0' : v);
           },
           onSubmitted: (_) {
-            if (_debounce?.isActive ?? false) _debounce!.cancel();
             _flushValue();
           },
-          decoration: widget.label == 'From' ? _decorationFrom : _decorationTo,
+          decoration: _decoration,
         ),
       ],
     );
@@ -530,12 +527,14 @@ class ToField extends StatefulWidget {
   final String initialValue;
   final Function(String) onChanged;
   final VoidCallback? onDeleteTap;
+  final bool hasError;
 
   const ToField({
     super.key,
     required this.initialValue,
     required this.onChanged,
     this.onDeleteTap,
+    this.hasError = false,
   });
 
   @override
@@ -545,7 +544,6 @@ class ToField extends StatefulWidget {
 class _ToFieldState extends State<ToField> {
   late TextEditingController controller;
   final FocusNode focusNode = FocusNode();
-  Timer? _debounce;
 
   @override
   void initState() {
@@ -561,7 +559,6 @@ class _ToFieldState extends State<ToField> {
         extentOffset: controller.text.length,
       );
     } else {
-      if (_debounce?.isActive ?? false) _debounce!.cancel();
       _flushValue();
     }
   }
@@ -573,7 +570,6 @@ class _ToFieldState extends State<ToField> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
     controller.dispose();
     focusNode.removeListener(_handleFocusChange);
     focusNode.dispose();
@@ -590,12 +586,28 @@ class _ToFieldState extends State<ToField> {
     }
   }
 
-  static final _decoration = InputDecoration(
-    hintText: '8',
-    isDense: true,
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-  );
+  InputDecoration get _decoration {
+    final baseColor = widget.hasError
+        ? AppColors.error
+        : AppColors.borderLight.withValues(alpha: 0.5);
+
+    return InputDecoration(
+      hintText: '8',
+      isDense: true,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: baseColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(
+          color: widget.hasError ? AppColors.error : AppColors.accent,
+        ),
+      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -632,13 +644,9 @@ class _ToFieldState extends State<ToField> {
             LengthLimitingTextInputFormatter(2),
           ],
           onChanged: (v) {
-            if (_debounce?.isActive ?? false) _debounce!.cancel();
-            _debounce = Timer(const Duration(milliseconds: 500), () {
-              widget.onChanged(v.isEmpty ? '0' : v);
-            });
+            widget.onChanged(v.isEmpty ? '0' : v);
           },
           onSubmitted: (_) {
-            if (_debounce?.isActive ?? false) _debounce!.cancel();
             _flushValue();
           },
           decoration: _decoration,
@@ -781,6 +789,104 @@ class DateTimeInput extends StatelessWidget {
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Reusable Workout Date/Time Card
+class WorkoutDateTimeCard extends StatelessWidget {
+  final DateTime workoutDate;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
+  final VoidCallback onTap;
+
+  const WorkoutDateTimeCard({
+    super.key,
+    required this.workoutDate,
+    required this.startedAt,
+    required this.endedAt,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Format Date
+    final dateStr = DateFormat('EEEE, dd MMMM yyyy').format(workoutDate);
+
+    // Format Time Range
+    String timeRange = 'Set Time';
+    if (startedAt != null && endedAt != null) {
+      final startStr = DateFormat('HH:mm').format(startedAt!);
+      final endStr = DateFormat('HH:mm').format(endedAt!);
+      timeRange = '$startStr - $endStr';
+    } else if (startedAt != null) {
+      final startStr = DateFormat('HH:mm').format(startedAt!);
+      timeRange = '$startStr - ?';
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.calendar_today_rounded,
+                color: AppColors.accent,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dateStr,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    timeRange,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.inputBg,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.edit_rounded,
+                color: AppColors.textSecondary,
+                size: 16,
+              ),
             ),
           ],
         ),

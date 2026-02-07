@@ -11,6 +11,7 @@ class MenuListItem extends StatelessWidget {
   final bool isDestructive;
   final Widget? trailing;
   final EdgeInsetsGeometry? padding;
+  final bool isLoading;
 
   const MenuListItem({
     super.key,
@@ -20,6 +21,7 @@ class MenuListItem extends StatelessWidget {
     required this.color,
     required this.onTap,
     this.isDestructive = false,
+    this.isLoading = false,
     this.trailing,
     this.padding,
   });
@@ -30,7 +32,7 @@ class MenuListItem extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
+          onTap: isLoading ? null : onTap,
           borderRadius: BorderRadius.circular(20),
           child: Container(
             padding: padding ?? const EdgeInsets.all(16),
@@ -85,7 +87,18 @@ class MenuListItem extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (trailing != null)
+                if (isLoading)
+                  SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.textSecondary.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  )
+                else if (trailing != null)
                   trailing!
                 else
                   Icon(

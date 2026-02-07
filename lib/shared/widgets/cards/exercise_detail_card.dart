@@ -106,7 +106,7 @@ class _ExerciseDetailCardState extends State<ExerciseDetailCard> {
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Text(
-                                  '${sets.length} sets • ${widget.formatNumber(widget.exercise.totalVolume)}kg',
+                                  '${sets.length} sets • ${widget.formatNumber(widget.exercise.totalVolume)} kg',
                                   style: const TextStyle(
                                     color: AppColors.textSecondary,
                                     fontSize: 13,
@@ -224,7 +224,7 @@ class _ExerciseDetailCardState extends State<ExerciseDetailCard> {
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      'Total: ${widget.formatNumber(segments.fold(0.0, (sum, seg) => sum + seg.volume))}kg',
+                                      'Total: ${widget.formatNumber(segments.fold(0.0, (sum, seg) => sum + seg.volume))} kg',
                                       style: const TextStyle(
                                         color: AppColors.accent,
                                         fontWeight: FontWeight.bold,
@@ -256,7 +256,7 @@ class _ExerciseDetailCardState extends State<ExerciseDetailCard> {
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        '${segment.weight}kg × ${segment.repsFrom}-${segment.repsTo}',
+                                        '${segment.weight} kg × ${segment.repsFrom}-${segment.repsTo}',
                                         style: const TextStyle(
                                           color: AppColors.textPrimary,
                                           fontWeight: FontWeight.w500,
@@ -264,7 +264,7 @@ class _ExerciseDetailCardState extends State<ExerciseDetailCard> {
                                         ),
                                       ),
                                       Text(
-                                        'Vol: ${widget.formatNumber(segment.weight * (segment.repsTo - segment.repsFrom + 1))}kg',
+                                        'Vol: ${widget.formatNumber(segment.weight * (segment.repsTo - segment.repsFrom + 1))} kg',
                                         style: TextStyle(
                                           color: AppColors.textSecondary
                                               .withValues(alpha: 0.7),

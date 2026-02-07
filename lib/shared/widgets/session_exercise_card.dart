@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../core/constants/colors.dart';
 import '../../core/models/workout_session.dart';
+import '../../features/stats/bloc/stats_state.dart';
 import 'workout_form_widgets.dart';
 
 class SessionExerciseCard extends StatefulWidget {
   final SessionExercise exercise;
   final int exerciseIndex;
   final SessionExercise? history;
-  final SetSegment? pr;
+  final PersonalRecord? pr;
   final VoidCallback onSkipToggle;
   final VoidCallback onHistoryTap;
   final VoidCallback onAddSet;
@@ -58,6 +60,11 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
     super.dispose();
   }
 
+  String _formatNumber(double value) {
+    final formatter = NumberFormat('#,###.##', 'pt_BR');
+    return formatter.format(value);
+  }
+
   @override
   void didUpdateWidget(SessionExerciseCard oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -65,22 +72,30 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
     final isAddSet =
         widget.exercise.sets.length > oldWidget.exercise.sets.length;
     final hasNewScrollTarget =
-        widget.focusedSetIndex != null &&
-        (widget.focusedSetIndex != oldWidget.focusedSetIndex ||
-            widget.focusedSegmentIndex != oldWidget.focusedSegmentIndex ||
-            isAddSet ||
-            (widget.focusedSetIndex! < widget.exercise.sets.length &&
-                oldWidget.focusedSetIndex != null &&
-                oldWidget.focusedSetIndex! < oldWidget.exercise.sets.length &&
-                widget.exercise.sets[widget.focusedSetIndex!].segments.length !=
-                    oldWidget
-                        .exercise
-                        .sets[widget.focusedSetIndex!]
-                        .segments
-                        .length));
+        (widget.focusedSetIndex != null &&
+            (widget.focusedSetIndex != oldWidget.focusedSetIndex ||
+                widget.focusedSegmentIndex != oldWidget.focusedSegmentIndex ||
+                isAddSet ||
+                (widget.focusedSetIndex! < widget.exercise.sets.length &&
+                    oldWidget.focusedSetIndex != null &&
+                    oldWidget.focusedSetIndex! <
+                        oldWidget.exercise.sets.length &&
+                    widget
+                            .exercise
+                            .sets[widget.focusedSetIndex!]
+                            .segments
+                            .length !=
+                        oldWidget
+                            .exercise
+                            .sets[widget.focusedSetIndex!]
+                            .segments
+                            .length))) ||
+        (isAddSet && widget.focusedSetIndex == null);
 
     if (hasNewScrollTarget) {
-      _scrollToSetIndex = widget.focusedSetIndex;
+      _scrollToSetIndex =
+          widget.focusedSetIndex ??
+          (isAddSet ? widget.exercise.sets.length - 1 : null);
 
       if (!_isExpanded) {
         setState(() {
@@ -88,21 +103,29 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
         });
       }
 
-      if (!isAddSet || !widget.isAlwaysExpanded) {
-        Future.delayed(const Duration(milliseconds: 400), () {
-          if (mounted && _scrollTargetKey.currentContext != null) {
-            Scrollable.ensureVisible(
-              _scrollTargetKey.currentContext!,
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.fastOutSlowIn,
-              alignment: widget.isLastExercise ? 0.85 : 0.8,
-            );
-            _scrollToSetIndex = null;
-          }
+      // Use WidgetsBinding to scroll after the frame is rendered
+      // This ensures the layout is complete before scrolling
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _scrollTargetKey.currentContext == null) return;
+
+        // Use a short delay to ensure keyboard dismissal animation completes
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (!mounted || _scrollTargetKey.currentContext == null) return;
+
+          Scrollable.ensureVisible(
+            _scrollTargetKey.currentContext!,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeOutCubic,
+            alignment: widget.isLastExercise ? 0.8 : 0.5,
+          ).then((_) {
+            if (mounted) {
+              setState(() {
+                _scrollToSetIndex = null;
+              });
+            }
+          });
         });
-      } else {
-        _scrollToSetIndex = null;
-      }
+      });
     }
 
     if (widget.exercise.skipped && !oldWidget.exercise.skipped) {
@@ -171,6 +194,12 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                 child: Column(
                   children: [
                     const Divider(height: 1),
+                    if (widget.pr != null) ...[
+                      const SizedBox(height: 12),
+                      _buildPRSummary(context),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                    ],
                     const SizedBox(height: 16),
                     for (int setIndex = 0; setIndex < sets.length; setIndex++)
                       _SetRow(
@@ -178,6 +207,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                         set: sets[setIndex],
                         setIndex: setIndex,
                         totalSets: sets.length,
+                        exerciseName: widget.exercise.name,
                         scrollTargetKey: setIndex == _scrollToSetIndex
                             ? _scrollTargetKey
                             : null,
@@ -201,6 +231,12 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                         child: Column(
                           children: [
                             const Divider(height: 1),
+                            if (widget.pr != null) ...[
+                              const SizedBox(height: 12),
+                              _buildPRSummary(context),
+                              const SizedBox(height: 12),
+                              const Divider(height: 1),
+                            ],
                             const SizedBox(height: 16),
                             for (
                               int setIndex = 0;
@@ -212,6 +248,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                                 set: sets[setIndex],
                                 setIndex: setIndex,
                                 totalSets: sets.length,
+                                exerciseName: widget.exercise.name,
                                 scrollTargetKey: setIndex == _scrollToSetIndex
                                     ? _scrollTargetKey
                                     : null,
@@ -256,7 +293,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
         Icon(Icons.fitness_center, size: 16, color: AppColors.textSecondary),
         const SizedBox(width: 8),
         Text(
-          'Vol: ${totalVol > 0 ? totalVol.toInt() : "-"} kg',
+          'Vol: ${totalVol > 0 ? _formatNumber(totalVol) : "-"} kg',
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
@@ -410,6 +447,76 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
       ],
     );
   }
+
+  Widget _buildPRSummary(BuildContext context) {
+    final pr = widget.pr!;
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Best Heavy',
+                style: TextStyle(
+                  color: AppColors.accent,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '${_formatNumber(pr.maxWeight)} kg',
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '${pr.maxWeightReps} reps',
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Best Volume',
+                style: TextStyle(
+                  color: AppColors.accent,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '${_formatNumber(pr.maxVolume)} kg',
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                pr.maxVolumeBreakdown.isNotEmpty
+                    ? pr.maxVolumeBreakdown
+                    : '${_formatNumber(pr.maxVolumeWeight)} kg x ${pr.maxVolumeReps}',
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Extracted widget for a single set row - allows Flutter to skip rebuilding
@@ -418,6 +525,7 @@ class _SetRow extends StatelessWidget {
   final ExerciseSet set;
   final int setIndex;
   final int totalSets;
+  final String exerciseName;
   final GlobalKey? scrollTargetKey;
   final Function(int setIndex, int segmentIndex, String field, dynamic value)
   onUpdateSegment;
@@ -431,6 +539,7 @@ class _SetRow extends StatelessWidget {
     required this.set,
     required this.setIndex,
     required this.totalSets,
+    required this.exerciseName,
     this.scrollTargetKey,
     required this.onUpdateSegment,
     required this.onRemoveSet,
@@ -451,6 +560,7 @@ class _SetRow extends StatelessWidget {
           _SetHeader(
             set: set,
             setIndex: setIndex,
+            exerciseName: exerciseName,
             isDropSet: isDropSet,
             onRemoveSet: onRemoveSet,
           ),
@@ -460,6 +570,7 @@ class _SetRow extends StatelessWidget {
             _SegmentRow(
               key: ValueKey('seg_row_${set.id}_${segments[segIndex].id}'),
               segment: segments[segIndex],
+              previousSegment: segIndex > 0 ? segments[segIndex - 1] : null,
               setIndex: setIndex,
               segmentIndex: segIndex,
               setId: set.id,
@@ -494,12 +605,14 @@ class _SetRow extends StatelessWidget {
 class _SetHeader extends StatelessWidget {
   final ExerciseSet set;
   final int setIndex;
+  final String exerciseName;
   final bool isDropSet;
   final Function(int setIndex) onRemoveSet;
 
   const _SetHeader({
     required this.set,
     required this.setIndex,
+    required this.exerciseName,
     required this.isDropSet,
     required this.onRemoveSet,
   });
@@ -512,6 +625,27 @@ class _SetHeader extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Divider(height: 1),
+          ),
+        // Exercise name badge - shows context for which exercise user is working on
+        if (setIndex > 0)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.textSecondary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                exerciseName.toUpperCase(),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
           ),
         Row(
           children: [
@@ -570,6 +704,7 @@ class _SetHeader extends StatelessWidget {
 /// unchanged segments when only one segment is edited.
 class _SegmentRow extends StatelessWidget {
   final SetSegment segment;
+  final SetSegment? previousSegment;
   final int setIndex;
   final int segmentIndex;
   final String setId;
@@ -581,6 +716,7 @@ class _SegmentRow extends StatelessWidget {
   const _SegmentRow({
     super.key,
     required this.segment,
+    this.previousSegment,
     required this.setIndex,
     required this.segmentIndex,
     required this.setId,
@@ -591,6 +727,14 @@ class _SegmentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Validation Logic
+    final isToInvalid = segment.repsTo < segment.repsFrom;
+    final isDropSetInvalid =
+        segmentIndex > 0 &&
+        previousSegment != null &&
+        (segment.repsFrom <= previousSegment!.repsFrom ||
+            segment.repsTo <= previousSegment!.repsTo);
+
     return RepaintBoundary(
       child: Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -621,6 +765,7 @@ class _SegmentRow extends StatelessWidget {
                   'repsFrom',
                   int.tryParse(v) ?? 0,
                 ),
+                hasError: isDropSetInvalid,
               ),
             ),
             const SizedBox(width: 8),
@@ -637,6 +782,7 @@ class _SegmentRow extends StatelessWidget {
                 onDeleteTap: canDelete
                     ? () => onRemoveDropSet(setIndex, segmentIndex)
                     : null,
+                hasError: isToInvalid || isDropSetInvalid,
               ),
             ),
           ],

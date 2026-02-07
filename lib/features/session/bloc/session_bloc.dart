@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../core/services/backup_service.dart';
 import '../../workout_log/repositories/workout_repository.dart';
+import '../../stats/bloc/stats_state.dart';
 import 'session_event.dart';
 import 'session_state.dart';
 
@@ -84,7 +85,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         userId: event.userId,
         planId: event.planId,
         workoutDate: workoutDate,
-        startedAt: null,
+        startedAt: now,
         exercises: exercises,
         createdAt: now,
         updatedAt: now,
@@ -95,7 +96,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       final historyFutures = <Future<void>>[];
 
       final previousSessions = <String, SessionExercise>{};
-      final exercisePRs = <String, SetSegment>{};
+      final exercisePRs = <String, PersonalRecord>{};
 
       for (final name in exerciseNames) {
         historyFutures.add(
@@ -240,13 +241,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     ]);
 
     final lastLog = results[0] as SessionExercise?;
-    final pr = results[1] as SetSegment?;
+    final pr = results[1] as PersonalRecord?;
 
     if (lastLog != null || pr != null) {
       Map<String, SessionExercise> updatedPreviousSessions = Map.from(
         updatedState.previousSessions,
       );
-      Map<String, SetSegment> updatedExercisePRs = Map.from(
+      Map<String, PersonalRecord> updatedExercisePRs = Map.from(
         updatedState.exercisePRs,
       );
 
@@ -316,13 +317,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       ]);
 
       final lastLog = results[0] as SessionExercise?;
-      final pr = results[1] as SetSegment?;
+      final pr = results[1] as PersonalRecord?;
 
       if (lastLog != null || pr != null) {
         Map<String, SessionExercise> updatedPreviousSessions = Map.from(
           currentState.previousSessions,
         );
-        Map<String, SetSegment> updatedExercisePRs = Map.from(
+        Map<String, PersonalRecord> updatedExercisePRs = Map.from(
           currentState.exercisePRs,
         );
 
@@ -377,16 +378,25 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         final exercise = exercises[event.exerciseIndex];
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final setNumber = exercise.sets.length + 1;
+        // Auto-fill notes from previous set
+        String initialNotes = '';
+        if (exercise.sets.isNotEmpty) {
+          final previousSet = exercise.sets.last;
+          if (previousSet.segments.isNotEmpty) {
+            initialNotes = previousSet.segments.last.notes;
+          }
+        }
+
         final newSet = ExerciseSet(
           id: 'set_${timestamp}_ex${event.exerciseIndex}_s$setNumber',
           segments: [
             SetSegment(
               id: 'seg_${timestamp}_ex${event.exerciseIndex}_s${setNumber}_0',
-              weight: event.weight ?? 0.0,
-              repsFrom: event.repsFrom ?? 1,
-              repsTo: event.repsTo ?? 12,
+              weight: 0.0,
+              repsFrom: 1,
+              repsTo: 12,
+              notes: initialNotes,
               segmentOrder: 0,
-              notes: event.notes ?? '',
             ),
           ],
           setNumber: setNumber,
@@ -449,11 +459,25 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         final sets = List<ExerciseSet>.from(exercise.sets);
         final set = sets[event.setIndex];
         final segmentOrder = set.segments.length;
+
+        // Auto-fill logic: From = Previous To + 1
+        int initialRepsFrom = 1;
+        int initialRepsTo = 12; // Default fallback
+
+        if (set.segments.isNotEmpty) {
+          final previousSegment = set.segments.last;
+          initialRepsFrom = previousSegment.repsTo + 1;
+          // Ensure To is at least equal to From to pass validation
+          if (initialRepsTo < initialRepsFrom) {
+            initialRepsTo = initialRepsFrom;
+          }
+        }
+
         final newSegment = SetSegment(
           id: 'seg_${DateTime.now().millisecondsSinceEpoch}_ex${event.exerciseIndex}_s${event.setIndex}_seg$segmentOrder',
           weight: 0.0,
-          repsFrom: 1,
-          repsTo: 12,
+          repsFrom: initialRepsFrom,
+          repsTo: initialRepsTo,
           segmentOrder: segmentOrder,
           notes: '',
         );
@@ -585,7 +609,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       startedAt: currentState.session.startedAt,
       exercises: currentState.session.exercises,
       createdAt: currentState.session.createdAt,
-      endedAt: currentState.session.endedAt,
+      endedAt: currentState.session.endedAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
 
@@ -638,7 +662,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       final historyFutures = <Future<void>>[];
 
       final previousSessions = <String, SessionExercise>{};
-      final exercisePRs = <String, SetSegment>{};
+      final exercisePRs = <String, PersonalRecord>{};
 
       for (final name in exerciseNames) {
         historyFutures.add(

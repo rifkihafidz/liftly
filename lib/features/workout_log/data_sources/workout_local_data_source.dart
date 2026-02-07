@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:flutter/foundation.dart';
 import 'package:liftly/core/models/workout_session.dart';
 import 'package:liftly/core/services/sqlite_service.dart';
+import 'package:liftly/features/stats/bloc/stats_state.dart';
 
 class WorkoutLocalDataSource {
   /// Log database operations
@@ -695,13 +696,13 @@ class WorkoutLocalDataSource {
     try {
       final database = SQLiteService.database;
 
-      // Find the most recent workout that includes this exercise
+      // Find the most recent workout that includes this exercise (NOT skipped)
       final result = await database.rawQuery(
         '''
         SELECT w.id, w.workout_date
         FROM workouts w
         JOIN workout_exercises we ON w.id = we.workout_id
-        WHERE w.user_id = ? AND we.name = ? AND w.is_draft = 0
+        WHERE w.user_id = ? AND we.name = ? AND w.is_draft = 0 AND we.skipped = 0
         ORDER BY w.workout_date DESC
         LIMIT 1
       ''',
@@ -778,35 +779,144 @@ class WorkoutLocalDataSource {
 
   /// Get the Personal Record (PR) for a specific exercise
   /// Returns the segment with the highest weight
-  Future<SetSegment?> getExercisePR(String userId, String exerciseName) async {
+  Future<PersonalRecord?> getExercisePR(
+    String userId,
+    String exerciseName,
+  ) async {
     try {
       final database = SQLiteService.database;
 
-      // Find the segment with max weight for this exercise
-      final result = await database.rawQuery(
+      // Metric 1: Best Heavy Set (Max Weight)
+      final heavyResult = await database.rawQuery(
         '''
-        SELECT ss.*
+        SELECT ss.weight, MAX(ss.reps_from, ss.reps_to) as reps
         FROM set_segments ss
         JOIN workout_sets ws ON ss.set_id = ws.id
         JOIN workout_exercises we ON ws.exercise_id = we.id
         JOIN workouts w ON we.workout_id = w.id
         WHERE w.user_id = ? AND we.name = ? AND w.is_draft = 0
-        ORDER BY ss.weight DESC, MAX(ss.reps_from, ss.reps_to) DESC
+        ORDER BY ss.weight DESC, reps DESC
         LIMIT 1
       ''',
         [userId, exerciseName],
       );
 
-      if (result.isEmpty) return null;
+      // Metric 2: Best Volume Set (Total Set Volume: Main + Drop segments)
+      final volumeResult = await database.rawQuery(
+        '''
+        SELECT 
+          ws.id as set_id,
+          ss.weight,
+          MAX(ss.reps_from, ss.reps_to) as reps,
+          SUM(ss.weight * MAX(ss.reps_from, ss.reps_to)) as total_volume,
+          '(' || GROUP_CONCAT(ss.weight || ' kg x ' || MAX(ss.reps_from, ss.reps_to), ' + ') || ')' as breakdown
+        FROM set_segments ss
+        JOIN workout_sets ws ON ss.set_id = ws.id
+        JOIN workout_exercises we ON ws.exercise_id = we.id
+        JOIN workouts w ON we.workout_id = w.id
+        WHERE w.user_id = ? AND we.name = ? AND w.is_draft = 0
+        GROUP BY ws.id
+        ORDER BY total_volume DESC, ss.weight DESC
+        LIMIT 1
+      ''',
+        [userId, exerciseName],
+      );
 
-      final row = result.first;
-      return SetSegment(
-        id: row['id'] as String,
-        weight: (row['weight'] as num?)?.toDouble() ?? 0,
-        repsFrom: row['reps_from'] as int? ?? 0,
-        repsTo: row['reps_to'] as int? ?? 0,
-        segmentOrder: row['segment_order'] as int? ?? 0,
-        notes: row['notes'] as String? ?? '',
+      // Metric 3: Best Session (Highest total volume for this exercise in one workout)
+      final sessionResult = await database.rawQuery(
+        '''
+        SELECT 
+          w.id as workout_id,
+          w.workout_date,
+          SUM(ss.weight * MAX(ss.reps_from, ss.reps_to)) as session_volume
+        FROM set_segments ss
+        JOIN workout_sets ws ON ss.set_id = ws.id
+        JOIN workout_exercises we ON ws.exercise_id = we.id
+        JOIN workouts w ON we.workout_id = w.id
+        WHERE w.user_id = ? AND we.name = ? AND w.is_draft = 0
+        GROUP BY w.id
+        ORDER BY session_volume DESC, w.workout_date DESC
+        LIMIT 1
+      ''',
+        [userId, exerciseName],
+      );
+
+      if (heavyResult.isEmpty &&
+          volumeResult.isEmpty &&
+          sessionResult.isEmpty) {
+        return null;
+      }
+
+      final heavyRow = heavyResult.isNotEmpty ? heavyResult.first : null;
+      final volRow = volumeResult.isNotEmpty ? volumeResult.first : null;
+      final sessionRow = sessionResult.isNotEmpty ? sessionResult.first : null;
+
+      List<ExerciseSet>? bestSets;
+      if (sessionRow != null) {
+        final workoutId = sessionRow['workout_id'] as String;
+
+        // Fetch sets for this specific session and exercise
+        final setsResult = await database.rawQuery(
+          '''
+          SELECT 
+            ws.id as set_id,
+            ws.set_number,
+            ss.id as segment_id,
+            ss.weight,
+            ss.reps_from,
+            ss.reps_to,
+            ss.segment_order,
+            ss.notes
+          FROM workout_sets ws
+          JOIN set_segments ss ON ws.id = ss.set_id
+          JOIN workout_exercises we ON ws.exercise_id = we.id
+          WHERE we.workout_id = ? AND we.name = ?
+          ORDER BY ws.set_number ASC, ss.segment_order ASC
+          ''',
+          [workoutId, exerciseName],
+        );
+
+        final setsMap = <String, List<SetSegment>>{};
+        final setNumbers = <String, int>{};
+
+        for (final row in setsResult) {
+          final sId = row['set_id'] as String;
+          setNumbers[sId] = row['set_number'] as int;
+          setsMap
+              .putIfAbsent(sId, () => [])
+              .add(
+                SetSegment(
+                  id: row['segment_id'] as String,
+                  weight: (row['weight'] as num).toDouble(),
+                  repsFrom: row['reps_from'] as int,
+                  repsTo: row['reps_to'] as int,
+                  segmentOrder: row['segment_order'] as int,
+                  notes: row['notes'] as String? ?? '',
+                ),
+              );
+        }
+
+        bestSets = setsMap.entries.map((e) {
+          return ExerciseSet(
+            id: e.key,
+            setNumber: setNumbers[e.key]!,
+            segments: e.value,
+          );
+        }).toList();
+        bestSets.sort((a, b) => a.setNumber.compareTo(b.setNumber));
+      }
+
+      return PersonalRecord(
+        maxWeight: (heavyRow?['weight'] as num?)?.toDouble() ?? 0,
+        maxWeightReps: heavyRow?['reps'] as int? ?? 0,
+        maxVolume: (volRow?['total_volume'] as num?)?.toDouble() ?? 0,
+        maxVolumeWeight: (volRow?['weight'] as num?)?.toDouble() ?? 0,
+        maxVolumeReps: volRow?['reps'] as int? ?? 0,
+        maxVolumeBreakdown: volRow?['breakdown'] as String? ?? '',
+        bestSessionVolume:
+            (sessionRow?['session_volume'] as num?)?.toDouble() ?? 0,
+        bestSessionDate: sessionRow?['workout_date'] as String?,
+        bestSessionSets: bestSets,
       );
     } catch (e) {
       _log('SELECT', 'getExercisePR: FAILED - $e');
@@ -838,14 +948,14 @@ class WorkoutLocalDataSource {
     }
   }
 
-  Future<Map<String, double>> getAllPersonalRecords(
+  Future<Map<String, PersonalRecord>> getAllPersonalRecords(
     String userId, {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
     try {
       final database = SQLiteService.database;
-      _log('SELECT', 'Personal Records (MAX weight) with date filter');
+      _log('SELECT', 'Personal Records (Max Weight & Max Volume Set)');
 
       String whereClause = 'w.user_id = ? AND w.is_draft = 0';
       List<dynamic> args = [userId];
@@ -856,24 +966,139 @@ class WorkoutLocalDataSource {
         args.add(SQLiteService.formatDateTime(endDate));
       }
 
-      final result = await database.rawQuery('''
-        SELECT we.name, MAX(ss.weight) as max_weight
-        FROM set_segments ss
-        JOIN workout_sets ws ON ss.set_id = ws.id
-        JOIN workout_exercises we ON ws.exercise_id = we.id
-        JOIN workouts w ON we.workout_id = w.id
-        WHERE $whereClause
-        GROUP BY we.name
+      // 1. Get Best Heavy Set (Max Weight, then Max Reps) - Individual Segment based
+      final weightResult = await database.rawQuery('''
+        WITH ranked_weights AS (
+            SELECT 
+                we.name,
+                ss.weight,
+                (ss.reps_to - ss.reps_from + 1) as reps,
+                ROW_NUMBER() OVER (
+                    PARTITION BY we.name 
+                    ORDER BY ss.weight DESC, (ss.reps_to - ss.reps_from + 1) DESC
+                ) as rn
+            FROM set_segments ss
+            JOIN workout_sets ws ON ss.set_id = ws.id
+            JOIN workout_exercises we ON ws.exercise_id = we.id
+            JOIN workouts w ON we.workout_id = w.id
+            WHERE $whereClause
+        )
+        SELECT name, weight, reps FROM ranked_weights WHERE rn = 1
       ''', args);
 
-      final records = <String, double>{};
-      for (final row in result) {
+      final maxWeights = <String, Map<String, dynamic>>{};
+      for (final row in weightResult) {
         final name = row['name'] as String;
-        final maxWeight = (row['max_weight'] as num?)?.toDouble() ?? 0.0;
-        if (maxWeight > 0) {
-          records[name] = maxWeight;
-        }
+        maxWeights[name] = {
+          'weight': (row['weight'] as num?)?.toDouble() ?? 0.0,
+          'reps': (row['reps'] as num?)?.toInt() ?? 0,
+        };
       }
+
+      // 2. Get Best Volume Set (Total Set Volume = Sum of segment volumes)
+      final volumeResult = await database.rawQuery('''
+        WITH set_volumes AS (
+            SELECT 
+                we.name,
+                ws.id as set_id,
+                ss.weight as main_weight,
+                (ss.reps_to - ss.reps_from + 1) as main_reps,
+                SUM(ss.weight * (ss.reps_to - ss.reps_from + 1)) as total_volume,
+                '(' || GROUP_CONCAT(ss.weight || ' kg x ' || (ss.reps_to - ss.reps_from + 1), ' + ') || ')' as breakdown
+            FROM set_segments ss
+            JOIN workout_sets ws ON ss.set_id = ws.id
+            JOIN workout_exercises we ON ws.exercise_id = we.id
+            JOIN workouts w ON we.workout_id = w.id
+            WHERE $whereClause
+            GROUP BY ws.id
+        ),
+        ranked_volumes AS (
+            SELECT 
+                name, main_weight, main_reps, total_volume, breakdown,
+                ROW_NUMBER() OVER (
+                    PARTITION BY name 
+                    ORDER BY total_volume DESC, main_weight DESC
+                ) as rn
+            FROM set_volumes
+        )
+        SELECT name, main_weight, main_reps, total_volume, breakdown 
+        FROM ranked_volumes WHERE rn = 1
+      ''', args);
+
+      final maxVolumes = <String, Map<String, dynamic>>{};
+      for (final row in volumeResult) {
+        final name = row['name'] as String;
+        maxVolumes[name] = {
+          'volume': (row['total_volume'] as num?)?.toDouble() ?? 0.0,
+          'weight': (row['main_weight'] as num?)?.toDouble() ?? 0.0,
+          'reps': (row['main_reps'] as num?)?.toInt() ?? 0,
+          'breakdown': row['breakdown'] as String? ?? '',
+        };
+      }
+
+      // 3. Get Best Session (Highest total volume for this exercise in one workout)
+      final sessionResult = await database.rawQuery('''
+        WITH session_volumes AS (
+            SELECT 
+                we.name,
+                w.id as workout_id,
+                w.workout_date,
+                SUM(ss.weight * (ss.reps_to - ss.reps_from + 1)) as total_volume
+            FROM set_segments ss
+            JOIN workout_sets ws ON ss.set_id = ws.id
+            JOIN workout_exercises we ON ws.exercise_id = we.id
+            JOIN workouts w ON we.workout_id = w.id
+            WHERE $whereClause
+            GROUP BY we.name, w.id
+        ),
+        ranked_sessions AS (
+            SELECT 
+                name, workout_date, total_volume,
+                ROW_NUMBER() OVER (
+                    PARTITION BY name 
+                    ORDER BY total_volume DESC, workout_date DESC
+                ) as rn
+            FROM session_volumes
+        )
+        SELECT name, workout_date, total_volume 
+        FROM ranked_sessions WHERE rn = 1
+      ''', args);
+
+      final maxSessions = <String, Map<String, dynamic>>{};
+      for (final row in sessionResult) {
+        final name = row['name'] as String;
+        maxSessions[name] = {
+          'volume': (row['total_volume'] as num?)?.toDouble() ?? 0.0,
+          'date': row['workout_date'] as String?,
+        };
+      }
+
+      // 3. Merge results
+      final records = <String, PersonalRecord>{};
+      final allNames = {
+        ...maxWeights.keys,
+        ...maxVolumes.keys,
+        ...maxSessions.keys,
+      };
+
+      for (final name in allNames) {
+        final weightData = maxWeights[name];
+        final volumeData = maxVolumes[name];
+        final sessionData = maxSessions[name];
+
+        records[name] = PersonalRecord(
+          maxWeight: (weightData?['weight'] as num?)?.toDouble() ?? 0.0,
+          maxWeightReps: (weightData?['reps'] as num?)?.toInt() ?? 0,
+          maxVolume: (volumeData?['volume'] as num?)?.toDouble() ?? 0.0,
+          maxVolumeWeight: (volumeData?['weight'] as num?)?.toDouble() ?? 0.0,
+          maxVolumeReps: (volumeData?['reps'] as num?)?.toInt() ?? 0,
+          maxVolumeBreakdown: volumeData?['breakdown'] as String? ?? '',
+          bestSessionVolume:
+              (sessionData?['volume'] as num?)?.toDouble() ?? 0.0,
+          bestSessionDate: sessionData?['date'] as String?,
+        );
+      }
+
       return records;
     } catch (e) {
       _log('SELECT', 'getAllPersonalRecords: FAILED - $e');

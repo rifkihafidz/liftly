@@ -36,7 +36,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
   final List<SessionExercise> _customExercises = [];
   final _exerciseFocusNode = FocusNode();
   bool _isAddingExercise = false;
-  PlanSortOption _sortOption = PlanSortOption.newest;
+  PlanSortOption _sortOption = PlanSortOption.oldest;
 
   List<WorkoutPlan> _sortedPlans = [];
   final List<String> _availableExercises = [];

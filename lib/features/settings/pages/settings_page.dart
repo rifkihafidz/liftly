@@ -21,6 +21,7 @@ class _SettingsPageState extends State<SettingsPage> {
   GoogleSignInAccount? _currentUser;
   bool _isAutoBackupEnabled = false;
   bool _isLoading = false;
+  bool _isInitializing = true;
 
   @override
   void initState() {
@@ -38,6 +39,7 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() {
         _currentUser = backupService.currentUser;
         _isAutoBackupEnabled = autoBackup == 'true';
+        _isInitializing = false;
       });
     }
   }
@@ -359,7 +361,19 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: SectionHeader(title: 'CLOUD BACKUP'),
                     ),
                     const SizedBox(height: 16),
-                    if (_currentUser == null)
+                    if (_isInitializing)
+                      FadeInSlide(
+                        index: 1,
+                        child: MenuListItem(
+                          title: 'Checking Status',
+                          subtitle: 'Verifying Google Account...',
+                          icon: Icons.sync,
+                          color: AppColors.textSecondary,
+                          onTap: () {},
+                          isLoading: true,
+                        ),
+                      )
+                    else if (_currentUser == null)
                       FadeInSlide(
                         index: 1,
                         child: MenuListItem(
@@ -368,6 +382,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           icon: Icons.cloud_outlined,
                           color: AppColors.accent,
                           onTap: _handleGoogleConnect,
+                          isLoading: _isLoading,
                         ),
                       )
                     else ...[

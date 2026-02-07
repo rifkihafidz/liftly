@@ -33,7 +33,6 @@ class WorkoutDetailPage extends StatefulWidget {
 class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
   late WorkoutSession _currentWorkout;
   bool _isDeleting = false;
-  static final _thousandSeparator = RegExp(r'\B(?=(\d{3})+(?!\d))');
 
   @override
   void initState() {
@@ -54,24 +53,8 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
   }
 
   String formatNumber(double number) {
-    String format;
-    if (number % 1 == 0) {
-      format = number.toInt().toString();
-    } else {
-      format = number.toStringAsFixed(1);
-    }
-
-    // Add thousand separator
-    final parts = format.split('.');
-    final intPart = parts[0];
-    final decimalPart = parts.length > 1 ? parts[1] : '';
-
-    final formattedInt = intPart.replaceAllMapped(
-      _thousandSeparator,
-      (match) => '.',
-    );
-
-    return decimalPart.isEmpty ? formattedInt : '$formattedInt.$decimalPart';
+    final formatter = NumberFormat('#,##0.##', 'pt_BR');
+    return formatter.format(number);
   }
 
   String _formatDuration(Duration duration) {
@@ -90,7 +73,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
   @override
   Widget build(BuildContext context) {
     final workout = _currentWorkout;
-    final workoutDate = workout.workoutDate;
+    final workoutDate = workout.effectiveDate;
     final startedAt = workout.startedAt;
     final endedAt = workout.endedAt;
 

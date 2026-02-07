@@ -1,5 +1,6 @@
 import '../../../core/models/workout_session.dart';
 import '../data_sources/workout_local_data_source.dart';
+import '../../stats/bloc/stats_state.dart';
 
 class WorkoutRepository {
   final WorkoutLocalDataSource _localDataSource = WorkoutLocalDataSource();
@@ -75,7 +76,7 @@ class WorkoutRepository {
     }
   }
 
-  Future<SetSegment?> getExercisePR({
+  Future<PersonalRecord?> getExercisePR({
     required String userId,
     required String exerciseName,
   }) async {
@@ -102,7 +103,7 @@ class WorkoutRepository {
     }
   }
 
-  Future<Map<String, double>> getAllPersonalRecords({
+  Future<Map<String, PersonalRecord>> getAllPersonalRecords({
     required String userId,
     DateTime? startDate,
     DateTime? endDate,

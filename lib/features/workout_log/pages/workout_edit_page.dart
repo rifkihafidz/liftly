@@ -2,7 +2,7 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
-import 'package:intl/intl.dart';
+
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/workout_form_widgets.dart';
 import '../../../core/models/workout_session.dart';
@@ -12,6 +12,7 @@ import '../../../../shared/widgets/cards/exercise_list_summary_card.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
+import '../../stats/bloc/stats_state.dart';
 import '../../plans/bloc/plan_bloc.dart';
 import '../../plans/bloc/plan_event.dart';
 import '../../plans/bloc/plan_state.dart';
@@ -31,7 +32,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
   late WorkoutSession _editedWorkout;
   final _workoutRepository = WorkoutRepository();
   final Map<String, SessionExercise> _previousSessions = {};
-  final Map<String, SetSegment> _exercisePRs = {};
+  final Map<String, PersonalRecord> _exercisePRs = {};
 
   @override
   void initState() {
@@ -47,10 +48,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
       final name = exercise.name;
       _loadHistoryAndPRsRecursive(name);
     }
-  }
-
-  String _formatDate(DateTime date) {
-    return DateFormat('EEEE, dd MMMM yyyy').format(date);
   }
 
   void _saveChanges() {
@@ -200,99 +197,34 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_today_rounded,
-                                size: 16,
-                                color: AppColors.accent,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _formatDate(workoutDate),
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: DateTimeInput(
-                                  label: 'Started At',
-                                  dateTime: _editedWorkout.startedAt,
-                                  onTap: () async {
-                                    final result =
-                                        await showDialog<
-                                          Map<String, DateTime?>
-                                        >(
-                                          context: context,
-                                          barrierDismissible: false,
-                                          builder: (context) =>
-                                              WorkoutDateTimeDialog(
-                                                initialWorkoutDate: workoutDate,
-                                                initialStartedAt:
-                                                    _editedWorkout.startedAt,
-                                                initialEndedAt:
-                                                    _editedWorkout.endedAt,
-                                              ),
-                                        );
-                                    if (result != null) {
-                                      setState(() {
-                                        _editedWorkout = _editedWorkout
-                                            .copyWith(
-                                              workoutDate:
-                                                  result['workoutDate'] ??
-                                                  _editedWorkout.workoutDate,
-                                              startedAt: result['startedAt'],
-                                              endedAt: result['endedAt'],
-                                            );
-                                      });
-                                    }
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: DateTimeInput(
-                                  label: 'Ended At',
-                                  dateTime: _editedWorkout.endedAt,
-                                  onTap: () async {
-                                    final result =
-                                        await showDialog<
-                                          Map<String, DateTime?>
-                                        >(
-                                          context: context,
-                                          barrierDismissible: false,
-                                          builder: (context) =>
-                                              WorkoutDateTimeDialog(
-                                                initialWorkoutDate: workoutDate,
-                                                initialStartedAt:
-                                                    _editedWorkout.startedAt,
-                                                initialEndedAt:
-                                                    _editedWorkout.endedAt,
-                                              ),
-                                        );
-                                    if (result != null) {
-                                      setState(() {
-                                        _editedWorkout = _editedWorkout
-                                            .copyWith(
-                                              workoutDate:
-                                                  result['workoutDate'] ??
-                                                  _editedWorkout.workoutDate,
-                                              startedAt: result['startedAt'],
-                                              endedAt: result['endedAt'],
-                                            );
-                                      });
-                                    }
-                                  },
-                                ),
-                              ),
-                            ],
+                          WorkoutDateTimeCard(
+                            workoutDate: workoutDate,
+                            startedAt: _editedWorkout.startedAt,
+                            endedAt: _editedWorkout.endedAt,
+                            onTap: () async {
+                              final result =
+                                  await showDialog<Map<String, DateTime?>>(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (context) => WorkoutDateTimeDialog(
+                                      initialWorkoutDate: workoutDate,
+                                      initialStartedAt:
+                                          _editedWorkout.startedAt,
+                                      initialEndedAt: _editedWorkout.endedAt,
+                                    ),
+                                  );
+                              if (result != null) {
+                                setState(() {
+                                  _editedWorkout = _editedWorkout.copyWith(
+                                    workoutDate:
+                                        result['workoutDate'] ??
+                                        _editedWorkout.workoutDate,
+                                    startedAt: result['startedAt'],
+                                    endedAt: result['endedAt'],
+                                  );
+                                });
+                              }
+                            },
                           ),
                         ],
                       ),
@@ -553,7 +485,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     BuildContext context,
     String exerciseName,
     SessionExercise? history,
-    SetSegment? pr,
+    PersonalRecord? pr,
   ) {
     showModalBottomSheet(
       context: context,
@@ -801,7 +733,7 @@ class _ExerciseEditSheet extends StatefulWidget {
   final SessionExercise initialExercise;
   final int exerciseIndex;
   final SessionExercise? history;
-  final SetSegment? pr;
+  final PersonalRecord? pr;
   final Function(SessionExercise) onSave;
   final VoidCallback onDelete;
   final VoidCallback? onEditName;
@@ -838,25 +770,6 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      if (_saveButtonKey.currentContext != null) {
-        Scrollable.ensureVisible(
-          _saveButtonKey.currentContext!,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.fastOutSlowIn,
-        );
-      } else if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.fastOutSlowIn,
-        );
-      }
-    });
   }
 
   @override
@@ -993,6 +906,15 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
                 );
                 final timestamp = DateTime.now().millisecondsSinceEpoch;
 
+                // Auto-fill notes from previous set
+                String initialNotes = '';
+                if (currentSets.isNotEmpty) {
+                  final previousSet = currentSets.last;
+                  if (previousSet.segments.isNotEmpty) {
+                    initialNotes = previousSet.segments.last.notes;
+                  }
+                }
+
                 final newSet = ExerciseSet(
                   id: 'set_${timestamp}_${currentSets.length}',
                   setNumber: currentSets.length + 1,
@@ -1002,7 +924,7 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
                       weight: 0.0,
                       repsFrom: 1,
                       repsTo: 12,
-                      notes: '',
+                      notes: initialNotes,
                       segmentOrder: 0,
                     ),
                   ],
@@ -1010,7 +932,6 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
 
                 currentSets.add(newSet);
                 _currentExercise = _currentExercise.copyWith(sets: currentSets);
-                _scrollToBottom();
               });
             },
             onRemoveSet: (setIndex) {
@@ -1039,12 +960,24 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
                   final segments = List<SetSegment>.from(targetSet.segments);
                   final timestamp = DateTime.now().millisecondsSinceEpoch;
 
+                  // Auto-fill logic: From = Previous To + 1
+                  int initialRepsFrom = 1;
+                  int initialRepsTo = 12;
+
+                  if (segments.isNotEmpty) {
+                    final previousSegment = segments.last;
+                    initialRepsFrom = previousSegment.repsTo + 1;
+                    if (initialRepsTo < initialRepsFrom) {
+                      initialRepsTo = initialRepsFrom;
+                    }
+                  }
+
                   segments.add(
                     SetSegment(
                       id: 'seg_${timestamp}_${setIndex}_${segments.length}',
                       weight: 0.0,
-                      repsFrom: 1,
-                      repsTo: 12,
+                      repsFrom: initialRepsFrom,
+                      repsTo: initialRepsTo,
                       notes: '',
                       segmentOrder: segments.length,
                     ),

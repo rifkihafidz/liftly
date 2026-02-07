@@ -128,7 +128,7 @@ class ExerciseListSummaryCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${totalVol > 0 ? NumberFormat('#,###').format(totalVol.toInt()) : "-"} kg',
+                          '${totalVol > 0 ? NumberFormat('#,##0.##', 'pt_BR').format(totalVol) : "-"} kg',
                           style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 12,
@@ -139,6 +139,7 @@ class ExerciseListSummaryCard extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 6),
 
               // View Icon (eye)
               const Icon(

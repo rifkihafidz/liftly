@@ -42,19 +42,20 @@ class _StatsPageState extends State<StatsPage> {
     super.dispose();
   }
 
-  static final _thousandSeparator = RegExp(r'\B(?=(\d{3})+(?!\d))');
-
   // Helper function to format numbers with thousand separators
   String _formatNumber(double num) {
-    return num.toStringAsFixed(
-      0,
-    ).replaceAllMapped(_thousandSeparator, (Match m) => ',');
+    if (num >= 1000000) {
+      return '${(num / 1000000).toStringAsFixed(1).replaceAll('.', ',')}M';
+    } else if (num >= 1000) {
+      return '${(num / 1000).toStringAsFixed(1).replaceAll('.', ',')}k';
+    }
+    return NumberFormat('#,##0.##', 'pt_BR').format(num);
   }
 
   /// Show filter dialog for personal records
   void _showPRFilterDialog(
     BuildContext context,
-    Map<String, double> allRecords,
+    Map<String, PersonalRecord> allRecords, // Changed from double
     Set<String> currentSelections,
   ) {
     final statsBloc = context.read<StatsBloc>();
@@ -134,6 +135,53 @@ class _StatsPageState extends State<StatsPage> {
         context: context,
         title: 'Share Error',
         message: 'Failed to share. Error: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Share filtered Personal Records
+  Future<void> _sharePRs(
+    BuildContext context,
+    Map<String, PersonalRecord> allRecords,
+    Set<String> filter,
+  ) async {
+    try {
+      // 1. Filter records
+      final filteredRecords = (filter.isEmpty)
+          ? allRecords
+          : Map.fromEntries(
+              allRecords.entries.where((e) => filter.contains(e.key)),
+            );
+
+      if (filteredRecords.isEmpty) {
+        if (!mounted) return;
+        AppDialogs.showErrorDialog(
+          context: context,
+          title: 'Nothing to Share',
+          message: 'No personal records found with the current filter.',
+        );
+        return;
+      }
+
+      // 2. Capture using ScreenshotController (from an invisible widget)
+      final image = await _sharePreviewController.captureFromWidget(
+        _PRSharePreview(records: filteredRecords),
+        delay: const Duration(milliseconds: 100),
+        pixelRatio: 2.0,
+        context: context, // Provide context for Theme/Media access
+      );
+
+      // 3. Share
+      // ignore: deprecated_member_use
+      await Share.shareXFiles([
+        XFile.fromData(image, mimeType: 'image/png', name: 'liftly_prs.png'),
+      ], text: 'My Personal Records on Liftly! 🏆');
+    } catch (e) {
+      if (!context.mounted) return;
+      AppDialogs.showErrorDialog(
+        context: context,
+        title: 'Share Failed',
+        message: 'Failed to share records. Error: $e',
       );
     }
   }
@@ -417,7 +465,11 @@ class _StatsPageState extends State<StatsPage> {
                   'trends-data-${state.timePeriod}-${state.referenceDate}',
                 ),
                 children: [
-                  _VolumeChartCard(sessions: filteredSessions),
+                  _VolumeChartCard(
+                    sessions: filteredSessions,
+                    timePeriod: state.timePeriod,
+                    referenceDate: state.referenceDate,
+                  ),
                   const SizedBox(height: 20),
                   _WorkoutFrequencyCard(
                     sessions: filteredSessions,
@@ -458,17 +510,35 @@ class _StatsPageState extends State<StatsPage> {
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             if (state.personalRecords.isNotEmpty) ...[
-              IconButton(
-                onPressed: () => _showPRFilterDialog(
-                  context,
-                  state.personalRecords,
-                  state.prFilter ?? {},
-                ),
-                icon: const Icon(Icons.tune),
-                iconSize: 20,
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () => _sharePRs(
+                      context,
+                      state.personalRecords,
+                      state.prFilter ?? {},
+                    ),
+                    icon: const Icon(Icons.share_outlined),
+                    iconSize: 20,
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    onPressed: () => _showPRFilterDialog(
+                      context,
+                      state.personalRecords,
+                      state.prFilter ?? {},
+                    ),
+                    icon: const Icon(Icons.tune),
+                    iconSize: 20,
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
               ),
             ],
           ],
@@ -523,7 +593,7 @@ class _StatsPageState extends State<StatsPage> {
 
   Widget _buildPersonalRecordsGrid(
     BuildContext context,
-    Map<String, double> records,
+    Map<String, PersonalRecord> records, // Changed type
     Set<String>? filter,
   ) {
     // Apply filter
@@ -555,7 +625,7 @@ class _StatsPageState extends State<StatsPage> {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: crossAxisCount,
-                childAspectRatio: 1.5,
+                childAspectRatio: 0.9, // Even more vertical space
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
               ),
@@ -599,7 +669,8 @@ class _StatsPageState extends State<StatsPage> {
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                                MainAxisAlignment.start, // Avoid stretching
                             children: [
                               Text(
                                 entry.key.toUpperCase(),
@@ -612,33 +683,23 @@ class _StatsPageState extends State<StatsPage> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.baseline,
-                                textBaseline: TextBaseline.alphabetic,
-                                children: [
-                                  Text(
-                                    _formatNumber(entry.value),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineMedium
-                                        ?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          height: 1,
-                                        ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'kg',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          color: AppColors.accent,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                ],
+                              const SizedBox(height: 8),
+                              // Best 1 Set (Max Weight)
+                              _buildPRValueRow(
+                                context,
+                                'Heaviest',
+                                entry.value.maxWeight,
+                                'kg',
+                                reps: entry.value.maxWeightReps,
+                              ),
+                              const SizedBox(height: 4),
+                              // Best Volume Set (Max Vol)
+                              _buildPRValueRow(
+                                context,
+                                'Best Vol',
+                                entry.value.maxVolume,
+                                'kg',
+                                details: entry.value.maxVolumeBreakdown,
                               ),
                             ],
                           ),
@@ -681,6 +742,72 @@ class _StatsPageState extends State<StatsPage> {
                 iconSize: 20,
               ),
             ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPRValueRow(
+    BuildContext context,
+    String label,
+    double value,
+    String unit, {
+    int? reps,
+    String? details,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textSecondary,
+            fontSize: 10,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              _formatNumber(value),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              unit,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.accent,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (reps != null) ...[
+              const SizedBox(width: 6),
+              Text(
+                'x $reps',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ],
+        ),
+        if (details != null && details.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            '($details)',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary.withValues(alpha: 0.7),
+              fontSize: 10,
+              height: 1.3,
+            ),
           ),
         ],
       ],
@@ -801,9 +928,12 @@ class _StatsSharePreview extends StatelessWidget {
   }
 
   String _formatNumber(double num) {
-    return num.toStringAsFixed(
-      0,
-    ).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (Match m) => ',');
+    if (num >= 1000000) {
+      return '${(num / 1000000).toStringAsFixed(1).replaceAll('.', ',')}M';
+    } else if (num >= 1000) {
+      return '${(num / 1000).toStringAsFixed(1).replaceAll('.', ',')}k';
+    }
+    return NumberFormat('#,##0.##', 'pt_BR').format(num);
   }
 
   @override
@@ -915,7 +1045,7 @@ class _StatsSharePreview extends StatelessWidget {
                   _buildMiniStat(
                     context,
                     'VOLUME',
-                    '${_formatNumber(_calculateTotalVolume(filteredSessions))}kg',
+                    '${_formatNumber(_calculateTotalVolume(filteredSessions))} kg',
                     Icons.fitness_center,
                     AppColors.success,
                   ),
@@ -944,7 +1074,12 @@ class _StatsSharePreview extends StatelessWidget {
               _buildSectionTitle(context, 'ACTIVITY TRENDS'),
               const SizedBox(height: 8),
               if (filteredSessions.isNotEmpty) ...[
-                _VolumeChartCard(sessions: filteredSessions, isCompact: true),
+                _VolumeChartCard(
+                  sessions: filteredSessions,
+                  timePeriod: selectedPeriod,
+                  referenceDate: referenceDate,
+                  isCompact: true,
+                ),
                 const SizedBox(height: 10),
                 _WorkoutFrequencyCard(
                   sessions: filteredSessions,
@@ -1119,9 +1254,25 @@ class _StatsSharePreview extends StatelessWidget {
 /// Volume Trend Chart Card
 class _VolumeChartCard extends StatelessWidget {
   final List<WorkoutSession> sessions;
+  final TimePeriod timePeriod;
+  final DateTime referenceDate;
   final bool isCompact;
 
-  const _VolumeChartCard({required this.sessions, this.isCompact = false});
+  const _VolumeChartCard({
+    required this.sessions,
+    required this.timePeriod,
+    required this.referenceDate,
+    this.isCompact = false,
+  });
+
+  String _formatCompactNumber(double num) {
+    if (num >= 1000000) {
+      return '${(num / 1000000).toStringAsFixed(1).replaceAll('.', ',')}M';
+    } else if (num >= 1000) {
+      return '${(num / 1000).toStringAsFixed(0)}k';
+    }
+    return NumberFormat('#,##0.##', 'pt_BR').format(num);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1144,14 +1295,82 @@ class _VolumeChartCard extends StatelessWidget {
       );
     }
 
-    // Sort sessions by date and calculate volume for each
-    final sortedSessions = List<WorkoutSession>.from(sessions)
-      ..sort((a, b) => a.workoutDate.compareTo(b.workoutDate));
+    // 1. Prepare Data based on TimePeriod
+    List<double> volumeData = [];
+    List<String> labels = [];
+    double totalVolume = 0;
 
-    final volumeData = sortedSessions.map((session) {
-      return session.totalVolume;
-    }).toList();
+    final now = referenceDate;
 
+    switch (timePeriod) {
+      case TimePeriod.week:
+        // Weekly: 7 days (Mon-Sun)
+        final dayOfWeek = now.weekday;
+        final mondayOfWeek = now.subtract(Duration(days: dayOfWeek - 1));
+
+        volumeData = List.filled(7, 0.0);
+        labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+        for (var session in sessions) {
+          // Calculate day index (0-6) based on difference from Monday
+          final diff = session.effectiveDate.difference(mondayOfWeek).inDays;
+          if (diff >= 0 && diff < 7) {
+            volumeData[diff] += session.totalVolume;
+          }
+        }
+        break;
+
+      case TimePeriod.month:
+        // Monthly: Days in month
+        final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+        volumeData = List.filled(daysInMonth, 0.0);
+
+        // Labels: 1, 5, 10...
+        labels = List.generate(daysInMonth, (index) => (index + 1).toString());
+
+        for (var session in sessions) {
+          if (session.effectiveDate.month == now.month &&
+              session.effectiveDate.year == now.year) {
+            final dayIndex = session.effectiveDate.day - 1;
+            if (dayIndex >= 0 && dayIndex < daysInMonth) {
+              volumeData[dayIndex] += session.totalVolume;
+            }
+          }
+        }
+        break;
+
+      case TimePeriod.year:
+        // Yearly: 12 months (Jan-Dec)
+        volumeData = List.filled(12, 0.0);
+        labels = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
+
+        for (var session in sessions) {
+          if (session.effectiveDate.year == now.year) {
+            final monthIndex = session.effectiveDate.month - 1;
+            if (monthIndex >= 0 && monthIndex < 12) {
+              volumeData[monthIndex] += session.totalVolume;
+            }
+          }
+        }
+        break;
+    }
+
+    totalVolume = volumeData.fold(0, (sum, v) => sum + v);
+
+    // Calculate max value for scaling
     final rawMax = volumeData.isEmpty
         ? 100.0
         : volumeData.reduce((a, b) => a > b ? a : b);
@@ -1239,13 +1458,29 @@ class _VolumeChartCard extends StatelessWidget {
                     ),
                     tooltipMargin: 8,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      String title = labels[group.x.toInt()];
+                      if (timePeriod == TimePeriod.month) {
+                        title = 'Day $title';
+                      }
+
                       return BarTooltipItem(
-                        '${NumberFormat('#,###').format(rod.toY.toInt())} kg',
-                        const TextStyle(
-                          color: AppColors.success,
+                        '$title\n',
+                        TextStyle(
+                          color: AppColors.textSecondary,
                           fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                          fontSize: 10,
                         ),
+                        children: [
+                          TextSpan(
+                            text:
+                                '${NumberFormat('#,##0.##', 'pt_BR').format(rod.toY)} kg',
+                            style: const TextStyle(
+                              color: AppColors.success,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -1261,34 +1496,33 @@ class _VolumeChartCard extends StatelessWidget {
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      interval: volumeData.length <= 5
-                          ? 1
-                          : (volumeData.length / 5).ceilToDouble(),
+                      interval: 1, // Draw all, filter in getTitlesWidget
                       getTitlesWidget: (double value, TitleMeta meta) {
                         final index = value.toInt();
-                        if (index < 0 || index >= sortedSessions.length) {
+                        if (index < 0 || index >= labels.length) {
                           return const SizedBox.shrink();
                         }
-                        final date = sortedSessions[index].workoutDate;
-                        final dayStr = date.day.toString().padLeft(2, '0');
-                        final monthName = [
-                          'Jan',
-                          'Feb',
-                          'Mar',
-                          'Apr',
-                          'May',
-                          'Jun',
-                          'Jul',
-                          'Aug',
-                          'Sep',
-                          'Oct',
-                          'Nov',
-                          'Dec',
-                        ][date.month - 1];
+
+                        // Smart Label Skip Logic
+                        bool showLabel = false;
+                        if (timePeriod == TimePeriod.week) {
+                          showLabel = true; // Show all days
+                        } else if (timePeriod == TimePeriod.year) {
+                          showLabel = true; // Show all months
+                        } else if (timePeriod == TimePeriod.month) {
+                          // Show 1, 5, 10, 15, 20, 25, 30
+                          // index is 0-based (0 = Day 1)
+                          if (index == 0 || (index + 1) % 5 == 0) {
+                            showLabel = true;
+                          }
+                        }
+
+                        if (!showLabel) return const SizedBox.shrink();
+
                         return Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
-                            '$dayStr $monthName',
+                            labels[index],
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
                                   color: AppColors.textSecondary,
@@ -1308,15 +1542,8 @@ class _VolumeChartCard extends StatelessWidget {
                         // Skip values higher than finalMaxY to prevent edge labels
                         if (value > finalMaxY) return const SizedBox.shrink();
 
-                        final formatted = value
-                            .toInt()
-                            .toString()
-                            .replaceAllMapped(
-                              RegExp(r'\B(?=(\d{3})+(?!\d))'),
-                              (Match m) => ',',
-                            );
                         return Text(
-                          '$formatted kg',
+                          '${_formatCompactNumber(value)} kg',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
                                 color: AppColors.textSecondary,
@@ -1349,7 +1576,11 @@ class _VolumeChartCard extends StatelessWidget {
                       BarChartRodData(
                         toY: volumeData[index],
                         color: AppColors.success,
-                        width: 14,
+                        width: timePeriod == TimePeriod.month
+                            ? 6
+                            : (timePeriod == TimePeriod.year
+                                  ? 10
+                                  : 14), // Thinner bars for month/year view
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ],
@@ -1366,7 +1597,7 @@ class _VolumeChartCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total: ${volumeData.fold<double>(0, (prev, vol) => prev + vol).toInt().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (Match m) => ',')} kg',
+                'Total: ${NumberFormat('#,##0.##', 'pt_BR').format(totalVolume)} kg',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
@@ -1374,7 +1605,12 @@ class _VolumeChartCard extends StatelessWidget {
                 ),
               ),
               Text(
-                'Avg: ${(volumeData.fold<double>(0, (prev, vol) => prev + vol) / (volumeData.isNotEmpty ? volumeData.length : 1)).toInt().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (Match m) => ',')} kg',
+                'Avg: ${NumberFormat('#,##0.##', 'pt_BR').format(
+                  // Average over non-zero days/months or just period length?
+                  // Usually average per session is better, but here we show trend over time.
+                  // Let's do average per active period unit (e.g. active days)
+                  volumeData.where((v) => v > 0).isEmpty ? 0.0 : volumeData.where((v) => v > 0).reduce((a, b) => a + b) / volumeData.where((v) => v > 0).length,
+                )} kg / active ${timePeriod == TimePeriod.year ? 'mo' : 'day'}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.success,
                   fontWeight: FontWeight.w500,
@@ -1654,7 +1890,7 @@ class _WorkoutFrequencyCard extends StatelessWidget {
             BarChartRodData(
               toY: frequencyData[i].toDouble(),
               color: AppColors.accent,
-              width: timePeriod == TimePeriod.year ? 10 : 12,
+              width: timePeriod == TimePeriod.year ? 12 : 22,
               borderRadius: BorderRadius.circular(6),
               backDrawRodData: BackgroundBarChartRodData(
                 show: true,
@@ -1779,7 +2015,10 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       interval:
-                          1, // Show every integer value (0, 1, 2, 3, etc.)
+                          timePeriod == TimePeriod.month &&
+                              frequencyData.length > 10
+                          ? 5
+                          : (timePeriod == TimePeriod.year ? 5 : 1),
                       getTitlesWidget: (double value, TitleMeta meta) {
                         return Text(
                           '${value.toInt()}',
@@ -2782,7 +3021,7 @@ class _StickySelectorDelegate extends SliverPersistentHeaderDelegate {
 }
 
 class _ExerciseFilterDialog extends StatefulWidget {
-  final Map<String, double> allRecords;
+  final Map<String, PersonalRecord> allRecords;
   final Set<String> currentSelections;
   final Function(Set<String>) onApply;
 
@@ -2798,9 +3037,19 @@ class _ExerciseFilterDialog extends StatefulWidget {
 
 class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
   late Set<String> _selectedExercises;
-  late TextEditingController _searchController;
+  final TextEditingController _searchController = TextEditingController();
   int _currentPage = 0;
-  static const int _itemsPerPage = 8;
+  final int _itemsPerPage = 10;
+
+  String _formatCompactNumber(double number) {
+    if (number >= 1000000) {
+      return '${(number / 1000000).toStringAsFixed(1)}M';
+    } else if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}k';
+    } else {
+      return number.toInt().toString();
+    }
+  }
 
   @override
   void initState() {
@@ -2810,7 +3059,6 @@ class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
           ? widget.allRecords.keys
           : widget.currentSelections,
     );
-    _searchController = TextEditingController();
   }
 
   @override
@@ -2956,7 +3204,9 @@ class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
                       itemCount: currentItems.length,
                       itemBuilder: (context, index) {
                         final exercise = currentItems[index];
-                        final weight = widget.allRecords[exercise] ?? 0;
+                        final weight =
+                            widget.allRecords[exercise] ??
+                            const PersonalRecord();
                         final isSelected = _selectedExercises.contains(
                           exercise,
                         );
@@ -2970,7 +3220,7 @@ class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
-                            'PR: ${weight.toStringAsFixed(1)} kg',
+                            'Heavy: ${weight.maxWeight.toStringAsFixed(1)}kg x ${weight.maxWeightReps} • Vol: ${_formatCompactNumber(weight.maxVolume)} ${weight.maxVolumeBreakdown}',
                             style: TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 12,
@@ -3055,6 +3305,293 @@ class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PRSharePreview extends StatelessWidget {
+  final Map<String, PersonalRecord> records;
+
+  const _PRSharePreview({required this.records});
+
+  String _formatNumber(double num) {
+    if (num >= 1000000) {
+      return '${(num / 1000000).toStringAsFixed(1).replaceAll('.', ',')}M';
+    } else if (num >= 1000) {
+      return '${(num / 1000).toStringAsFixed(1).replaceAll('.', ',')}k';
+    }
+    return NumberFormat('#,##0.##', 'pt_BR').format(num);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Fixed 9:16 resolution for Instagram Stories
+    return Container(
+      width: 1080,
+      height: 1920,
+      decoration: const BoxDecoration(color: Color(0xFF0B0F14)),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(60),
+          child: FittedBox(
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            child: Container(
+              width: 960, // 1080 - 120 padding
+              padding: const EdgeInsets.all(48),
+              decoration: BoxDecoration(
+                color: const Color(0xFF141A21),
+                borderRadius: BorderRadius.circular(48),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 60,
+                    offset: const Offset(0, 30),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ===== HEADER / BRANDING =====
+                  Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.accent.withValues(alpha: 0.2),
+                              width: 2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.emoji_events,
+                            color: AppColors.accent,
+                            size: 64,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'LIFTLY',
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 8,
+                                fontSize: 32,
+                              ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: AppColors.accent.withValues(alpha: 0.2),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Text(
+                            'PERSONAL RECORDS',
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(
+                                  color: AppColors.accent,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 2.0,
+                                  fontSize: 14,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 64),
+
+                  // ===== RECORDS GRID =====
+                  Wrap(
+                    spacing: 24,
+                    runSpacing: 24,
+                    alignment: WrapAlignment.center,
+                    children: records.entries.map((entry) {
+                      return Container(
+                        width: 400, // Fits 2 columns (400*2 + 24 = 824 < 960)
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBg,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: AppColors.accent.withValues(alpha: 0.15),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              entry.key.toUpperCase(),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                    fontSize: 16,
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildCompactRow(
+                              context,
+                              'Heaviest',
+                              entry.value.maxWeight,
+                              'kg',
+                              reps: entry.value.maxWeightReps,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildCompactRow(
+                              context,
+                              'Best Vol',
+                              entry.value.maxVolume,
+                              'kg',
+                              details: entry.value.maxVolumeBreakdown,
+                              maxLines: 1,
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: 48),
+                  Divider(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    thickness: 1.5,
+                  ),
+                  const SizedBox(height: 32),
+                  Center(
+                    child: Column(
+                      children: [
+                        Text(
+                          'Track your progress with Liftly',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: AppColors.textSecondary,
+                                fontSize: 14,
+                                letterSpacing: 1,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'liftly.app',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: AppColors.accent.withValues(alpha: 0.8),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactRow(
+    BuildContext context,
+    String label,
+    double value,
+    String unit, {
+    int? reps,
+    String? details,
+    int maxLines = 1,
+  }) {
+    final repsStr = reps != null ? 'x $reps' : '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textSecondary,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Flexible(
+              child: Text(
+                _formatNumber(value),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 22,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              unit,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.accent,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (repsStr.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  repsStr,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+            if (details != null) ...[
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '($details)',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                  maxLines: maxLines,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
     );
   }
 }
