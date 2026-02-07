@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 class SQLiteService {
   static late Database _database;
@@ -14,69 +15,80 @@ class SQLiteService {
   }
 
   /// Initialize SQLite database
+  /// Initialize SQLite database
   static Future<void> initDatabase() async {
     try {
-      final databasesPath = await getDatabasesPath();
-      final path = join(databasesPath, 'liftly.db');
+      final String path;
+      if (kIsWeb) {
+        path = 'liftly.db';
+      } else {
+        final databasesPath = await getDatabasesPath();
+        path = join(databasesPath, 'liftly.db');
+      }
 
       _log('INIT', 'Opening database at: $path');
 
-      _database = await openDatabase(
+      final factory = kIsWeb ? databaseFactoryFfiWeb : databaseFactory;
+      _database = await factory.openDatabase(
         path,
-        version: 7,
-        onConfigure: (db) async {
-          await db.execute('PRAGMA foreign_keys = ON');
-        },
-        onCreate: (Database db, int version) async {
-          _log('INIT', 'Creating tables (version $version)');
-          await _createTables(db);
-          await _createIndexes(db);
-        },
-        onUpgrade: (Database db, int oldVersion, int newVersion) async {
-          _log('INIT', 'Upgrading database from v$oldVersion to v$newVersion');
-          if (oldVersion < 3) {
+        options: OpenDatabaseOptions(
+          version: 7,
+          onConfigure: (db) async {
+            await db.execute('PRAGMA foreign_keys = ON');
+          },
+          onCreate: (Database db, int version) async {
+            _log('INIT', 'Creating tables (version $version)');
             await _createTables(db);
-          }
-          if (oldVersion < 4) {
-            _log('INIT', 'Adding is_draft column to workouts table');
-            try {
-              final columns = await db.rawQuery('PRAGMA table_info(workouts)');
-              final hasIsDraft = columns.any((c) => c['name'] == 'is_draft');
-              if (!hasIsDraft) {
-                await db.execute(
-                  'ALTER TABLE workouts ADD COLUMN is_draft INTEGER DEFAULT 0',
-                );
-              }
-            } catch (e) {
-              _log('INIT', 'Error migrate is_draft: $e');
-            }
-          }
-          if (oldVersion < 5) {
-            _log(
-              'INIT',
-              'Adding is_template column to workout_exercises table',
-            );
-            try {
-              final columns = await db.rawQuery(
-                'PRAGMA table_info(workout_exercises)',
-              );
-              final hasIsTemplate = columns.any(
-                (c) => c['name'] == 'is_template',
-              );
-              if (!hasIsTemplate) {
-                await db.execute(
-                  'ALTER TABLE workout_exercises ADD COLUMN is_template INTEGER DEFAULT 0',
-                );
-              }
-            } catch (e) {
-              _log('INIT', 'Error migrate is_template: $e');
-            }
-          }
-          if (oldVersion < 7) {
-            _log('INIT', 'Updating/Creating indexes for version 7');
             await _createIndexes(db);
-          }
-        },
+          },
+          onUpgrade: (Database db, int oldVersion, int newVersion) async {
+            _log(
+                'INIT', 'Upgrading database from v$oldVersion to v$newVersion');
+            if (oldVersion < 3) {
+              await _createTables(db);
+            }
+            if (oldVersion < 4) {
+              _log('INIT', 'Adding is_draft column to workouts table');
+              try {
+                final columns =
+                    await db.rawQuery('PRAGMA table_info(workouts)');
+                final hasIsDraft = columns.any((c) => c['name'] == 'is_draft');
+                if (!hasIsDraft) {
+                  await db.execute(
+                    'ALTER TABLE workouts ADD COLUMN is_draft INTEGER DEFAULT 0',
+                  );
+                }
+              } catch (e) {
+                _log('INIT', 'Error migrate is_draft: $e');
+              }
+            }
+            if (oldVersion < 5) {
+              _log(
+                'INIT',
+                'Adding is_template column to workout_exercises table',
+              );
+              try {
+                final columns = await db.rawQuery(
+                  'PRAGMA table_info(workout_exercises)',
+                );
+                final hasIsTemplate = columns.any(
+                  (c) => c['name'] == 'is_template',
+                );
+                if (!hasIsTemplate) {
+                  await db.execute(
+                    'ALTER TABLE workout_exercises ADD COLUMN is_template INTEGER DEFAULT 0',
+                  );
+                }
+              } catch (e) {
+                _log('INIT', 'Error migrate is_template: $e');
+              }
+            }
+            if (oldVersion < 7) {
+              _log('INIT', 'Updating/Creating indexes for version 7');
+              await _createIndexes(db);
+            }
+          },
+        ),
       );
 
       _isInitialized = true;
@@ -255,10 +267,13 @@ class SQLiteService {
   static Future<void> savePreference(String key, String value) async {
     try {
       _log('INSERT', 'preferences: key=$key, value=$value');
-      await _database.insert('preferences', {
-        'key': key,
-        'value': value,
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      await _database.insert(
+          'preferences',
+          {
+            'key': key,
+            'value': value,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace);
       _log('INSERT', 'preferences: SUCCESS');
     } catch (e) {
       _log('INSERT', 'preferences: FAILED - $e');
