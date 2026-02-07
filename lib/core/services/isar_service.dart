@@ -582,15 +582,160 @@ class IsarService {
       String userId,
       {DateTime? startDate,
       DateTime? endDate}) async {
-    final distinctNames = await getExerciseNames(userId);
+    // OPTIMIZED: Load ALL workouts at once instead of querying per exercise
+    // This reduces hundreds of queries to just 1-2 queries
 
+    final allWorkouts = await _isar.isarWorkoutSessions
+        .filter()
+        .userIdEqualTo(userId)
+        .isDraftEqualTo(false)
+        .findAll();
+
+    // Group exercises by name and accumulate stats
+    final Map<String, List<Map<String, dynamic>>> exerciseHistoryMap = {};
+
+    for (final workout in allWorkouts) {
+      // Date filtering
+      if (startDate != null && workout.workoutDate.isBefore(startDate))
+        continue;
+      if (endDate != null && workout.workoutDate.isAfter(endDate)) continue;
+
+      await workout.exercises.load();
+
+      for (final ex in workout.exercises) {
+        await ex.sets.load();
+
+        double sessionMaxWeight = 0;
+        int sessionMaxWeightReps = 0;
+        double sessionTotalVolume = 0;
+        int sessionTotalReps = 0;
+        double sessionEst1RM = 0;
+        double bestSetVolume = 0;
+        String bestSetVolumeBreakdown = '';
+        final List<ExerciseSet> sessionSets = [];
+
+        final sortedSets = ex.sets.toList()
+          ..sort((a, b) => a.setNumber.compareTo(b.setNumber));
+
+        for (final set in sortedSets) {
+          await set.segments.load();
+
+          double currentSetVolume = 0;
+          List<String> breakdownParts = [];
+          final List<SetSegment> domainSegments = [];
+
+          final sortedSegments = set.segments.toList()
+            ..sort((a, b) => a.segmentOrder.compareTo(b.segmentOrder));
+
+          for (final seg in sortedSegments) {
+            final effectiveReps = seg.repsTo - seg.repsFrom + 1;
+
+            if (seg.weight > sessionMaxWeight) {
+              sessionMaxWeight = seg.weight;
+              sessionMaxWeightReps = effectiveReps;
+            } else if (seg.weight == sessionMaxWeight &&
+                effectiveReps > sessionMaxWeightReps) {
+              sessionMaxWeightReps = effectiveReps;
+            }
+
+            final segVol = seg.weight * effectiveReps;
+            currentSetVolume += segVol;
+            sessionTotalVolume += segVol;
+            sessionTotalReps += effectiveReps;
+
+            final setOneRM = seg.weight * (1 + effectiveReps / 30);
+            if (setOneRM > sessionEst1RM) sessionEst1RM = setOneRM;
+
+            breakdownParts.add(
+                '${seg.weight % 1 == 0 ? seg.weight.toInt() : seg.weight} kg x $effectiveReps');
+
+            domainSegments.add(SetSegment(
+              id: seg.segmentId,
+              weight: seg.weight,
+              repsFrom: seg.repsFrom,
+              repsTo: seg.repsTo,
+              segmentOrder: seg.segmentOrder,
+              notes: seg.notes ?? '',
+            ));
+          }
+
+          sessionSets.add(ExerciseSet(
+            id: set.setId,
+            setNumber: set.setNumber,
+            segments: domainSegments,
+          ));
+
+          if (currentSetVolume > bestSetVolume) {
+            bestSetVolume = currentSetVolume;
+            bestSetVolumeBreakdown = breakdownParts.join(' + ');
+          }
+        }
+
+        // Add to history map
+        exerciseHistoryMap.putIfAbsent(ex.name, () => []);
+        exerciseHistoryMap[ex.name]!.add({
+          'workoutDate': workout.workoutDate.toIso8601String(),
+          'totalVolume': sessionTotalVolume,
+          'totalReps': sessionTotalReps,
+          'oneRM': sessionEst1RM,
+          'maxWeight': sessionMaxWeight,
+          'maxWeightReps': sessionMaxWeightReps,
+          'bestSetVolume': bestSetVolume,
+          'bestSetVolumeBreakdown': bestSetVolumeBreakdown,
+          'sets': sessionSets,
+        });
+      }
+    }
+
+    // Now compute PRs from the accumulated history
     final Map<String, PersonalRecord> prs = {};
 
-    for (final name in distinctNames) {
-      final pr = await getExercisePR(userId, name,
-          startDate: startDate, endDate: endDate);
-      if (pr != null) {
-        prs[name] = pr;
+    for (final entry in exerciseHistoryMap.entries) {
+      final exerciseName = entry.key;
+      final history = entry.value;
+
+      double globalMaxWeight = 0;
+      int globalMaxWeightReps = 0;
+      double globalMaxSetVolume = 0;
+      String globalMaxSetVolumeBreakdown = '';
+      double globalBestSessionVolume = 0;
+      String? globalBestSessionDate;
+      List<ExerciseSet>? globalBestSessionSets;
+
+      for (final record in history) {
+        final rMaxWeight = record['maxWeight'] as double;
+        if (rMaxWeight > globalMaxWeight) {
+          globalMaxWeight = rMaxWeight;
+          globalMaxWeightReps = record['maxWeightReps'] as int;
+        }
+
+        final rBestSetVol = record['bestSetVolume'] as double;
+        if (rBestSetVol > globalMaxSetVolume) {
+          globalMaxSetVolume = rBestSetVol;
+          globalMaxSetVolumeBreakdown =
+              record['bestSetVolumeBreakdown'] as String;
+        }
+
+        final rSessionVol = record['totalVolume'] as double;
+        if (rSessionVol > globalBestSessionVolume) {
+          globalBestSessionVolume = rSessionVol;
+          globalBestSessionDate = record['workoutDate'] as String;
+          globalBestSessionSets = record['sets'] as List<ExerciseSet>;
+        }
+      }
+
+      if (globalMaxWeight > 0 ||
+          globalMaxSetVolume > 0 ||
+          globalBestSessionVolume > 0) {
+        prs[exerciseName] = PersonalRecord(
+          maxWeight: globalMaxWeight,
+          maxWeightReps: globalMaxWeightReps,
+          maxVolume: globalMaxSetVolume,
+          maxVolumeBreakdown: globalMaxSetVolumeBreakdown,
+          bestSessionVolume: globalBestSessionVolume,
+          bestSessionDate: globalBestSessionDate,
+          bestSessionSets: globalBestSessionSets,
+        );
       }
     }
 
