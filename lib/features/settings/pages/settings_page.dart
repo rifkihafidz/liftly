@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/services/backup_service.dart';
 import '../../../core/services/data_management_service.dart';
-import '../../../core/services/sqlite_service.dart';
+import '../../../core/services/isar_service.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
 import '../../../shared/widgets/cards/menu_list_item.dart';
@@ -33,7 +33,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final backupService = BackupService();
     await backupService.init();
 
-    final autoBackup = await SQLiteService.getPreference('auto_backup_enabled');
+    final autoBackup = await IsarService.getPreference('auto_backup_enabled');
 
     if (mounted) {
       setState(() {
@@ -107,7 +107,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (_currentUser == null) return; // Failed to connect
     }
 
-    await SQLiteService.savePreference('auto_backup_enabled', value.toString());
+    await IsarService.savePreference('auto_backup_enabled', value.toString());
     setState(() {
       _isAutoBackupEnabled = value;
     });
