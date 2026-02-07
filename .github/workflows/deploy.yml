@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main # Jalankan workflow ini saat push ke branch main
+      - main
 
 jobs:
   build-and-deploy:
@@ -15,13 +15,13 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.27.0" # Sesuaikan dengan versi Flutter kamu
+          flutter-version: any
 
       - name: Enable Web
         run: flutter config --enable-web
 
       - name: Build Web
-        run: flutter build web --release --base-href /liftly/ # GANTI 'liftly' jika nama repo kamu berbeda
+        run: flutter build web --release --base-href /liftly/
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
