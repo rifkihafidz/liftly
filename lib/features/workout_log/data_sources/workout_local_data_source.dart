@@ -23,21 +23,24 @@ class WorkoutLocalDataSource {
 
       // Insert workout
       _log('INSERT', 'workouts table: id=${workout.id}');
-      await database.insert('workouts', {
-        'id': workout.id,
-        'user_id': workout.userId,
-        'plan_id': workout.planId,
-        'workout_date': SQLiteService.formatDateTime(workout.workoutDate),
-        'started_at': workout.startedAt != null
-            ? SQLiteService.formatDateTime(workout.startedAt!)
-            : null,
-        'ended_at': workout.endedAt != null
-            ? SQLiteService.formatDateTime(workout.endedAt!)
-            : null,
-        'created_at': SQLiteService.formatDateTime(workout.createdAt),
-        'updated_at': SQLiteService.formatDateTime(workout.updatedAt),
-        'is_draft': workout.isDraft ? 1 : 0,
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      await database.insert(
+          'workouts',
+          {
+            'id': workout.id,
+            'user_id': workout.userId,
+            'plan_id': workout.planId,
+            'workout_date': SQLiteService.formatDateTime(workout.workoutDate),
+            'started_at': workout.startedAt != null
+                ? SQLiteService.formatDateTime(workout.startedAt!)
+                : null,
+            'ended_at': workout.endedAt != null
+                ? SQLiteService.formatDateTime(workout.endedAt!)
+                : null,
+            'created_at': SQLiteService.formatDateTime(workout.createdAt),
+            'updated_at': SQLiteService.formatDateTime(workout.updatedAt),
+            'is_draft': workout.isDraft ? 1 : 0,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace);
       _log('INSERT', 'workouts: SUCCESS');
 
       // Insert exercises with sets and segments
@@ -46,14 +49,17 @@ class WorkoutLocalDataSource {
           'INSERT',
           'workout_exercises: id=${exercise.id}, name=${exercise.name}',
         );
-        await database.insert('workout_exercises', {
-          'id': exercise.id,
-          'workout_id': workout.id,
-          'name': exercise.name,
-          'exercise_order': exercise.order,
-          'skipped': exercise.skipped ? 1 : 0,
-          'is_template': exercise.isTemplate ? 1 : 0,
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
+        await database.insert(
+            'workout_exercises',
+            {
+              'id': exercise.id,
+              'workout_id': workout.id,
+              'name': exercise.name,
+              'exercise_order': exercise.order,
+              'skipped': exercise.skipped ? 1 : 0,
+              'is_template': exercise.isTemplate ? 1 : 0,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace);
 
         // Insert sets and segments for this exercise
         for (final set in exercise.sets) {
@@ -61,11 +67,14 @@ class WorkoutLocalDataSource {
             'INSERT',
             'workout_sets: id=${set.id}, setNumber=${set.setNumber}',
           );
-          await database.insert('workout_sets', {
-            'id': set.id,
-            'exercise_id': exercise.id,
-            'set_number': set.setNumber,
-          }, conflictAlgorithm: ConflictAlgorithm.replace);
+          await database.insert(
+              'workout_sets',
+              {
+                'id': set.id,
+                'exercise_id': exercise.id,
+                'set_number': set.setNumber,
+              },
+              conflictAlgorithm: ConflictAlgorithm.replace);
 
           // Insert segments for this set
           for (final segment in set.segments) {
@@ -73,15 +82,18 @@ class WorkoutLocalDataSource {
               'INSERT',
               'set_segments: id=${segment.id}, weight=${segment.weight}',
             );
-            await database.insert('set_segments', {
-              'id': segment.id,
-              'set_id': set.id,
-              'weight': segment.weight,
-              'reps_from': segment.repsFrom,
-              'reps_to': segment.repsTo,
-              'segment_order': segment.segmentOrder,
-              'notes': segment.notes,
-            }, conflictAlgorithm: ConflictAlgorithm.replace);
+            await database.insert(
+                'set_segments',
+                {
+                  'id': segment.id,
+                  'set_id': set.id,
+                  'weight': segment.weight,
+                  'reps_from': segment.repsFrom,
+                  'reps_to': segment.repsTo,
+                  'segment_order': segment.segmentOrder,
+                  'notes': segment.notes,
+                },
+                conflictAlgorithm: ConflictAlgorithm.replace);
           }
         }
       }
@@ -119,9 +131,8 @@ class WorkoutLocalDataSource {
       );
 
       if (workoutIdsResult.isEmpty) return [];
-      final workoutIds = workoutIdsResult
-          .map((w) => w['id'] as String)
-          .toList();
+      final workoutIds =
+          workoutIdsResult.map((w) => w['id'] as String).toList();
       final placeholders = List.filled(workoutIds.length, '?').join(',');
 
       // 2. Fetch EVERYTHING in one big joined query
@@ -504,14 +515,17 @@ class WorkoutLocalDataSource {
 
     // Re-insert all exercises with their sets and segments
     for (final exercise in workout.exercises) {
-      await database.insert('workout_exercises', {
-        'id': exercise.id,
-        'workout_id': workout.id,
-        'name': exercise.name,
-        'exercise_order': exercise.order,
-        'skipped': exercise.skipped ? 1 : 0,
-        'is_template': exercise.isTemplate ? 1 : 0,
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      await database.insert(
+          'workout_exercises',
+          {
+            'id': exercise.id,
+            'workout_id': workout.id,
+            'name': exercise.name,
+            'exercise_order': exercise.order,
+            'skipped': exercise.skipped ? 1 : 0,
+            'is_template': exercise.isTemplate ? 1 : 0,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace);
 
       // If exercise is skipped and has no sets, preserve existing sets from database
       // NOTE: Since we just deleted everything, we can't preserve "existing sets" from the DB anymore.
@@ -525,22 +539,28 @@ class WorkoutLocalDataSource {
       // So here we just save what we are given.
 
       for (final set in exercise.sets) {
-        await database.insert('workout_sets', {
-          'id': set.id,
-          'exercise_id': exercise.id,
-          'set_number': set.setNumber,
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
+        await database.insert(
+            'workout_sets',
+            {
+              'id': set.id,
+              'exercise_id': exercise.id,
+              'set_number': set.setNumber,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace);
 
         for (final segment in set.segments) {
-          await database.insert('set_segments', {
-            'id': segment.id,
-            'set_id': set.id,
-            'weight': segment.weight,
-            'reps_from': segment.repsFrom,
-            'reps_to': segment.repsTo,
-            'segment_order': segment.segmentOrder,
-            'notes': segment.notes,
-          }, conflictAlgorithm: ConflictAlgorithm.replace);
+          await database.insert(
+              'set_segments',
+              {
+                'id': segment.id,
+                'set_id': set.id,
+                'weight': segment.weight,
+                'reps_from': segment.repsFrom,
+                'reps_to': segment.repsTo,
+                'segment_order': segment.segmentOrder,
+                'notes': segment.notes,
+              },
+              conflictAlgorithm: ConflictAlgorithm.replace);
         }
       }
     }
@@ -789,7 +809,7 @@ class WorkoutLocalDataSource {
       // Metric 1: Best Heavy Set (Max Weight)
       final heavyResult = await database.rawQuery(
         '''
-        SELECT ss.weight, MAX(ss.reps_from, ss.reps_to) as reps
+        SELECT ss.weight, (ss.reps_to - ss.reps_from + 1) as reps
         FROM set_segments ss
         JOIN workout_sets ws ON ss.set_id = ws.id
         JOIN workout_exercises we ON ws.exercise_id = we.id
@@ -807,9 +827,9 @@ class WorkoutLocalDataSource {
         SELECT 
           ws.id as set_id,
           ss.weight,
-          MAX(ss.reps_from, ss.reps_to) as reps,
-          SUM(ss.weight * MAX(ss.reps_from, ss.reps_to)) as total_volume,
-          '(' || GROUP_CONCAT(ss.weight || ' kg x ' || MAX(ss.reps_from, ss.reps_to), ' + ') || ')' as breakdown
+          (ss.reps_to - ss.reps_from + 1) as reps,
+          SUM(ss.weight * (ss.reps_to - ss.reps_from + 1)) as total_volume,
+          '(' || GROUP_CONCAT(ss.weight || ' kg x ' || (ss.reps_to - ss.reps_from + 1), ' + ') || ')' as breakdown
         FROM set_segments ss
         JOIN workout_sets ws ON ss.set_id = ws.id
         JOIN workout_exercises we ON ws.exercise_id = we.id
@@ -828,7 +848,7 @@ class WorkoutLocalDataSource {
         SELECT 
           w.id as workout_id,
           w.workout_date,
-          SUM(ss.weight * MAX(ss.reps_from, ss.reps_to)) as session_volume
+          SUM(ss.weight * (ss.reps_to - ss.reps_from + 1)) as session_volume
         FROM set_segments ss
         JOIN workout_sets ws ON ss.set_id = ws.id
         JOIN workout_exercises we ON ws.exercise_id = we.id
@@ -882,9 +902,7 @@ class WorkoutLocalDataSource {
         for (final row in setsResult) {
           final sId = row['set_id'] as String;
           setNumbers[sId] = row['set_number'] as int;
-          setsMap
-              .putIfAbsent(sId, () => [])
-              .add(
+          setsMap.putIfAbsent(sId, () => []).add(
                 SetSegment(
                   id: row['segment_id'] as String,
                   weight: (row['weight'] as num).toDouble(),
