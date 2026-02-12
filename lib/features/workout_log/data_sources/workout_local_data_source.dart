@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:liftly/core/models/workout_session.dart';
-import 'package:liftly/core/services/isar_service.dart';
+import 'package:liftly/core/services/hive_service.dart';
 import 'package:liftly/features/stats/bloc/stats_state.dart';
 
 class WorkoutLocalDataSource {
@@ -17,7 +17,7 @@ class WorkoutLocalDataSource {
   Future<WorkoutSession> createWorkout(WorkoutSession workout) async {
     try {
       _log('CREATE', 'Workout id=${workout.id}, userId=${workout.userId}');
-      await IsarService.createWorkout(workout);
+      await HiveService.createWorkout(workout);
       _log('CREATE', 'Workout creation SUCCESSFUL');
       return workout;
     } catch (e) {
@@ -35,8 +35,8 @@ class WorkoutLocalDataSource {
   }) async {
     try {
       _log('SELECT', 'workouts userId=$userId limit=$limit offset=$offset');
-      // Pass pagination params to IsarService for DB-level optimization
-      final workouts = await IsarService.getWorkouts(userId,
+      // Pass pagination params to HiveService
+      final workouts = await HiveService.getWorkouts(userId,
           includeDrafts: includeDrafts, limit: limit, offset: offset);
 
       return workouts;
@@ -49,7 +49,7 @@ class WorkoutLocalDataSource {
   /// Get a single workout by ID with all related exercises, sets, and segments
   Future<WorkoutSession> getWorkout(String workoutId) async {
     _log('SELECT', 'workout id=$workoutId');
-    final workout = await IsarService.getWorkoutById(workoutId);
+    final workout = await HiveService.getWorkoutById(workoutId);
     if (workout == null) {
       throw Exception('Workout not found');
     }
@@ -60,7 +60,7 @@ class WorkoutLocalDataSource {
   Future<WorkoutSession?> getDraftWorkout(String userId) async {
     try {
       _log('SELECT', 'Draft workout for userId=$userId');
-      return await IsarService.getDraftWorkout(userId);
+      return await HiveService.getDraftWorkout(userId);
     } catch (e) {
       _log('SELECT', 'getDraftWorkout: FAILED - $e');
       return null;
@@ -71,7 +71,7 @@ class WorkoutLocalDataSource {
   Future<WorkoutSession> updateWorkout(WorkoutSession workout) async {
     try {
       _log('UPDATE', 'workout id=${workout.id}');
-      await IsarService.updateWorkout(workout);
+      await HiveService.updateWorkout(workout);
       return workout;
     } catch (e) {
       _log('UPDATE', 'FAILED - $e');
@@ -83,7 +83,7 @@ class WorkoutLocalDataSource {
   Future<void> deleteWorkout(String workoutId) async {
     try {
       _log('DELETE', 'workout id=$workoutId');
-      await IsarService.deleteWorkout(workoutId);
+      await HiveService.deleteWorkout(workoutId);
       _log('DELETE', 'workout: SUCCESS');
     } catch (e) {
       _log('DELETE', 'workout: FAILED - $e');
@@ -96,9 +96,9 @@ class WorkoutLocalDataSource {
     try {
       _log('DELETE', 'workouts WHERE userId=$userId');
       final workouts =
-          await IsarService.getWorkouts(userId, includeDrafts: true);
+          await HiveService.getWorkouts(userId, includeDrafts: true);
       for (final w in workouts) {
-        await IsarService.deleteWorkout(w.id);
+        await HiveService.deleteWorkout(w.id);
       }
       _log('DELETE', 'workouts user: SUCCESS');
     } catch (e) {
@@ -113,7 +113,7 @@ class WorkoutLocalDataSource {
     String exerciseName,
   ) async {
     try {
-      return await IsarService.getLastExerciseLog(userId, exerciseName);
+      return await HiveService.getLastExerciseLog(userId, exerciseName);
     } catch (e) {
       _log('SELECT', 'getLastExerciseLog: FAILED - $e');
       return null;
@@ -126,7 +126,7 @@ class WorkoutLocalDataSource {
     String exerciseName,
   ) async {
     try {
-      return await IsarService.getExercisePR(userId, exerciseName);
+      return await HiveService.getExercisePR(userId, exerciseName);
     } catch (e) {
       _log('SELECT', 'getExercisePR: FAILED - $e');
       return null;
@@ -136,7 +136,7 @@ class WorkoutLocalDataSource {
   /// Get distinct exercise names
   Future<List<String>> getExerciseNames(String userId) async {
     try {
-      return await IsarService.getExerciseNames(userId);
+      return await HiveService.getExerciseNames(userId);
     } catch (e) {
       _log('SELECT', 'getExerciseNames: FAILED - $e');
       return [];
@@ -150,7 +150,7 @@ class WorkoutLocalDataSource {
     DateTime? endDate,
   }) async {
     try {
-      return await IsarService.getAllPersonalRecords(userId,
+      return await HiveService.getAllPersonalRecords(userId,
           startDate: startDate, endDate: endDate);
     } catch (e) {
       _log('SELECT', 'getAllPersonalRecords: FAILED - $e');

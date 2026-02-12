@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:liftly/core/models/workout_plan.dart';
 import 'package:liftly/core/models/workout_session.dart';
-import 'package:liftly/core/services/isar_service.dart';
+import 'package:liftly/core/services/hive_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -50,7 +50,7 @@ class DataManagementService {
     // We need a way to get EVERYTHING.
     // I'll add `exportAllData` to IsarService that returns {workouts: [], plans: []}
 
-    final allData = await IsarService.getAllDataForExport();
+    final allData = await HiveService.getAllDataForExport();
     final workouts = allData['workouts'] as List<WorkoutSession>;
     final plans = allData['plans'] as List<WorkoutPlan>;
 
@@ -342,7 +342,7 @@ class DataManagementService {
         }
       }
 
-      await IsarService.importWorkouts(parsedWorkouts);
+      await HiveService.importWorkouts(parsedWorkouts);
 
       // 3. Reconstruct Plans
       final parsedPlans = <WorkoutPlan>[];
@@ -376,7 +376,7 @@ class DataManagementService {
         importedPlans++;
       }
 
-      await IsarService.importPlans(parsedPlans);
+      await HiveService.importPlans(parsedPlans);
 
       return 'Successfully imported $importedWorkouts workouts and $importedPlans plans.';
     } catch (e) {
@@ -390,7 +390,7 @@ class DataManagementService {
   /// Clear all data from the database
   static Future<void> clearAllData() async {
     try {
-      await IsarService.clearAllData();
+      await HiveService.clearAllData();
     } catch (e) {
       rethrow;
     }
