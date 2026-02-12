@@ -18,7 +18,7 @@ class WorkoutRepository {
 
   Future<List<WorkoutSession>> getWorkouts({
     required String userId,
-    int limit = 20,
+    int? limit = 20,
     int offset = 0,
   }) async {
     try {

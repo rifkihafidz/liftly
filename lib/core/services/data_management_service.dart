@@ -229,59 +229,66 @@ class DataManagementService {
   static Future<String> importDataFromBytes(Uint8List bytes,
       {String targetUserId = '1'}) async {
     try {
-      final excel = Excel.decodeBytes(bytes);
+      // 1. Decode, Parse, Group, and Sort in background isolate
+      // This offloads the vast majority of CPU work from the main thread.
+      final structuredData = await compute(_decodeAndStructureExcel, bytes);
 
-      // We need to reconstruct objects from tabular data.
-      // 1. Parse all sheets into Maps
-      final workoutsMap = _parseSheet(excel, 'workouts');
-      final workoutExercisesMap = _parseSheet(excel, 'workout_exercises');
-      final workoutSetsMap = _parseSheet(excel, 'workout_sets');
-      final setSegmentsMap = _parseSheet(excel, 'set_segments');
+      // Yield to UI thread after heavy isolate work
+      await Future.delayed(Duration.zero);
 
-      final plansMap = _parseSheet(excel, 'plans');
-      final planExercisesMap = _parseSheet(excel, 'plan_exercises');
+      final workoutsData =
+          structuredData['workouts'] as List<Map<String, dynamic>>;
+      final plansData = structuredData['plans'] as List<Map<String, dynamic>>;
 
       int importedWorkouts = 0;
       int importedPlans = 0;
 
-      // 2. Reconstruct Workouts
-      // Group exercises by workout_id
-      final exercisesByWorkout = _groupBy(workoutExercisesMap, 'workout_id');
-      final setsByExercise = _groupBy(workoutSetsMap, 'exercise_id');
-      final segmentsBySet = _groupBy(setSegmentsMap, 'set_id');
+      // 2. Reconstruct Workouts (Mainly model instantiation)
+      final parsedWorkouts = <WorkoutSession>[];
 
-      for (final wRow in workoutsMap) {
+      for (final wData in workoutsData) {
+        final wRow = wData['row'] as Map<String, dynamic>;
         if (wRow['is_draft'] == 1 || wRow['is_draft'] == '1') continue;
 
         final workoutId = wRow['id'] as String;
-        final exercisesData = exercisesByWorkout[workoutId] ?? [];
+        final exercisesData = wData['exercises'] as List<Map<String, dynamic>>;
 
-        // Sort exercises
-        exercisesData.sort((a, b) =>
-            (a['exercise_order'] as int).compareTo(b['exercise_order'] as int));
-
-        final exercises = exercisesData.map((eRow) {
+        final exercises = exercisesData.map((eData) {
+          final eRow = eData['row'] as Map<String, dynamic>;
           final exId = eRow['id'] as String;
-          final setsData = setsByExercise[exId] ?? [];
+          final setsData = eData['sets'] as List<Map<String, dynamic>>;
 
-          // Sort sets
-          setsData.sort((a, b) =>
-              (a['set_number'] as int).compareTo(b['set_number'] as int));
-
-          final sets = setsData.map((sRow) {
+          final sets = setsData.map((sData) {
+            final sRow = sData['row'] as Map<String, dynamic>;
             final setId = sRow['id'] as String;
-            final segmentsData = segmentsBySet[setId] ?? [];
-
-            // Sort segments
-            segmentsData.sort((a, b) => (a['segment_order'] as int)
-                .compareTo(b['segment_order'] as int));
+            final segmentsData =
+                sData['segments'] as List<Map<String, dynamic>>;
 
             final segments = segmentsData.map((segRow) {
+              int rFrom = segRow['reps_from'] as int? ?? 0;
+              int rTo = segRow['reps_to'] as int? ?? 0;
+
+              if (rFrom == 0 && rTo == 0 && segRow.containsKey('reps')) {
+                final reps = segRow['reps'] as int? ?? 0;
+                if (reps > 0) {
+                  rFrom = 1;
+                  rTo = reps;
+                }
+              }
+
+              if (rFrom == rTo && rFrom > 1) {
+                rTo = rFrom;
+                rFrom = 1;
+              }
+
+              if (rFrom == 0) rFrom = 1;
+              if (rTo < rFrom) rTo = rFrom;
+
               return SetSegment(
                 id: segRow['id'] as String,
                 weight: (segRow['weight'] as num).toDouble(),
-                repsFrom: segRow['reps_from'] as int,
-                repsTo: segRow['reps_to'] as int,
+                repsFrom: rFrom,
+                repsTo: rTo,
                 segmentOrder: segRow['segment_order'] as int,
                 notes: segRow['notes'] as String? ?? '',
               );
@@ -307,13 +314,9 @@ class DataManagementService {
 
         final workout = WorkoutSession(
           id: workoutId,
-          userId: targetUserId, // Use targetUserId to normalize import
+          userId: targetUserId,
           planId: wRow['plan_id'] as String?,
-          planName:
-              null, // Legacy might not have plan_name column in 'workouts' table?
-          // In legacy_workout_data_source, we joined with plans table to get name.
-          // But export 'workouts' sheet usually only has plan_id.
-          // If we have plans loaded, we could look it up, but strictly speaking IsarService will just store what's given.
+          planName: null,
           workoutDate: DateTime.parse(wRow['workout_date'] as String),
           startedAt: wRow['started_at'] != null
               ? DateTime.parse(wRow['started_at'] as String)
@@ -329,19 +332,25 @@ class DataManagementService {
           isDraft: false,
         );
 
-        await IsarService.createWorkout(workout);
+        parsedWorkouts.add(workout);
         importedWorkouts++;
+
+        // Yield less frequently (every 50 workouts) to improve performance
+        // but still keep UI indicator alive
+        if (importedWorkouts % 50 == 0) {
+          await Future.delayed(Duration.zero);
+        }
       }
 
+      await IsarService.importWorkouts(parsedWorkouts);
+
       // 3. Reconstruct Plans
-      final planExByPlan = _groupBy(planExercisesMap, 'plan_id');
+      final parsedPlans = <WorkoutPlan>[];
 
-      for (final pRow in plansMap) {
+      for (final pData in plansData) {
+        final pRow = pData['row'] as Map<String, dynamic>;
         final planId = pRow['id'] as String;
-        final pExData = planExByPlan[planId] ?? [];
-
-        pExData.sort((a, b) =>
-            (a['exercise_order'] as int).compareTo(b['exercise_order'] as int));
+        final pExData = pData['exercises'] as List<Map<String, dynamic>>;
 
         final exercises = pExData.map((eRow) {
           return PlanExercise(
@@ -353,7 +362,7 @@ class DataManagementService {
 
         final plan = WorkoutPlan(
           id: planId,
-          userId: targetUserId, // Use targetUserId to normalize import
+          userId: targetUserId,
           name: pRow['name'] as String,
           description: pRow['description'] as String?,
           exercises: exercises,
@@ -363,9 +372,11 @@ class DataManagementService {
               DateTime.now(),
         );
 
-        await IsarService.createPlan(plan);
+        parsedPlans.add(plan);
         importedPlans++;
       }
+
+      await IsarService.importPlans(parsedPlans);
 
       return 'Successfully imported $importedWorkouts workouts and $importedPlans plans.';
     } catch (e) {
@@ -376,75 +387,154 @@ class DataManagementService {
     }
   }
 
-  static List<Map<String, dynamic>> _parseSheet(Excel excel, String sheetName) {
-    if (!excel.tables.keys.contains(sheetName)) return [];
-
-    final sheet = excel.tables[sheetName]!;
-    if (sheet.maxRows <= 1) return []; // Only header or empty
-
-    final rows = <Map<String, dynamic>>[];
-    final headerRow = sheet.rows.first;
-    final headers = headerRow.map((e) => e?.value.toString() ?? '').toList();
-
-    for (int i = 1; i < sheet.rows.length; i++) {
-      final row = sheet.rows[i];
-      final Map<String, dynamic> rowMap = {};
-
-      for (int j = 0; j < headers.length; j++) {
-        if (j < row.length) {
-          final header = headers[j];
-          if (header.isEmpty) continue;
-
-          final cellValue = row[j]?.value;
-          if (cellValue == null) {
-            rowMap[header] = null;
-          } else if (cellValue is TextCellValue) {
-            final val = cellValue.value.toString();
-            if (val == 'null') {
-              rowMap[header] = null;
-            } else {
-              rowMap[header] = val.isEmpty ? null : val;
-            }
-          } else if (cellValue is IntCellValue) {
-            rowMap[header] = cellValue.value;
-          } else if (cellValue is DoubleCellValue) {
-            rowMap[header] = cellValue.value;
-          } else {
-            rowMap[header] = cellValue.toString();
-          }
-        }
-      }
-      rows.add(rowMap);
-    }
-    return rows;
-  }
-
-  static Map<String, List<Map<String, dynamic>>> _groupBy(
-      List<Map<String, dynamic>> list, String key) {
-    final map = <String, List<Map<String, dynamic>>>{};
-    for (final item in list) {
-      final val = item[key] as String?;
-      if (val != null) {
-        map.putIfAbsent(val, () => []).add(item);
-      }
-    }
-    return map;
-  }
-
   /// Clear all data from the database
   static Future<void> clearAllData() async {
     try {
-      // IsarService clear
-      // We need method in IsarService to clear everything.
-      // Assuming user wants full wipe.
-      // This was used for restore (maybe wipe before restore?)
-      // Or usually redundant if we use replace logic. Isar replace works by ID.
-      // If import has new IDs, clear helps avoiding duplicates if ID scheme changed.
-      // But if IDs are UUIDs, collision is rare.
-      // Let's implement a clear method in IsarService or call individual clears.
-      // For now, I'll rely on replace logic in createWorkout/createPlan.
+      await IsarService.clearAllData();
     } catch (e) {
       rethrow;
     }
   }
+}
+
+/// Isolate function for decoding, parsing AND structuring Excel data.
+Map<String, dynamic> _decodeAndStructureExcel(Uint8List bytes) {
+  final excel = Excel.decodeBytes(bytes);
+
+  final workoutsMap = _parseSheetRaw(excel, 'workouts');
+  final workoutExercisesMap = _parseSheetRaw(excel, 'workout_exercises');
+  final workoutSetsMap = _parseSheetRaw(excel, 'workout_sets');
+  final setSegmentsMap = _parseSheetRaw(excel, 'set_segments');
+  final plansMap = _parseSheetRaw(excel, 'plans');
+  final planExercisesMap = _parseSheetRaw(excel, 'plan_exercises');
+
+  // Group everything in the isolate
+  final exercisesByWorkout =
+      _groupByInternal(workoutExercisesMap, 'workout_id');
+  final setsByExercise = _groupByInternal(workoutSetsMap, 'exercise_id');
+  final segmentsBySet = _groupByInternal(setSegmentsMap, 'set_id');
+  final planExByPlan = _groupByInternal(planExercisesMap, 'plan_id');
+
+  // 1. Structure Workouts
+  final structuredWorkouts = <Map<String, dynamic>>[];
+  for (final wRow in workoutsMap) {
+    final workoutId = wRow['id'] as String?;
+    if (workoutId == null) continue;
+
+    final exercisesData = exercisesByWorkout[workoutId] ?? [];
+    // Sort exercises in isolate
+    exercisesData.sort((a, b) =>
+        (a['exercise_order'] as int).compareTo(b['exercise_order'] as int));
+
+    final structuredExercises = <Map<String, dynamic>>[];
+    for (final eRow in exercisesData) {
+      final exId = eRow['id'] as String?;
+      if (exId == null) continue;
+
+      final setsData = setsByExercise[exId] ?? [];
+      // Sort sets in isolate
+      setsData.sort(
+          (a, b) => (a['set_number'] as int).compareTo(b['set_number'] as int));
+
+      final structuredSets = <Map<String, dynamic>>[];
+      for (final sRow in setsData) {
+        final setId = sRow['id'] as String?;
+        if (setId == null) continue;
+
+        final segmentsData = segmentsBySet[setId] ?? [];
+        // Sort segments in isolate
+        segmentsData.sort((a, b) =>
+            (a['segment_order'] as int).compareTo(b['segment_order'] as int));
+
+        structuredSets.add({
+          'row': sRow,
+          'segments': segmentsData,
+        });
+      }
+
+      structuredExercises.add({
+        'row': eRow,
+        'sets': structuredSets,
+      });
+    }
+
+    structuredWorkouts.add({
+      'row': wRow,
+      'exercises': structuredExercises,
+    });
+  }
+
+  // 2. Structure Plans
+  final structuredPlans = <Map<String, dynamic>>[];
+  for (final pRow in plansMap) {
+    final planId = pRow['id'] as String?;
+    if (planId == null) continue;
+
+    final pExData = planExByPlan[planId] ?? [];
+    pExData.sort((a, b) =>
+        (a['exercise_order'] as int).compareTo(b['exercise_order'] as int));
+
+    structuredPlans.add({
+      'row': pRow,
+      'exercises': pExData,
+    });
+  }
+
+  return {
+    'workouts': structuredWorkouts,
+    'plans': structuredPlans,
+  };
+}
+
+/// Internal helper for grouping within isolate
+Map<String, List<Map<String, dynamic>>> _groupByInternal(
+    List<Map<String, dynamic>> list, String key) {
+  final map = <String, List<Map<String, dynamic>>>{};
+  for (final item in list) {
+    final val = item[key] as String?;
+    if (val != null) {
+      map.putIfAbsent(val, () => []).add(item);
+    }
+  }
+  return map;
+}
+
+/// Raw sheet parsing helper for isolate.
+List<Map<String, dynamic>> _parseSheetRaw(Excel excel, String sheetName) {
+  if (!excel.tables.keys.contains(sheetName)) return [];
+
+  final sheet = excel.tables[sheetName]!;
+  if (sheet.maxRows <= 1) return [];
+
+  final rows = <Map<String, dynamic>>[];
+  final headerRow = sheet.rows.first;
+  final headers = headerRow.map((e) => e?.value.toString() ?? '').toList();
+
+  for (int i = 1; i < sheet.rows.length; i++) {
+    final row = sheet.rows[i];
+    final Map<String, dynamic> rowMap = {};
+
+    for (int j = 0; j < headers.length; j++) {
+      if (j < row.length) {
+        final header = headers[j];
+        if (header.isEmpty) continue;
+
+        final cellValue = row[j]?.value;
+        if (cellValue == null) {
+          rowMap[header] = null;
+        } else if (cellValue is TextCellValue) {
+          final val = cellValue.value.toString();
+          rowMap[header] = (val == 'null' || val.isEmpty) ? null : val;
+        } else if (cellValue is IntCellValue) {
+          rowMap[header] = cellValue.value;
+        } else if (cellValue is DoubleCellValue) {
+          rowMap[header] = cellValue.value;
+        } else {
+          rowMap[header] = cellValue.toString();
+        }
+      }
+    }
+    rows.add(rowMap);
+  }
+  return rows;
 }

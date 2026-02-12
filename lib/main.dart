@@ -79,14 +79,6 @@ class _LiftlyState extends State<Liftly> with WidgetsBindingObserver {
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      // Force a rebuild to ensure the UI is painted when returning from background
-      setState(() {});
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [

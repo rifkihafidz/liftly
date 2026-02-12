@@ -29,18 +29,16 @@ class WorkoutLocalDataSource {
   /// Get all workouts for a specific user
   Future<List<WorkoutSession>> getWorkouts(
     String userId, {
-    int limit = 20,
+    int? limit = 20,
     int offset = 0,
     bool includeDrafts = false,
   }) async {
     try {
-      _log('SELECT', 'workouts userId=$userId');
-      final workouts =
-          await IsarService.getWorkouts(userId, includeDrafts: includeDrafts);
+      _log('SELECT', 'workouts userId=$userId limit=$limit offset=$offset');
+      // Pass pagination params to IsarService for DB-level optimization
+      final workouts = await IsarService.getWorkouts(userId,
+          includeDrafts: includeDrafts, limit: limit, offset: offset);
 
-      if (limit > 0 && workouts.length > limit) {
-        return workouts.skip(offset).take(limit).toList();
-      }
       return workouts;
     } catch (e) {
       _log('SELECT', 'workouts: FAILED - $e');

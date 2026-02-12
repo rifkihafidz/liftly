@@ -13,6 +13,11 @@ class StatsInitial extends StatsState {}
 
 class StatsLoading extends StatsState {}
 
+enum PrSortOrder {
+  az,
+  za,
+}
+
 class PersonalRecord extends Equatable {
   // Metric 1: Max Weight (Heaviest Set - individual segment)
   final double maxWeight;
@@ -26,6 +31,7 @@ class PersonalRecord extends Equatable {
 
   // Metric 3: Best Session (Highest total volume in one workout)
   final double bestSessionVolume;
+  final int bestSessionReps; // Added for bodyweight/zero-weight fallback
   final String? bestSessionDate;
   final List<ExerciseSet>? bestSessionSets;
 
@@ -37,22 +43,24 @@ class PersonalRecord extends Equatable {
     this.maxVolumeReps = 0,
     this.maxVolumeBreakdown = '',
     this.bestSessionVolume = 0,
+    this.bestSessionReps = 0,
     this.bestSessionDate,
     this.bestSessionSets,
   });
 
   @override
   List<Object?> get props => [
-    maxWeight,
-    maxWeightReps,
-    maxVolume,
-    maxVolumeWeight,
-    maxVolumeReps,
-    maxVolumeBreakdown,
-    bestSessionVolume,
-    bestSessionDate,
-    bestSessionSets,
-  ];
+        maxWeight,
+        maxWeightReps,
+        maxVolume,
+        maxVolumeWeight,
+        maxVolumeReps,
+        maxVolumeBreakdown,
+        bestSessionVolume,
+        bestSessionReps,
+        bestSessionDate,
+        bestSessionSets,
+      ];
 }
 
 class StatsLoaded extends StatsState {
@@ -62,6 +70,7 @@ class StatsLoaded extends StatsState {
   final DateTime referenceDate;
   final Map<String, PersonalRecord> personalRecords;
   final Set<String>? prFilter; // Null means all
+  final PrSortOrder sortOrder;
 
   const StatsLoaded({
     required this.allSessions,
@@ -70,6 +79,7 @@ class StatsLoaded extends StatsState {
     required this.referenceDate,
     required this.personalRecords,
     this.prFilter,
+    this.sortOrder = PrSortOrder.az,
   });
 
   StatsLoaded copyWith({
@@ -79,6 +89,7 @@ class StatsLoaded extends StatsState {
     DateTime? referenceDate,
     Map<String, PersonalRecord>? personalRecords,
     Set<String>? prFilter,
+    PrSortOrder? sortOrder,
   }) {
     return StatsLoaded(
       allSessions: allSessions ?? this.allSessions,
@@ -87,18 +98,20 @@ class StatsLoaded extends StatsState {
       referenceDate: referenceDate ?? this.referenceDate,
       personalRecords: personalRecords ?? this.personalRecords,
       prFilter: prFilter ?? this.prFilter,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 
   @override
   List<Object?> get props => [
-    allSessions,
-    filteredSessions,
-    timePeriod,
-    referenceDate,
-    personalRecords,
-    prFilter,
-  ];
+        allSessions,
+        filteredSessions,
+        timePeriod,
+        referenceDate,
+        personalRecords,
+        prFilter,
+        sortOrder,
+      ];
 }
 
 class StatsError extends StatsState {

@@ -9,11 +9,13 @@ class IsarWorkoutSession {
   @Index(unique: true, replace: true)
   late String workoutId;
 
+  @Index()
   late String userId;
 
   String? planId;
   String? planName;
 
+  @Index()
   late DateTime workoutDate;
 
   DateTime? startedAt;
@@ -31,8 +33,17 @@ class IsarWorkoutSession {
 class IsarSessionExercise {
   Id id = Isar.autoIncrement;
 
+  @Index(unique: true, replace: true)
   late String exerciseId;
 
+  // Denormalized fields for performance
+  @Index()
+  String? userId;
+
+  @Index()
+  String? directWorkoutId;
+
+  @Index(caseSensitive: false)
   late String name;
 
   int order = 0;
@@ -50,7 +61,18 @@ class IsarSessionExercise {
 class IsarExerciseSet {
   Id id = Isar.autoIncrement;
 
+  @Index(unique: true, replace: true)
   late String setId;
+
+  // Denormalized fields for performance
+  @Index()
+  String? userId;
+
+  @Index()
+  String? directWorkoutId;
+
+  @Index()
+  String? directExerciseId;
 
   int setNumber = 0;
 
@@ -64,7 +86,21 @@ class IsarExerciseSet {
 class IsarSetSegment {
   Id id = Isar.autoIncrement; // Isar internal ID
 
+  @Index(unique: true, replace: true)
   late String segmentId; // Logic segment ID from app
+
+  // Denormalized fields for performance
+  @Index()
+  String? userId;
+
+  @Index()
+  String? directWorkoutId;
+
+  @Index()
+  String? directExerciseId;
+
+  @Index()
+  String? directSetId;
 
   double weight = 0;
   int repsFrom = 0;
@@ -112,6 +148,10 @@ class IsarPlanExercise {
   Id id = Isar.autoIncrement;
 
   late String exerciseId;
+
+  @Index()
+  String? directPlanId;
+
   late String name;
   late int order;
 

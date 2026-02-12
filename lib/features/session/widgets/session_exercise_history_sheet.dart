@@ -26,23 +26,12 @@ class SessionExerciseHistorySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final historyVolume =
-        history?.sets.fold<double>(
-          0.0,
-          (sum, s) =>
-              sum +
-              s.segments.fold<double>(
-                0.0,
-                (sSum, seg) =>
-                    sSum + (seg.weight * (seg.repsTo - seg.repsFrom + 1)),
-              ),
-        ) ??
-        0.0;
+    // Variables historyVolume and historyTotalReps removed as they are no longer needed
+    // for the simplified logic of always showing the Best Session.
 
-    final showBestSessionSection =
-        pr != null &&
+    final showBestSessionSection = pr != null &&
         pr!.bestSessionSets != null &&
-        pr!.bestSessionVolume > (historyVolume + 0.1);
+        (pr!.bestSessionVolume > 0 || pr!.bestSessionReps > 0);
 
     return SingleChildScrollView(
       child: Padding(
@@ -64,9 +53,9 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                   Text(
                     'Last Session',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
                   ),
                 ],
               ),
@@ -78,9 +67,9 @@ class SessionExerciseHistorySheet extends StatelessWidget {
               Text(
                 'Best Session',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.accent,
-                ),
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.accent,
+                    ),
               ),
               const SizedBox(height: 12),
               ..._renderSets(context, pr!.bestSessionSets!),
@@ -90,9 +79,9 @@ class SessionExerciseHistorySheet extends StatelessWidget {
               Text(
                 'Personal Record (PR)',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.accent,
-                ),
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.accent,
+                    ),
               ),
               const SizedBox(height: 12),
               Row(
@@ -129,13 +118,15 @@ class SessionExerciseHistorySheet extends StatelessWidget {
   }
 
   List<Widget> _renderSets(BuildContext context, List<ExerciseSet> sets) {
-    return sets.expand<Widget>((s) {
+    return sets.asMap().entries.expand<Widget>((entry) {
+      final index = entry.key;
+      final s = entry.value;
+
       if (s.segments.isEmpty) return [const SizedBox.shrink()];
 
       return s.segments.map((seg) {
-        final weight = seg.weight == seg.weight.toInt()
-            ? seg.weight.toInt()
-            : seg.weight;
+        final weight =
+            seg.weight == seg.weight.toInt() ? seg.weight.toInt() : seg.weight;
 
         String reps;
         if (seg.repsFrom != seg.repsTo && seg.repsTo > 0) {
@@ -152,6 +143,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
         }
 
         final isDropSet = seg.segmentOrder > 0;
+        final displaySetNumber = s.setNumber > 0 ? s.setNumber : index + 1;
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -169,11 +161,11 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                 SizedBox(
                   width: 20,
                   child: Text(
-                    '${s.setNumber}',
+                    '$displaySetNumber',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.bold,
+                        ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -231,9 +223,8 @@ class SessionExerciseHistorySheet extends StatelessWidget {
         border: Border.all(color: AppColors.accent.withValues(alpha: 0.1)),
       ),
       child: Column(
-        crossAxisAlignment: isFullWidth
-            ? CrossAxisAlignment.center
-            : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isFullWidth ? CrossAxisAlignment.center : CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: isFullWidth
