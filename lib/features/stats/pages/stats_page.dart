@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../session/widgets/session_exercise_history_sheet.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'dart:typed_data';
@@ -121,8 +122,7 @@ class _StatsPageState extends State<StatsPage> {
         ], text: 'Check out my workout stats! 💪');
       } catch (shareError) {
         // Fallback to simple text share if file sharing fails
-        final shareText =
-            'Check out my workout stats! 💪\n\n'
+        final shareText = 'Check out my workout stats! 💪\n\n'
             'Period: ${state.timePeriod.label}\n'
             'Workouts: ${state.filteredSessions.length}';
 
@@ -225,16 +225,16 @@ class _StatsPageState extends State<StatsPage> {
                         state.message,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                              color: AppColors.textSecondary,
+                            ),
                       ),
                     ),
                     const SizedBox(height: 24),
                     FilledButton(
                       onPressed: () {
                         context.read<StatsBloc>().add(
-                          const StatsFetched(userId: '1'),
-                        );
+                              const StatsFetched(userId: '1'),
+                            );
                       },
                       child: const Text('Retry'),
                     ),
@@ -290,13 +290,13 @@ class _StatsPageState extends State<StatsPage> {
                               referenceDate: state.referenceDate,
                               onPeriodChanged: (period) {
                                 context.read<StatsBloc>().add(
-                                  StatsPeriodChanged(timePeriod: period),
-                                );
+                                      StatsPeriodChanged(timePeriod: period),
+                                    );
                               },
                               onDateChanged: (date) {
                                 context.read<StatsBloc>().add(
-                                  StatsDateChanged(date: date),
-                                );
+                                      StatsDateChanged(date: date),
+                                    );
                               },
                             ),
                           ),
@@ -526,6 +526,40 @@ class _StatsPageState extends State<StatsPage> {
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(width: 16),
+                  // Sort Button
+                  PopupMenuButton<PrSortOrder>(
+                    initialValue: state.sortOrder,
+                    onSelected: (order) {
+                      context
+                          .read<StatsBloc>()
+                          .add(StatsPRSortChanged(sortOrder: order));
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: PrSortOrder.az,
+                        child: Row(
+                          children: [
+                            Icon(Icons.sort_by_alpha, size: 18),
+                            SizedBox(width: 8),
+                            Text('A-Z'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: PrSortOrder.za,
+                        child: Row(
+                          children: [
+                            Icon(Icons.sort_by_alpha, size: 18),
+                            SizedBox(width: 8),
+                            Text('Z-A'),
+                          ],
+                        ),
+                      ),
+                    ],
+                    padding: EdgeInsets.zero,
+                    child: const Icon(Icons.sort, size: 20),
+                  ),
+                  const SizedBox(width: 16),
                   IconButton(
                     onPressed: () => _showPRFilterDialog(
                       context,
@@ -557,6 +591,8 @@ class _StatsPageState extends State<StatsPage> {
                 context,
                 state.personalRecords,
                 state.prFilter,
+                state.allSessions,
+                state.sortOrder,
               ),
             ),
           ),
@@ -580,8 +616,7 @@ class _StatsPageState extends State<StatsPage> {
           // Logic:
           // If Sessions NOT Empty AND PRs NOT Empty -> Show First (Grid)
           // Else -> Show Second (Empty Card)
-          crossFadeState:
-              (state.filteredSessions.isNotEmpty &&
+          crossFadeState: (state.filteredSessions.isNotEmpty &&
                   state.personalRecords.isNotEmpty)
               ? CrossFadeState.showFirst
               : CrossFadeState.showSecond,
@@ -593,13 +628,24 @@ class _StatsPageState extends State<StatsPage> {
 
   Widget _buildPersonalRecordsGrid(
     BuildContext context,
-    Map<String, PersonalRecord> records, // Changed type
+    Map<String, PersonalRecord> records,
     Set<String>? filter,
+    List<WorkoutSession> allSessions,
+    PrSortOrder sortOrder,
   ) {
     // Apply filter
     final prsList = (filter == null || filter.isEmpty)
         ? records.entries.toList()
         : records.entries.where((e) => filter.contains(e.key)).toList();
+
+    // Sort
+    prsList.sort((a, b) {
+      if (sortOrder == PrSortOrder.az) {
+        return a.key.toLowerCase().compareTo(b.key.toLowerCase());
+      } else {
+        return b.key.toLowerCase().compareTo(a.key.toLowerCase());
+      }
+    });
     final itemsPerPage = 4;
     final totalPages = (prsList.length / itemsPerPage).ceil();
 
@@ -635,76 +681,118 @@ class _StatsPageState extends State<StatsPage> {
                 final entry = currentPRs[index];
                 return FadeInSlide(
                   index: index,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBg,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+                  child: InkWell(
+                    onTap: () {
+                      // Find last session for this exercise
+                      SessionExercise? lastSession;
+                      try {
+                        final exerciseName = entry.key;
+                        final session = allSessions.firstWhere((s) =>
+                            s.exercises.any((e) =>
+                                e.name.toLowerCase() ==
+                                exerciseName.toLowerCase()));
+                        lastSession = session.exercises.firstWhere((e) =>
+                            e.name.toLowerCase() == exerciseName.toLowerCase());
+                      } catch (_) {
+                        // ignore
+                      }
+
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: AppColors.cardBg,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(20)),
                         ),
-                      ],
-                      border: Border.all(
-                        color: AppColors.accent.withValues(alpha: 0.15),
-                        width: 1,
+                        builder: (context) => DraggableScrollableSheet(
+                          initialChildSize: 0.7,
+                          minChildSize: 0.5,
+                          maxChildSize: 0.95,
+                          expand: false,
+                          builder: (context, scrollController) =>
+                              SessionExerciseHistorySheet(
+                            exerciseName: entry.key,
+                            history: lastSession,
+                            pr: entry.value,
+                          ),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.cardBg,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.15),
+                          width: 1,
+                        ),
                       ),
-                    ),
-                    clipBehavior: Clip.hardEdge,
-                    child: Stack(
-                      children: [
-                        // Decorative watermark
-                        Positioned(
-                          right: -10,
-                          bottom: -10,
-                          child: Icon(
-                            Icons.emoji_events_rounded,
-                            size: 64,
-                            color: AppColors.accent.withValues(alpha: 0.05),
+                      clipBehavior: Clip.hardEdge,
+                      child: Stack(
+                        children: [
+                          // Decorative watermark
+                          Positioned(
+                            right: -10,
+                            bottom: -10,
+                            child: Icon(
+                              Icons.emoji_events_rounded,
+                              size: 64,
+                              color: AppColors.accent.withValues(alpha: 0.05),
+                            ),
                           ),
-                        ),
-                        // Content
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment:
-                                MainAxisAlignment.start, // Avoid stretching
-                            children: [
-                              Text(
-                                entry.key.toUpperCase(),
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.5,
-                                    ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 8),
-                              // Best 1 Set (Max Weight)
-                              _buildPRValueRow(
-                                context,
-                                'Heaviest',
-                                entry.value.maxWeight,
-                                'kg',
-                                reps: entry.value.maxWeightReps,
-                              ),
-                              const SizedBox(height: 4),
-                              // Best Volume Set (Max Vol)
-                              _buildPRValueRow(
-                                context,
-                                'Best Vol',
-                                entry.value.maxVolume,
-                                'kg',
-                                details: entry.value.maxVolumeBreakdown,
-                              ),
-                            ],
+                          // Content
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment:
+                                  MainAxisAlignment.start, // Avoid stretching
+                              children: [
+                                Text(
+                                  entry.key.toUpperCase(),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.5,
+                                      ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 8),
+                                // Best 1 Set (Max Weight)
+                                _buildPRValueRow(
+                                  context,
+                                  'Heaviest',
+                                  entry.value.maxWeight,
+                                  'kg',
+                                  reps: entry.value.maxWeightReps,
+                                ),
+                                const SizedBox(height: 4),
+                                // Best Volume Set (Max Vol)
+                                _buildPRValueRow(
+                                  context,
+                                  'Best Vol',
+                                  entry.value.maxVolume,
+                                  'kg',
+                                  details: entry.value.maxVolumeBreakdown,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -762,9 +850,9 @@ class _StatsPageState extends State<StatsPage> {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColors.textSecondary,
-            fontSize: 10,
-          ),
+                color: AppColors.textSecondary,
+                fontSize: 10,
+              ),
         ),
         const SizedBox(height: 2),
         Row(
@@ -774,27 +862,27 @@ class _StatsPageState extends State<StatsPage> {
             Text(
               _formatNumber(value),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(width: 4),
             Text(
               unit,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.accent,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
+                    color: AppColors.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
             if (reps != null) ...[
               const SizedBox(width: 6),
               Text(
                 'x $reps',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                ),
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
               ),
             ],
           ],
@@ -804,10 +892,10 @@ class _StatsPageState extends State<StatsPage> {
           Text(
             '($details)',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary.withValues(alpha: 0.7),
-              fontSize: 10,
-              height: 1.3,
-            ),
+                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                  fontSize: 10,
+                  height: 1.3,
+                ),
           ),
         ],
       ],
@@ -989,13 +1077,13 @@ class _StatsSharePreview extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       'LIFTLY',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 3,
-                            fontSize: 18,
-                          ),
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 3,
+                                fontSize: 18,
+                              ),
                     ),
                     const SizedBox(height: 8),
                     Container(
@@ -1016,11 +1104,11 @@ class _StatsSharePreview extends StatelessWidget {
                           referenceDate,
                         ).toUpperCase(),
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.accent,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.0,
-                          fontSize: 9,
-                        ),
+                              color: AppColors.accent,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.0,
+                              fontSize: 9,
+                            ),
                       ),
                     ),
                   ],
@@ -1104,19 +1192,19 @@ class _StatsSharePreview extends StatelessWidget {
                     Text(
                       'Track your progress with Liftly',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontSize: 10,
-                        letterSpacing: 0.5,
-                      ),
+                            color: AppColors.textSecondary,
+                            fontSize: 10,
+                            letterSpacing: 0.5,
+                          ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'liftly.app',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.accent.withValues(alpha: 0.7),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                      ),
+                            color: AppColors.accent.withValues(alpha: 0.7),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
                     ),
                   ],
                 ),
@@ -1132,11 +1220,11 @@ class _StatsSharePreview extends StatelessWidget {
     return Text(
       title,
       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-        color: AppColors.textSecondary,
-        fontWeight: FontWeight.bold,
-        letterSpacing: 2,
-        fontSize: 9,
-      ),
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2,
+            fontSize: 9,
+          ),
     );
   }
 
@@ -1174,10 +1262,10 @@ class _StatsSharePreview extends StatelessWidget {
             Text(
               value,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 20,
-              ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                  ),
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1186,11 +1274,11 @@ class _StatsSharePreview extends StatelessWidget {
             Text(
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.textSecondary,
-                fontSize: 9,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
+                    color: AppColors.textSecondary,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
             ),
           ],
         ),
@@ -1371,9 +1459,8 @@ class _VolumeChartCard extends StatelessWidget {
     totalVolume = volumeData.fold(0, (sum, v) => sum + v);
 
     // Calculate max value for scaling
-    final rawMax = volumeData.isEmpty
-        ? 100.0
-        : volumeData.reduce((a, b) => a > b ? a : b);
+    final rawMax =
+        volumeData.isEmpty ? 100.0 : volumeData.reduce((a, b) => a > b ? a : b);
 
     // Calculate a nice interval and max Y to prevent clashing labels and provide breathing room
     double chartInterval = 100;
@@ -1425,9 +1512,9 @@ class _VolumeChartCard extends StatelessWidget {
           Text(
             'Volume Trend',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.bold,
-            ),
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -1458,13 +1545,14 @@ class _VolumeChartCard extends StatelessWidget {
                     ),
                     tooltipMargin: 8,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      String title = labels[group.x.toInt()];
+                      String titleTooltip = labels[group.x.toInt()];
                       if (timePeriod == TimePeriod.month) {
-                        title = 'Day $title';
+                        final monthStr = DateFormat('MMM').format(now);
+                        titleTooltip = '$monthStr $titleTooltip';
                       }
 
                       return BarTooltipItem(
-                        '$title\n',
+                        '$titleTooltip\n',
                         TextStyle(
                           color: AppColors.textSecondary,
                           fontWeight: FontWeight.bold,
@@ -1523,11 +1611,11 @@ class _VolumeChartCard extends StatelessWidget {
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
                             labels[index],
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontSize: isCompact ? 8 : 10,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontSize: isCompact ? 8 : 10,
+                                    ),
                           ),
                         );
                       },
@@ -1544,11 +1632,11 @@ class _VolumeChartCard extends StatelessWidget {
 
                         return Text(
                           '${_formatCompactNumber(value)} kg',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: AppColors.textSecondary,
-                                fontSize: 10,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 10,
+                                  ),
                         );
                       },
                       reservedSize: 50,
@@ -1579,8 +1667,8 @@ class _VolumeChartCard extends StatelessWidget {
                         width: timePeriod == TimePeriod.month
                             ? 6
                             : (timePeriod == TimePeriod.year
-                                  ? 10
-                                  : 14), // Thinner bars for month/year view
+                                ? 10
+                                : 14), // Thinner bars for month/year view
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ],
@@ -1599,23 +1687,26 @@ class _VolumeChartCard extends StatelessWidget {
               Text(
                 'Total: ${NumberFormat('#,##0.##', 'pt_BR').format(totalVolume)} kg',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w500,
-                  fontSize: isCompact ? 9 : 11,
-                ),
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                      fontSize: isCompact ? 9 : 11,
+                    ),
               ),
               Text(
                 'Avg: ${NumberFormat('#,##0.##', 'pt_BR').format(
                   // Average over non-zero days/months or just period length?
                   // Usually average per session is better, but here we show trend over time.
                   // Let's do average per active period unit (e.g. active days)
-                  volumeData.where((v) => v > 0).isEmpty ? 0.0 : volumeData.where((v) => v > 0).reduce((a, b) => a + b) / volumeData.where((v) => v > 0).length,
+                  volumeData.where((v) => v > 0).isEmpty
+                      ? 0.0
+                      : volumeData.where((v) => v > 0).reduce((a, b) => a + b) /
+                          volumeData.where((v) => v > 0).length,
                 )} kg / active ${timePeriod == TimePeriod.year ? 'mo' : 'day'}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.success,
-                  fontWeight: FontWeight.w500,
-                  fontSize: isCompact ? 9 : 11,
-                ),
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w500,
+                      fontSize: isCompact ? 9 : 11,
+                    ),
               ),
             ],
           ),
@@ -1794,14 +1885,13 @@ class _WorkoutFrequencyCard extends StatelessWidget {
           children: [
             Text(
               title,
-              style:
-                  (isCompact
-                          ? Theme.of(context).textTheme.titleSmall
-                          : Theme.of(context).textTheme.titleMedium)
-                      ?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
+              style: (isCompact
+                      ? Theme.of(context).textTheme.titleSmall
+                      : Theme.of(context).textTheme.titleMedium)
+                  ?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
@@ -1855,14 +1945,14 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                       Text(
                         index < labels.length ? labels[index] : '',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: isActive
-                              ? AppColors.textPrimary
-                              : AppColors.textSecondary,
-                          fontSize: isCompact ? 8 : 10,
-                          fontWeight: isActive
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
+                              color: isActive
+                                  ? AppColors.textPrimary
+                                  : AppColors.textSecondary,
+                              fontSize: isCompact ? 8 : 10,
+                              fontWeight: isActive
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
                       ),
                     ],
                   ),
@@ -1874,12 +1964,13 @@ class _WorkoutFrequencyCard extends StatelessWidget {
       );
     }
 
-    final maxFreq =
-        (frequencyData.isEmpty
-                ? 0
-                : frequencyData.reduce((a, b) => a > b ? a : b))
-            .toDouble();
-    final double maxYValue = maxFreq < 3 ? 3 : maxFreq + 1;
+    final maxFreq = (frequencyData.isEmpty
+            ? 0
+            : frequencyData.reduce((a, b) => a > b ? a : b))
+        .toDouble();
+    final double maxYValue = timePeriod == TimePeriod.year
+        ? (maxFreq <= 25 ? 25 : (maxFreq / 5).ceil() * 5)
+        : (maxFreq < 3 ? 3 : maxFreq + 1);
 
     List<BarChartGroupData> barGroups = [];
     for (int i = 0; i < frequencyData.length; i++) {
@@ -1925,14 +2016,13 @@ class _WorkoutFrequencyCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style:
-                (isCompact
-                        ? Theme.of(context).textTheme.titleSmall
-                        : Theme.of(context).textTheme.titleLarge)
-                    ?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
+            style: (isCompact
+                    ? Theme.of(context).textTheme.titleSmall
+                    : Theme.of(context).textTheme.titleLarge)
+                ?.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -1984,8 +2074,7 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      interval:
-                          timePeriod == TimePeriod.month &&
+                      interval: timePeriod == TimePeriod.month &&
                               frequencyData.length > 10
                           ? 5
                           : 1,
@@ -1998,12 +2087,13 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
                             labels[index],
-                            style: Theme.of(context).textTheme.bodySmall
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
                                 ?.copyWith(
                                   color: AppColors.textSecondary,
-                                  fontSize: timePeriod == TimePeriod.year
-                                      ? 11
-                                      : 10,
+                                  fontSize:
+                                      timePeriod == TimePeriod.year ? 11 : 10,
                                 ),
                           ),
                         );
@@ -2014,15 +2104,16 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      interval:
-                          timePeriod == TimePeriod.month &&
+                      interval: timePeriod == TimePeriod.month &&
                               frequencyData.length > 10
                           ? 5
                           : (timePeriod == TimePeriod.year ? 5 : 1),
                       getTitlesWidget: (double value, TitleMeta meta) {
                         return Text(
                           '${value.toInt()}',
-                          style: Theme.of(context).textTheme.bodySmall
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
                               ?.copyWith(color: AppColors.textSecondary),
                         );
                       },
@@ -2267,11 +2358,11 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
                       child: Text(
                         year.toString(),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: isSelected
-                              ? Colors.white
-                              : AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                     ),
                   ),
@@ -2357,38 +2448,37 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
                       duration: const Duration(milliseconds: 300),
                       transitionBuilder:
                           (Widget child, Animation<double> animation) {
-                            final offset =
-                                Tween<Offset>(
-                                  begin: Offset(
-                                    _isForwardAnimation ? 0.2 : -0.2,
-                                    0.0,
-                                  ),
-                                  end: Offset.zero,
-                                ).animate(
-                                  CurvedAnimation(
-                                    parent: animation,
-                                    curve: Curves.easeOutCubic,
-                                  ),
-                                );
+                        final offset = Tween<Offset>(
+                          begin: Offset(
+                            _isForwardAnimation ? 0.2 : -0.2,
+                            0.0,
+                          ),
+                          end: Offset.zero,
+                        ).animate(
+                          CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          ),
+                        );
 
-                            return FadeTransition(
-                              opacity: animation,
-                              child: SlideTransition(
-                                position: offset,
-                                child: child,
-                              ),
-                            );
-                          },
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: offset,
+                            child: child,
+                          ),
+                        );
+                      },
                       child: Text(
                         _getDisplayValue(ref),
                         key: ValueKey(
                           '${widget.selectedPeriod}_${_getDisplayValue(ref)}',
                         ),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                          fontSize: 13,
-                        ),
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                              fontSize: 13,
+                            ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -2562,7 +2652,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
     }
 
     // Find which week contains the reference date
-    for (int weekNum = 1; ; weekNum++) {
+    for (int weekNum = 1;; weekNum++) {
       final weekDate = firstDay.add(Duration(days: (weekNum - 1) * 7));
       final weekEnd = weekDate.add(const Duration(days: 6));
 
@@ -2640,8 +2730,8 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
                 Text(
                   _selectedYear.toString(),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
                 IconButton(
                   onPressed: _selectedYear < widget.nowYear
@@ -2688,8 +2778,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
                   weekEnd.month,
                   weekEnd.day,
                 );
-                final isSelected =
-                    refDate.isAfter(
+                final isSelected = refDate.isAfter(
                       weekStartDate.subtract(const Duration(days: 1)),
                     ) &&
                     refDate.isBefore(weekEndDate.add(const Duration(days: 1)));
@@ -2711,9 +2800,8 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
                     opacity: canSelectSimple ? 1.0 : 0.5,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.accent
-                            : AppColors.inputBg,
+                        color:
+                            isSelected ? AppColors.accent : AppColors.inputBg,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: isSelected
@@ -2724,13 +2812,13 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
                       child: Center(
                         child: Text(
                           'W$weekNum',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppColors.textPrimary,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppColors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                         ),
                       ),
                     ),
@@ -2830,8 +2918,8 @@ class _MonthPickerDialogState extends State<_MonthPickerDialog> {
                 Text(
                   _selectedYear.toString(),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
                 IconButton(
                   onPressed: _selectedYear < widget.nowYear
@@ -2864,8 +2952,7 @@ class _MonthPickerDialogState extends State<_MonthPickerDialog> {
                 final month = index + 1;
                 final isSelected =
                     month == ref.month && _selectedYear == ref.year;
-                final canSelect =
-                    (month <= widget.nowMonth &&
+                final canSelect = (month <= widget.nowMonth &&
                         _selectedYear == widget.nowYear) ||
                     _selectedYear < widget.nowYear;
 
@@ -2881,9 +2968,8 @@ class _MonthPickerDialogState extends State<_MonthPickerDialog> {
                     opacity: canSelect ? 1.0 : 0.5,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.accent
-                            : AppColors.inputBg,
+                        color:
+                            isSelected ? AppColors.accent : AppColors.inputBg,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: isSelected
@@ -2894,13 +2980,13 @@ class _MonthPickerDialogState extends State<_MonthPickerDialog> {
                       child: Center(
                         child: Text(
                           months[index].substring(0, 3),
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppColors.textPrimary,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppColors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                         ),
                       ),
                     ),
@@ -2962,18 +3048,18 @@ class _EmptyStateCard extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   message,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    height: 1.5,
-                  ),
+                        color: AppColors.textSecondary,
+                        height: 1.5,
+                      ),
                 ),
               ],
             ),
@@ -3183,8 +3269,8 @@ class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
                 Text(
                   '${_selectedExercises.length} selected',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+                        color: AppColors.textSecondary,
+                      ),
                 ),
               ],
             ),
@@ -3204,8 +3290,7 @@ class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
                       itemCount: currentItems.length,
                       itemBuilder: (context, index) {
                         final exercise = currentItems[index];
-                        final weight =
-                            widget.allRecords[exercise] ??
+                        final weight = widget.allRecords[exercise] ??
                             const PersonalRecord();
                         final isSelected = _selectedExercises.contains(
                           exercise,
@@ -3381,7 +3466,9 @@ class _PRSharePreview extends StatelessWidget {
                         const SizedBox(height: 24),
                         Text(
                           'LIFTLY',
-                          style: Theme.of(context).textTheme.headlineMedium
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
                               ?.copyWith(
                                 color: AppColors.textPrimary,
                                 fontWeight: FontWeight.w900,
@@ -3405,7 +3492,9 @@ class _PRSharePreview extends StatelessWidget {
                           ),
                           child: Text(
                             'PERSONAL RECORDS',
-                            style: Theme.of(context).textTheme.labelMedium
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
                                 ?.copyWith(
                                   color: AppColors.accent,
                                   fontWeight: FontWeight.w800,
@@ -3442,7 +3531,9 @@ class _PRSharePreview extends StatelessWidget {
                           children: [
                             Text(
                               entry.key.toUpperCase(),
-                              style: Theme.of(context).textTheme.titleMedium
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
                                   ?.copyWith(
                                     color: AppColors.textPrimary,
                                     fontWeight: FontWeight.bold,
@@ -3486,17 +3577,19 @@ class _PRSharePreview extends StatelessWidget {
                       children: [
                         Text(
                           'Track your progress with Liftly',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: AppColors.textSecondary,
-                                fontSize: 14,
-                                letterSpacing: 1,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 14,
+                                    letterSpacing: 1,
+                                  ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'liftly.app',
-                          style: Theme.of(context).textTheme.bodySmall
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
                               ?.copyWith(
                                 color: AppColors.accent.withValues(alpha: 0.8),
                                 fontWeight: FontWeight.bold,
@@ -3531,9 +3624,9 @@ class _PRSharePreview extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColors.textSecondary,
-            fontSize: 12,
-          ),
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
         ),
         const SizedBox(height: 2),
         Row(
@@ -3544,10 +3637,10 @@ class _PRSharePreview extends StatelessWidget {
               child: Text(
                 _formatNumber(value),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 22,
-                ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 22,
+                    ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -3556,10 +3649,10 @@ class _PRSharePreview extends StatelessWidget {
             Text(
               unit,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.accent,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: AppColors.accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             if (repsStr.isNotEmpty) ...[
               const SizedBox(width: 6),
@@ -3567,9 +3660,9 @@ class _PRSharePreview extends StatelessWidget {
                 child: Text(
                   repsStr,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 14,
-                  ),
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -3581,9 +3674,9 @@ class _PRSharePreview extends StatelessWidget {
                 child: Text(
                   '($details)',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                   maxLines: maxLines,
                   overflow: TextOverflow.ellipsis,
                 ),

@@ -9,12 +9,13 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
   final WorkoutRepository _workoutRepository;
 
   StatsBloc({WorkoutRepository? workoutRepository})
-    : _workoutRepository = workoutRepository ?? WorkoutRepository(),
-      super(StatsInitial()) {
+      : _workoutRepository = workoutRepository ?? WorkoutRepository(),
+        super(StatsInitial()) {
     on<StatsFetched>(_onStatsFetched);
     on<StatsPeriodChanged>(_onPeriodChanged);
     on<StatsDateChanged>(_onDateChanged);
     on<StatsPRFiltered>(_onPRFiltered);
+    on<StatsPRSortChanged>(_onPRSortChanged);
   }
 
   Future<void> _onStatsFetched(
@@ -29,7 +30,7 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
       //    For >1000 workouts, we'd need SQL aggregation for these too.
       final allSessions = await _workoutRepository.getWorkouts(
         userId: event.userId,
-        limit: -1, // Explicitly fetch ALL
+        limit: null, // Fetch ALL
       );
 
       // Default to week view
@@ -71,7 +72,8 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
       // So filtering by the dates present in the workout list is actually 100% accurate for "PRs in these workouts".
 
       if (filtered.isNotEmpty) {
-        startDate = filtered.last.effectiveDate; // Sorted DESC, so last is oldest
+        startDate =
+            filtered.last.effectiveDate; // Sorted DESC, so last is oldest
         endDate = filtered.first.effectiveDate; // First is newest
 
         // Adjust for exact day boundaries
@@ -209,6 +211,16 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
     final currentState = state as StatsLoaded;
 
     emit(currentState.copyWith(prFilter: event.selectedExercises));
+  }
+
+  void _onPRSortChanged(
+    StatsPRSortChanged event,
+    Emitter<StatsState> emit,
+  ) {
+    if (state is! StatsLoaded) return;
+    final currentState = state as StatsLoaded;
+
+    emit(currentState.copyWith(sortOrder: event.sortOrder));
   }
 
   List<WorkoutSession> _filterSessions(

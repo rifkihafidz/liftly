@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../core/models/stats_filter.dart';
+import 'stats_state.dart';
 
 abstract class StatsEvent extends Equatable {
   const StatsEvent();
@@ -43,4 +44,13 @@ class StatsPRFiltered extends StatsEvent {
 
   @override
   List<Object> get props => [selectedExercises];
+}
+
+class StatsPRSortChanged extends StatsEvent {
+  final PrSortOrder sortOrder;
+
+  const StatsPRSortChanged({required this.sortOrder});
+
+  @override
+  List<Object> get props => [sortOrder];
 }
