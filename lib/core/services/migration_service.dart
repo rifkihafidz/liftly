@@ -70,8 +70,8 @@ class MigrationService {
           print('[Migration] Migrating data for user: $userId');
         }
         // Use includeDrafts: true to get everything
-        final workouts =
-            await legacyDataSource.getWorkouts(userId, includeDrafts: true);
+        final workouts = await legacyDataSource.getWorkouts(userId,
+            includeDrafts: true, limit: 0);
 
         for (final workout in workouts) {
           await IsarService.createWorkout(workout);

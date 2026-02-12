@@ -1072,6 +1072,7 @@ class IsarService {
       String globalMaxSetVolumeBreakdown = '';
 
       double globalBestSessionVolume = 0;
+      int globalBestSessionReps = 0;
       String? globalBestSessionDate;
       String? globalBestSessionWorkoutId;
 
@@ -1081,6 +1082,7 @@ class IsarService {
         final wDate = workoutDateMap[wId]!;
 
         double sessionVolume = 0;
+        int sessionReps = 0;
 
         for (final sEntry in sets.entries) {
           final segments = sEntry.value;
@@ -1106,6 +1108,7 @@ class IsarService {
             final vol = seg.weight * effectiveReps;
             setVolume += vol;
             sessionVolume += vol;
+            sessionReps += effectiveReps;
 
             breakdownParts.add(
                 '${seg.weight % 1 == 0 ? seg.weight.toInt() : seg.weight} kg x $effectiveReps');
@@ -1119,8 +1122,18 @@ class IsarService {
         }
 
         // Best Session Volume Check
+        bool isNewBest = false;
         if (sessionVolume > globalBestSessionVolume) {
+          isNewBest = true;
+        } else if (globalBestSessionVolume == 0 && sessionVolume == 0) {
+          if (sessionReps > globalBestSessionReps) {
+            isNewBest = true;
+          }
+        }
+
+        if (isNewBest) {
           globalBestSessionVolume = sessionVolume;
+          globalBestSessionReps = sessionReps;
           globalBestSessionDate = wDate.toIso8601String();
           globalBestSessionWorkoutId = wId;
         }
@@ -1171,6 +1184,7 @@ class IsarService {
           maxVolumeReps: 0,
           maxVolumeBreakdown: globalMaxSetVolumeBreakdown,
           bestSessionVolume: globalBestSessionVolume,
+          bestSessionReps: globalBestSessionReps,
           bestSessionDate: globalBestSessionDate,
           bestSessionSets: bestSessionSets,
         );
