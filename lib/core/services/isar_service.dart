@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:isar/isar.dart';
 import 'package:liftly/core/database/isar_models.dart';
 import 'package:liftly/core/models/workout_plan.dart';
@@ -9,6 +10,8 @@ import 'package:liftly/features/stats/bloc/stats_state.dart';
 class IsarService {
   static late Isar _isar;
   static bool _isInitialized = false;
+  static Future<void>? _initFuture;
+  static Future<void> _writeLock = Future.value();
 
   static bool get isInitialized => _isInitialized;
 
@@ -29,6 +32,31 @@ class IsarService {
   }
 
   static Future<void> init() async {
+    if (_isInitialized) {
+      if (kDebugMode) print('[IsarTrace] init: Already initialized');
+      return;
+    }
+    if (_initFuture != null) {
+      if (kDebugMode) {
+        print('[IsarTrace] init: Waiting for existing initFuture');
+      }
+      return _initFuture!;
+    }
+
+    if (kDebugMode) print('[IsarTrace] init: Starting new initialization');
+    _initFuture = _doInit();
+    try {
+      await _initFuture;
+      if (kDebugMode) print('[IsarTrace] init: Initialization successful');
+    } catch (e) {
+      if (kDebugMode) print('[IsarTrace] init: Initialization FAILED: $e');
+      rethrow;
+    } finally {
+      _initFuture = null;
+    }
+  }
+
+  static Future<void> _doInit() async {
     if (_isInitialized) return;
 
     final dir = kIsWeb ? '' : (await getApplicationDocumentsDirectory()).path;
@@ -56,11 +84,13 @@ class IsarService {
         directory: dir,
         inspector: kDebugMode,
       );
-
-      _isInitialized = true;
+      if (kDebugMode) print("[IsarTrace] _doInit: Isar.open successful");
 
       // Run data correction once at startup
-      await runDataCorrection();
+      await _runDataCorrectionInternal();
+
+      _isInitialized = true;
+      if (kDebugMode) print("[IsarTrace] _doInit: Set _isInitialized = true");
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Isar init error: $e');
@@ -152,10 +182,37 @@ class IsarService {
     );
   }
 
+  // ============= Internal Helpers =============
+
+  static Future<T> _runInWriteTxn<T>(
+      String label, Future<T> Function() action) async {
+    final prevLock = _writeLock;
+    final completer = Completer<void>();
+    _writeLock = completer.future;
+
+    try {
+      await prevLock;
+
+      if (kDebugMode) print('[IsarTrace] $label: Starting writeTxn');
+      final result = await _isar.writeTxn(action);
+      if (kDebugMode) print('[IsarTrace] $label: Completed writeTxn');
+      return result;
+    } catch (e, stack) {
+      if (kDebugMode) {
+        print('[IsarTrace] $label: writeTxn FAILED: $e');
+        print('[IsarTrace] Stack trace:\n$stack');
+      }
+      rethrow;
+    } finally {
+      completer.complete();
+    }
+  }
+
   // ============= Workout Operations =============
 
   static Future<void> createWorkout(WorkoutSession workout) async {
-    await _isar.writeTxn(() async {
+    await init();
+    await _runInWriteTxn('createWorkout', () async {
       // 1. Create Main Workout
       final isarWorkout = _toIsarWorkout(workout);
       await _isar.isarWorkoutSessions.put(isarWorkout);
@@ -218,8 +275,11 @@ class IsarService {
 
   /// One-time correction to populate new denormalized fields for existing data
   static Future<void> runDataCorrection() async {
-    if (!_isInitialized) await init();
+    await init();
+    await _runDataCorrectionInternal();
+  }
 
+  static Future<void> _runDataCorrectionInternal() async {
     // Check flag first to avoid expensive count query on startup
     final isDone = await getPreference('data_correction_v1_done');
     if (isDone == 'true') return;
@@ -227,7 +287,12 @@ class IsarService {
     final count = await _isar.isarSetSegments.filter().userIdIsNull().count();
 
     if (count == 0) {
-      await savePreference('data_correction_v1_done', 'true');
+      if (kDebugMode) {
+        print("[IsarTrace] _runDataCorrectionInternal: No correction needed.");
+      }
+      await _runInWriteTxn('_runDataCorrectionInternal (done)', () async {
+        await _putPreferenceRaw('data_correction_v1_done', 'true');
+      });
       return;
     }
 
@@ -241,7 +306,7 @@ class IsarService {
 
     int processed = 0;
 
-    await _isar.writeTxn(() async {
+    await _runInWriteTxn('_runDataCorrectionInternal', () async {
       for (final workout in allWorkouts) {
         await workout.exercises.load();
         for (final ex in workout.exercises) {
@@ -273,17 +338,8 @@ class IsarService {
           // For 20-100 workouts, single txn is fine.
         }
       }
-      // Set flag inside txn
-      final pref = IsarPreference()
-        ..key = 'data_correction_v1_done'
-        ..value = 'true'
-        ..updatedAt = DateTime.now();
-      await _isar.isarPreferences.put(pref);
+      await _putPreferenceRaw('data_correction_v1_done', 'true');
     });
-
-    if (kDebugMode) {
-      print('[Isar] Data correction completed.');
-    }
   }
 
   static Future<WorkoutSession?> getWorkoutById(String id) async {
@@ -483,10 +539,12 @@ class IsarService {
 
   static Future<void> importWorkouts(List<WorkoutSession> workouts) async {
     if (workouts.isEmpty) return;
+    await init();
 
-    await _isar.writeTxn(() async {
+    await _runInWriteTxn('importWorkouts', () async {
       // Step 1: Collect everything with link maps
       final isarWorkouts = <IsarWorkoutSession>[];
+      final allExercises = <IsarSessionExercise>[]; // Manual collection
       final exerciseSetsMap = <IsarSessionExercise, List<IsarExerciseSet>>{};
       final setSegmentsMap = <IsarExerciseSet, List<IsarSetSegment>>{};
 
@@ -505,6 +563,7 @@ class IsarService {
             ..isTemplate = exercise.isTemplate;
 
           isarWorkout.exercises.add(isarExercise); // Add to link
+          allExercises.add(isarExercise); // Add to manual collection
           exerciseSetsMap[isarExercise] = [];
 
           for (final set in exercise.sets) {
@@ -542,10 +601,7 @@ class IsarService {
       // Step 2: Put all objects
       await _isar.isarWorkoutSessions.putAll(isarWorkouts);
 
-      final allExercises = <IsarSessionExercise>[];
-      for (final w in isarWorkouts) {
-        allExercises.addAll(w.exercises);
-      }
+      // Putting exercises (collected manually to avoid IsarLink loadSync)
       await _isar.isarSessionExercises.putAll(allExercises);
 
       final allSets = <IsarExerciseSet>[];
@@ -575,8 +631,9 @@ class IsarService {
 
   static Future<void> importPlans(List<WorkoutPlan> plans) async {
     if (plans.isEmpty) return;
+    await init();
 
-    await _isar.writeTxn(() async {
+    await _runInWriteTxn('importPlans', () async {
       final isarPlans = <IsarWorkoutPlan>[];
       final planExercisesMap = <IsarWorkoutPlan, List<IsarPlanExercise>>{};
 
@@ -612,10 +669,11 @@ class IsarService {
   }
 
   static Future<void> deleteWorkout(String workoutId) async {
+    await init();
     // Fetch workout BEFORE deletion to know which exercises to invalidate cache for
     final workout = await getWorkoutById(workoutId);
 
-    await _isar.writeTxn(() async {
+    await _runInWriteTxn('deleteWorkout', () async {
       // 1. Delete Main Workout
       await _isar.isarWorkoutSessions
           .filter()
@@ -673,7 +731,8 @@ class IsarService {
   }
 
   static Future<void> clearAllData() async {
-    await _isar.writeTxn(() async {
+    await init();
+    await _runInWriteTxn('clearAllData', () async {
       await _isar.clear();
     });
   }
@@ -681,13 +740,19 @@ class IsarService {
   // ============= Preferences Operations =============
 
   static Future<void> savePreference(String key, String value) async {
-    await _isar.writeTxn(() async {
-      final pref = IsarPreference()
-        ..key = key
-        ..value = value
-        ..updatedAt = DateTime.now();
-      await _isar.isarPreferences.put(pref);
+    await init();
+    await _runInWriteTxn('savePreference ($key)', () async {
+      await _putPreferenceRaw(key, value);
     });
+  }
+
+  static Future<void> _putPreferenceRaw(String key, String value) async {
+    // INTERNAL ONLY: Must be called within a writeTxn
+    final pref = IsarPreference()
+      ..key = key
+      ..value = value
+      ..updatedAt = DateTime.now();
+    await _isar.isarPreferences.put(pref);
   }
 
   static Future<String?> getPreference(String key) async {
@@ -697,13 +762,15 @@ class IsarService {
   }
 
   static Future<void> deletePreference(String key) async {
-    await _isar.writeTxn(() async {
+    await init();
+    await _runInWriteTxn('deletePreference ($key)', () async {
       await _isar.isarPreferences.filter().keyEqualTo(key).deleteAll();
     });
   }
 
   static Future<void> clearAllPreferences() async {
-    await _isar.writeTxn(() async {
+    await init();
+    await _runInWriteTxn('clearAllPreferences', () async {
       await _isar.isarPreferences.clear();
     });
   }
@@ -1250,7 +1317,8 @@ class IsarService {
   }
 
   static Future<void> createPlan(WorkoutPlan plan) async {
-    await _isar.writeTxn(() async {
+    await init();
+    await _runInWriteTxn('createPlan', () async {
       final isarPlan = _toIsarPlan(plan);
       await _isar.isarWorkoutPlans.put(isarPlan);
 
@@ -1319,7 +1387,8 @@ class IsarService {
   }
 
   static Future<void> deletePlan(String planId) async {
-    await _isar.writeTxn(() async {
+    await init();
+    await _runInWriteTxn('deletePlan', () async {
       final isarPlan = await _isar.isarWorkoutPlans
           .filter()
           .planIdEqualTo(planId)
