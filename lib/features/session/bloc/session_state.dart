@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../core/models/workout_session.dart';
-import '../../stats/bloc/stats_state.dart';
+import '../../../core/models/personal_record.dart';
 
 abstract class SessionState extends Equatable {
   const SessionState();
@@ -22,7 +22,7 @@ class SessionDraftCheckSuccess extends SessionState {
   final int timestamp; // Force unique state
 
   SessionDraftCheckSuccess({this.draft})
-    : timestamp = DateTime.now().millisecondsSinceEpoch;
+      : timestamp = DateTime.now().millisecondsSinceEpoch;
 
   @override
   List<Object?> get props => [draft, timestamp];
@@ -30,12 +30,12 @@ class SessionDraftCheckSuccess extends SessionState {
 
 class SessionInProgress extends SessionState {
   final WorkoutSession session;
-  final Map<String, SessionExercise> previousSessions;
+  final Map<String, WorkoutSession> previousSessions;
   final Map<String, PersonalRecord> exercisePRs;
   final int? focusedExerciseIndex;
   final int? focusedSetIndex;
   final int? focusedSegmentIndex;
-  final int timestamp; // Force unique state for focus resets
+  final int? timestamp; // Force unique state for focus resets
 
   const SessionInProgress({
     required this.session,
@@ -44,7 +44,7 @@ class SessionInProgress extends SessionState {
     this.focusedExerciseIndex,
     this.focusedSetIndex,
     this.focusedSegmentIndex,
-  }) : timestamp = 0;
+  }) : timestamp = null;
 
   const SessionInProgress.withFocus({
     required this.session,
@@ -53,19 +53,19 @@ class SessionInProgress extends SessionState {
     this.focusedExerciseIndex,
     this.focusedSetIndex,
     this.focusedSegmentIndex,
-    required this.timestamp,
+    this.timestamp,
   });
 
   @override
   List<Object?> get props => [
-    session,
-    previousSessions,
-    exercisePRs,
-    focusedExerciseIndex,
-    focusedSetIndex,
-    focusedSegmentIndex,
-    timestamp,
-  ];
+        session,
+        previousSessions,
+        exercisePRs,
+        focusedExerciseIndex,
+        focusedSetIndex,
+        focusedSegmentIndex,
+        timestamp,
+      ];
 }
 
 class SessionSaved extends SessionState {

@@ -1,7 +1,8 @@
 enum TimePeriod {
   week('This Week', 'W'),
   month('This Month', 'M'),
-  year('This Year', 'A');
+  year('This Year', 'Y'),
+  allTime('All Time', 'A');
 
   final String label;
   final String shortCode;
@@ -14,10 +15,10 @@ class StatsFilter {
   final DateTime referenceDate;
 
   StatsFilter({required this.timePeriod, DateTime? referenceDate})
-    : referenceDate = referenceDate ?? DateTime.now();
+      : referenceDate = referenceDate ?? DateTime.now();
 
   /// Get start date based on time period
-  DateTime getStartDate() {
+  DateTime? getStartDate() {
     final now = referenceDate;
     switch (timePeriod) {
       case TimePeriod.week:
@@ -36,11 +37,13 @@ class StatsFilter {
         return DateTime(now.year, now.month, 1);
       case TimePeriod.year:
         return DateTime(now.year, 1, 1);
+      case TimePeriod.allTime:
+        return null; // No start date
     }
   }
 
   /// Get end date based on time period
-  DateTime getEndDate() {
+  DateTime? getEndDate() {
     final now = referenceDate;
     switch (timePeriod) {
       case TimePeriod.week:
@@ -56,13 +59,20 @@ class StatsFilter {
         return nextMonth.subtract(const Duration(seconds: 1));
       case TimePeriod.year:
         return DateTime(now.year, 12, 31, 23, 59, 59);
+      case TimePeriod.allTime:
+        return null; // No end date
     }
   }
 
   /// Check if a date falls within the period
   bool isInPeriod(DateTime date) {
+    if (timePeriod == TimePeriod.allTime) return true;
+
     final start = getStartDate();
     final end = getEndDate();
+
+    if (start == null || end == null) return true;
+
     return (date.isAfter(start) || date.isAtSameMomentAs(start)) &&
         (date.isBefore(end) || date.isAtSameMomentAs(end));
   }

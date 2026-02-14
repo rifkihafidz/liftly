@@ -8,6 +8,7 @@ import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
+import '../../../core/models/personal_record.dart';
 import '../../../core/models/stats_filter.dart';
 
 import '../../../shared/widgets/app_dialogs.dart';
@@ -683,16 +684,14 @@ class _StatsPageState extends State<StatsPage> {
                   index: index,
                   child: InkWell(
                     onTap: () {
-                      // Find last session for this exercise
-                      SessionExercise? lastSession;
+                      // Find last session for this exercise using name for better compatibility
+                      WorkoutSession? lastSession;
                       try {
-                        final exerciseName = entry.key;
-                        final session = allSessions.firstWhere((s) =>
-                            s.exercises.any((e) =>
+                        final exerciseName = entry.value.exerciseName;
+                        lastSession = allSessions.firstWhere((s) => s.exercises
+                            .any((e) =>
                                 e.name.toLowerCase() ==
                                 exerciseName.toLowerCase()));
-                        lastSession = session.exercises.firstWhere((e) =>
-                            e.name.toLowerCase() == exerciseName.toLowerCase());
                       } catch (_) {
                         // ignore
                       }
@@ -705,17 +704,10 @@ class _StatsPageState extends State<StatsPage> {
                           borderRadius:
                               BorderRadius.vertical(top: Radius.circular(20)),
                         ),
-                        builder: (context) => DraggableScrollableSheet(
-                          initialChildSize: 0.7,
-                          minChildSize: 0.5,
-                          maxChildSize: 0.95,
-                          expand: false,
-                          builder: (context, scrollController) =>
-                              SessionExerciseHistorySheet(
-                            exerciseName: entry.key,
-                            history: lastSession,
-                            pr: entry.value,
-                          ),
+                        builder: (context) => SessionExerciseHistorySheet(
+                          exerciseName: entry.value.exerciseName,
+                          history: lastSession,
+                          pr: entry.value,
                         ),
                       );
                     },
@@ -758,7 +750,7 @@ class _StatsPageState extends State<StatsPage> {
                                   MainAxisAlignment.start, // Avoid stretching
                               children: [
                                 Text(
-                                  entry.key.toUpperCase(),
+                                  entry.value.exerciseName.toUpperCase(),
                                   style: Theme.of(context)
                                       .textTheme
                                       .labelSmall
@@ -1296,6 +1288,8 @@ class _StatsSharePreview extends StatelessWidget {
         return '${_monthName(ref.month)} ${ref.year}';
       case TimePeriod.year:
         return '${ref.year}';
+      case TimePeriod.allTime:
+        return 'All Time';
     }
   }
 
@@ -1387,8 +1381,26 @@ class _VolumeChartCard extends StatelessWidget {
     List<double> volumeData = [];
     List<String> labels = [];
     double totalVolume = 0;
-
     final now = referenceDate;
+
+    String title = 'Volume Trend';
+    switch (timePeriod) {
+      case TimePeriod.week:
+        final monday = now.subtract(Duration(days: now.weekday - 1));
+        final sunday = monday.add(const Duration(days: 6));
+        title =
+            'Volume Trend (${DateFormat('dd MMM').format(monday)} - ${DateFormat('dd MMM').format(sunday)})';
+        break;
+      case TimePeriod.month:
+        title = 'Volume Trend (${DateFormat('MMMM yyyy').format(now)})';
+        break;
+      case TimePeriod.year:
+        title = 'Volume Trend (${now.year})';
+        break;
+      case TimePeriod.allTime:
+        title = 'Volume Trend (All Time)';
+        break;
+    }
 
     switch (timePeriod) {
       case TimePeriod.week:
@@ -1427,6 +1439,33 @@ class _VolumeChartCard extends StatelessWidget {
         }
         break;
 
+      case TimePeriod.allTime:
+        // All Time: Group by Year (Show range from 2024 to current year + 1 for context)
+        final currentYear = now.year;
+        final yearsFromData = sessions.map((s) => s.effectiveDate.year).toList()
+          ..sort();
+        final firstDataYear =
+            yearsFromData.isEmpty ? currentYear : yearsFromData.first;
+        final lastDataYear =
+            yearsFromData.isEmpty ? currentYear : yearsFromData.last;
+
+        // Broaden range: start at 2024 (or earlier if data exists), end at currentYear + 1
+        final firstYear = firstDataYear < 2024 ? firstDataYear : 2024;
+        final lastYear =
+            lastDataYear > currentYear ? lastDataYear : currentYear + 1;
+
+        final range = lastYear - firstYear + 1;
+
+        volumeData = List.filled(range, 0.0);
+        labels = List.generate(range, (i) => (firstYear + i).toString());
+
+        for (var session in sessions) {
+          final index = session.effectiveDate.year - firstYear;
+          if (index >= 0 && index < range) {
+            volumeData[index] += session.totalVolume;
+          }
+        }
+        break;
       case TimePeriod.year:
         // Yearly: 12 months (Jan-Dec)
         volumeData = List.filled(12, 0.0);
@@ -1510,10 +1549,11 @@ class _VolumeChartCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Volume Trend',
+            title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.bold,
+                  fontSize: isCompact ? 16 : 18,
                 ),
           ),
           const SizedBox(height: 20),
@@ -1593,10 +1633,10 @@ class _VolumeChartCard extends StatelessWidget {
 
                         // Smart Label Skip Logic
                         bool showLabel = false;
-                        if (timePeriod == TimePeriod.week) {
-                          showLabel = true; // Show all days
-                        } else if (timePeriod == TimePeriod.year) {
-                          showLabel = true; // Show all months
+                        if (timePeriod == TimePeriod.week ||
+                            timePeriod == TimePeriod.year ||
+                            timePeriod == TimePeriod.allTime) {
+                          showLabel = true;
                         } else if (timePeriod == TimePeriod.month) {
                           // Show 1, 5, 10, 15, 20, 25, 30
                           // index is 0-based (0 = Day 1)
@@ -1666,7 +1706,8 @@ class _VolumeChartCard extends StatelessWidget {
                         color: AppColors.success,
                         width: timePeriod == TimePeriod.month
                             ? 6
-                            : (timePeriod == TimePeriod.year
+                            : (timePeriod == TimePeriod.year ||
+                                    timePeriod == TimePeriod.allTime
                                 ? 10
                                 : 14), // Thinner bars for month/year view
                         borderRadius: BorderRadius.circular(4),
@@ -1701,7 +1742,7 @@ class _VolumeChartCard extends StatelessWidget {
                       ? 0.0
                       : volumeData.where((v) => v > 0).reduce((a, b) => a + b) /
                           volumeData.where((v) => v > 0).length,
-                )} kg / active ${timePeriod == TimePeriod.year ? 'mo' : 'day'}',
+                )} kg / active ${timePeriod == TimePeriod.year || timePeriod == TimePeriod.allTime ? 'mo' : 'day'}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.success,
                       fontWeight: FontWeight.w500,
@@ -1859,6 +1900,34 @@ class _WorkoutFrequencyCard extends StatelessWidget {
           frequencyData[i - 1] = count;
         }
         break;
+
+      case TimePeriod.allTime:
+        // Group by Year (Show range from 2024 to current year + 1 for context)
+        title = 'Workout Frequency (All Time)';
+        final currentYear = DateTime.now().year;
+        final yearsFromData = sessions.map((s) => s.effectiveDate.year).toList()
+          ..sort();
+        final firstDataYear =
+            yearsFromData.isEmpty ? currentYear : yearsFromData.first;
+        final lastDataYear =
+            yearsFromData.isEmpty ? currentYear : yearsFromData.last;
+
+        // Broaden range: start at 2024 (or earlier if data exists), end at currentYear + 1
+        final firstYear = firstDataYear < 2024 ? firstDataYear : 2024;
+        final lastYear =
+            lastDataYear > currentYear ? lastDataYear : currentYear + 1;
+
+        final range = lastYear - firstYear + 1;
+        frequencyData = List.filled(range, 0);
+        labels = List.generate(range, (i) => (firstYear + i).toString());
+
+        for (var session in sessions) {
+          final index = session.effectiveDate.year - firstYear;
+          if (index >= 0 && index < range) {
+            frequencyData[index]++;
+          }
+        }
+        break;
     }
 
     // If weekly, use a consistency tracker instead of a bar chart
@@ -1968,9 +2037,10 @@ class _WorkoutFrequencyCard extends StatelessWidget {
             ? 0
             : frequencyData.reduce((a, b) => a > b ? a : b))
         .toDouble();
-    final double maxYValue = timePeriod == TimePeriod.year
-        ? (maxFreq <= 25 ? 25 : (maxFreq / 5).ceil() * 5)
-        : (maxFreq < 3 ? 3 : maxFreq + 1);
+    final double maxYValue =
+        timePeriod == TimePeriod.year || timePeriod == TimePeriod.allTime
+            ? (maxFreq <= 25 ? 25 : (maxFreq / 5).ceil() * 5)
+            : (maxFreq < 3 ? 3 : maxFreq + 1);
 
     List<BarChartGroupData> barGroups = [];
     for (int i = 0; i < frequencyData.length; i++) {
@@ -1981,7 +2051,10 @@ class _WorkoutFrequencyCard extends StatelessWidget {
             BarChartRodData(
               toY: frequencyData[i].toDouble(),
               color: AppColors.accent,
-              width: timePeriod == TimePeriod.year ? 12 : 22,
+              width: timePeriod == TimePeriod.year ||
+                      timePeriod == TimePeriod.allTime
+                  ? 12
+                  : 22,
               borderRadius: BorderRadius.circular(6),
               backDrawRodData: BackgroundBarChartRodData(
                 show: true,
@@ -2087,14 +2160,14 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
                             labels[index],
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontSize:
-                                      timePeriod == TimePeriod.year ? 11 : 10,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontSize: timePeriod == TimePeriod.year ||
+                                              timePeriod == TimePeriod.allTime
+                                          ? 11
+                                          : 10,
+                                    ),
                           ),
                         );
                       },
@@ -2107,7 +2180,10 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                       interval: timePeriod == TimePeriod.month &&
                               frequencyData.length > 10
                           ? 5
-                          : (timePeriod == TimePeriod.year ? 5 : 1),
+                          : ((timePeriod == TimePeriod.year ||
+                                  timePeriod == TimePeriod.allTime)
+                              ? 5
+                              : 1),
                       getTitlesWidget: (double value, TitleMeta meta) {
                         return Text(
                           '${value.toInt()}',
@@ -2174,6 +2250,8 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
         return '${_monthName(ref.month)} ${ref.year}';
       case TimePeriod.year:
         return '${ref.year}';
+      case TimePeriod.allTime:
+        return 'All Time';
     }
   }
 
@@ -2226,6 +2304,8 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
       case TimePeriod.year:
         widget.onDateChanged(DateTime(ref.year - 1));
         break;
+      case TimePeriod.allTime:
+        break;
     }
   }
 
@@ -2240,10 +2320,13 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
       case TimePeriod.year:
         widget.onDateChanged(DateTime(ref.year + 1));
         break;
+      case TimePeriod.allTime:
+        break;
     }
   }
 
   bool _canNavigatePrevious(DateTime ref, DateTime now) {
+    if (widget.selectedPeriod == TimePeriod.allTime) return false;
     switch (widget.selectedPeriod) {
       case TimePeriod.week:
         // Can always go back for weekly (like monthly)
@@ -2252,10 +2335,13 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
         return true; // Can always go back for month
       case TimePeriod.year:
         return true; // Can always go back for year
+      case TimePeriod.allTime:
+        return false;
     }
   }
 
   bool _canNavigateNext(DateTime ref, DateTime now) {
+    if (widget.selectedPeriod == TimePeriod.allTime) return false;
     switch (widget.selectedPeriod) {
       case TimePeriod.week:
         // For weekly: next week must have started (weekStart <= today)
@@ -2272,6 +2358,8 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
             ref.year < now.year;
       case TimePeriod.year:
         return ref.year < now.year;
+      case TimePeriod.allTime:
+        return false;
     }
   }
 
@@ -2413,6 +2501,7 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
                 _buildPeriodTab(TimePeriod.week, 'Week'),
                 _buildPeriodTab(TimePeriod.month, 'Month'),
                 _buildPeriodTab(TimePeriod.year, 'Year'),
+                _buildPeriodTab(TimePeriod.allTime, 'All Time'),
               ],
             ),
           ),
@@ -2441,6 +2530,8 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
                           break;
                         case TimePeriod.year:
                           _showYearPicker(context);
+                          break;
+                        case TimePeriod.allTime:
                           break;
                       }
                     },

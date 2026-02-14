@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'config/theme/app_theme.dart';
-import 'core/services/isar_service.dart';
-import 'core/services/migration_service.dart';
+import 'core/services/hive_service.dart';
 
 import 'features/home/pages/splash_page.dart';
 import 'features/session/bloc/session_bloc.dart';
@@ -43,17 +42,7 @@ void main() async {
     return true;
   };
 
-  // Initialize Isar
-  await IsarService.init();
-
-  // Run migration from SQLite if needed (Mobile/Desktop only)
-  // This will check if migration is done, if not, it will read legacy SQLite data and write to Isar
-  try {
-    await MigrationService.migrateIfNeeded();
-  } catch (e) {
-    if (kDebugMode) print("Migration error: $e");
-    // Continue anyway, maybe data is fresh or migration can be retried later
-  }
+  await HiveService.init();
 
   runApp(const Liftly());
 }

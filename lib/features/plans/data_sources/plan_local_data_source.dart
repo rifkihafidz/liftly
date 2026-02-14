@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:liftly/core/services/isar_service.dart';
+import 'package:liftly/core/services/hive_service.dart';
 import 'package:liftly/core/models/workout_plan.dart';
 
 class PlanLocalDataSource {
@@ -29,7 +29,7 @@ class PlanLocalDataSource {
         updatedAt: DateTime.now(),
       );
 
-      await IsarService.createPlan(plan);
+      await HiveService.createPlan(plan);
       _log('CREATE', 'Created plan: ${plan.id}');
 
       return plan;
@@ -41,7 +41,7 @@ class PlanLocalDataSource {
   /// Get all plans for a user from local database
   Future<List<WorkoutPlan>> getPlans({required String userId}) async {
     try {
-      final plans = await IsarService.getPlans(userId);
+      final plans = await HiveService.getPlans(userId);
       _log('SELECT', 'Found ${plans.length} plans for user $userId');
       return plans;
     } catch (e) {
@@ -52,7 +52,7 @@ class PlanLocalDataSource {
   /// Get a single plan from local database
   Future<WorkoutPlan> getPlan({required String planId}) async {
     try {
-      final plan = await IsarService.getPlan(planId);
+      final plan = await HiveService.getPlan(planId);
       if (plan == null) {
         throw Exception('Plan not found');
       }
@@ -83,7 +83,7 @@ class PlanLocalDataSource {
         updatedAt: DateTime.now(),
       );
 
-      await IsarService.updatePlan(updatedPlan);
+      await HiveService.updatePlan(updatedPlan);
       _log('UPDATE', 'Updated plan: $planId');
 
       return updatedPlan;
@@ -95,7 +95,7 @@ class PlanLocalDataSource {
   /// Delete a plan from local database
   Future<void> deletePlan({required String planId}) async {
     try {
-      await IsarService.deletePlan(planId);
+      await HiveService.deletePlan(planId);
       _log('DELETE', 'Deleted plan: $planId');
     } catch (e) {
       throw Exception('Failed to delete plan: $e');

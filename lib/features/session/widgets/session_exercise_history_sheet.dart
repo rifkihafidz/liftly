@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
-import '../../stats/bloc/stats_state.dart';
+import '../../../core/models/personal_record.dart';
 
 class SessionExerciseHistorySheet extends StatelessWidget {
   final String exerciseName;
-  final SessionExercise? history;
+  final WorkoutSession? history;
   final PersonalRecord? pr;
 
   const SessionExerciseHistorySheet({
@@ -24,10 +24,18 @@ class SessionExerciseHistorySheet extends StatelessWidget {
     return formatter.format(value);
   }
 
+  String _formatDate(DateTime date) {
+    return DateFormat('d MMM yyyy').format(date);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Variables historyVolume and historyTotalReps removed as they are no longer needed
-    // for the simplified logic of always showing the Best Session.
+    // Find the specific exercise in the history session
+    final historyExercise = history?.exercises
+        .where((e) => e.name.toLowerCase() == exerciseName.toLowerCase())
+        .firstOrNull;
+
+    final showHistory = history != null && historyExercise != null;
 
     final showBestSessionSection = pr != null &&
         pr!.bestSessionSets != null &&
@@ -46,30 +54,49 @@ class SessionExerciseHistorySheet extends StatelessWidget {
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
-            if (history != null) ...[
+            if (showHistory) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Last Session',
+                    'Last Session (${_formatDate(history!.workoutDate)})',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                  Text(
+                    'Total Volume: ${_formatNumber(historyExercise.totalVolume)} kg',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
                           color: AppColors.textSecondary,
                         ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              ..._renderSets(context, history!.sets),
+              ..._renderSets(context, historyExercise.sets),
               const SizedBox(height: 24),
             ],
             if (showBestSessionSection) ...[
-              Text(
-                'Best Session',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.accent,
-                    ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Best Session${pr!.bestSessionDate != null ? " (${_formatDate(DateTime.parse(pr!.bestSessionDate!))})" : ""}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.accent,
+                        ),
+                  ),
+                  Text(
+                    'Total Volume: ${_formatNumber(pr!.bestSessionVolume)} kg',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.accent,
+                        ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               ..._renderSets(context, pr!.bestSessionSets!),

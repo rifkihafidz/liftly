@@ -6,13 +6,14 @@ import '../../../core/constants/colors.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/workout_form_widgets.dart';
 import '../../../core/models/workout_session.dart';
+import '../../../core/models/personal_record.dart';
 import '../repositories/workout_repository.dart';
 import '../../../shared/widgets/session_exercise_card.dart';
 import '../../../../shared/widgets/cards/exercise_list_summary_card.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
-import '../../stats/bloc/stats_state.dart';
+
 import '../../plans/bloc/plan_bloc.dart';
 import '../../plans/bloc/plan_event.dart';
 import '../../plans/bloc/plan_state.dart';
@@ -31,7 +32,7 @@ class WorkoutEditPage extends StatefulWidget {
 class _WorkoutEditPageState extends State<WorkoutEditPage> {
   late WorkoutSession _editedWorkout;
   final _workoutRepository = WorkoutRepository();
-  final Map<String, SessionExercise> _previousSessions = {};
+  final Map<String, WorkoutSession> _previousSessions = {};
   final Map<String, PersonalRecord> _exercisePRs = {};
 
   @override
@@ -73,12 +74,12 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
         final workoutId = _editedWorkout.id;
 
         context.read<WorkoutBloc>().add(
-          WorkoutUpdated(
-            userId: userId,
-            workoutId: workoutId,
-            workoutData: _editedWorkout.toMap(),
-          ),
-        );
+              WorkoutUpdated(
+                userId: userId,
+                workoutId: workoutId,
+                workoutData: _editedWorkout.toMap(),
+              ),
+            );
       }
     });
   }
@@ -138,13 +139,13 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                       if (_editedWorkout != widget.workout) {
                         final shouldDiscard =
                             await AppDialogs.showConfirmationDialog(
-                              context: context,
-                              title: 'Discard Changes?',
-                              message:
-                                  'You have unsaved changes. Are you sure you want to discard them?',
-                              confirmText: 'Discard',
-                              isDangerous: true,
-                            );
+                          context: context,
+                          title: 'Discard Changes?',
+                          message:
+                              'You have unsaved changes. Are you sure you want to discard them?',
+                          confirmText: 'Discard',
+                          isDangerous: true,
+                        );
                         if (shouldDiscard == true && context.mounted) {
                           Navigator.pop(context);
                         }
@@ -204,20 +205,18 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                             onTap: () async {
                               final result =
                                   await showDialog<Map<String, DateTime?>>(
-                                    context: context,
-                                    barrierDismissible: false,
-                                    builder: (context) => WorkoutDateTimeDialog(
-                                      initialWorkoutDate: workoutDate,
-                                      initialStartedAt:
-                                          _editedWorkout.startedAt,
-                                      initialEndedAt: _editedWorkout.endedAt,
-                                    ),
-                                  );
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (context) => WorkoutDateTimeDialog(
+                                  initialWorkoutDate: workoutDate,
+                                  initialStartedAt: _editedWorkout.startedAt,
+                                  initialEndedAt: _editedWorkout.endedAt,
+                                ),
+                              );
                               if (result != null) {
                                 setState(() {
                                   _editedWorkout = _editedWorkout.copyWith(
-                                    workoutDate:
-                                        result['workoutDate'] ??
+                                    workoutDate: result['workoutDate'] ??
                                         _editedWorkout.workoutDate,
                                     startedAt: result['startedAt'],
                                     endedAt: result['endedAt'],
@@ -231,7 +230,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                     ),
                   ),
                 ),
-
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverToBoxAdapter(
@@ -249,7 +247,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                     ),
                   ),
                 ),
-
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverList(
@@ -392,10 +389,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
       final historyWorkouts = await workoutRepository.getWorkouts(
         userId: userId,
       );
-      final historyNames = historyWorkouts
-          .expand((w) => w.exercises)
-          .map((e) => e.name)
-          .toSet();
+      final historyNames =
+          historyWorkouts.expand((w) => w.exercises).map((e) => e.name).toSet();
 
       if (!context.mounted) return;
 
@@ -484,7 +479,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
   void _showExerciseHistory(
     BuildContext context,
     String exerciseName,
-    SessionExercise? history,
+    WorkoutSession? history,
     PersonalRecord? pr,
   ) {
     showModalBottomSheet(
@@ -643,7 +638,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                         children: [
                           Text(
                             'Reorder Exercises',
-                            style: Theme.of(context).textTheme.titleLarge
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.textPrimary,
@@ -674,8 +671,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
 
                             // Fix order index
                             for (var i = 0; i < updatedExercises.length; i++) {
-                              updatedExercises[i] = updatedExercises[i]
-                                  .copyWith(order: i);
+                              updatedExercises[i] =
+                                  updatedExercises[i].copyWith(order: i);
                             }
 
                             _editedWorkout = _editedWorkout.copyWith(
@@ -732,7 +729,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
 class _ExerciseEditSheet extends StatefulWidget {
   final SessionExercise initialExercise;
   final int exerciseIndex;
-  final SessionExercise? history;
+  final WorkoutSession? history;
   final PersonalRecord? pr;
   final Function(SessionExercise) onSave;
   final VoidCallback onDelete;
@@ -884,9 +881,8 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
                 final segment = currentSegments[segmentIndex];
                 final updatedSegment = segment.copyWith(
                   weight: field == 'weight' ? value as double : segment.weight,
-                  repsFrom: field == 'repsFrom'
-                      ? value as int
-                      : segment.repsFrom,
+                  repsFrom:
+                      field == 'repsFrom' ? value as int : segment.repsFrom,
                   repsTo: field == 'repsTo' ? value as int : segment.repsTo,
                   notes: field == 'notes' ? value as String : segment.notes,
                 );
@@ -1016,8 +1012,7 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
                 }
               });
             },
-            onEditName:
-                widget.onEditName ??
+            onEditName: widget.onEditName ??
                 (_currentExercise.isTemplate ? null : () {}),
             onDelete: widget.onDelete,
           ),

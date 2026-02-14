@@ -1,15 +1,22 @@
+import 'package:flutter/material.dart';
+
 import '../../../core/models/workout_session.dart';
 import '../data_sources/workout_local_data_source.dart';
-import '../../stats/bloc/stats_state.dart';
+import '../../../core/models/personal_record.dart';
 
 class WorkoutRepository {
   final WorkoutLocalDataSource _localDataSource = WorkoutLocalDataSource();
+
+  void _log(String message) {
+    debugPrint('[WorkoutRepository] $message');
+  }
 
   Future<WorkoutSession> createWorkout({
     required String userId,
     required WorkoutSession workout,
   }) async {
     try {
+      _log('createWorkout: planName=${workout.planName}');
       return await _localDataSource.createWorkout(workout);
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
@@ -64,7 +71,7 @@ class WorkoutRepository {
     }
   }
 
-  Future<SessionExercise?> getLastExerciseLog({
+  Future<WorkoutSession?> getLastExerciseLog({
     required String userId,
     required String exerciseName,
   }) async {
@@ -87,9 +94,19 @@ class WorkoutRepository {
     }
   }
 
+  Future<void> discardDrafts({required String userId}) async {
+    try {
+      await _localDataSource.discardDrafts(userId);
+    } catch (e) {
+      throw Exception(_parseErrorMessage(e.toString()));
+    }
+  }
+
   Future<WorkoutSession?> getDraftWorkout({required String userId}) async {
     try {
-      return await _localDataSource.getDraftWorkout(userId);
+      final draft = await _localDataSource.getDraftWorkout(userId);
+      _log('getDraftWorkout: draft?.planName=${draft?.planName}');
+      return draft;
     } catch (e) {
       return null;
     }

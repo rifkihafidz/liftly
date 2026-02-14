@@ -47,7 +47,7 @@ class WorkoutsFetched extends WorkoutEvent {
   final int limit;
   final int offset;
 
-  const WorkoutsFetched({this.userId = '1', this.limit = 20, this.offset = 0});
+  const WorkoutsFetched({this.userId = '1', this.limit = 10, this.offset = 0});
 
   @override
   List<Object?> get props => [userId, limit, offset];

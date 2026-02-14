@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/services/backup_service.dart';
 import '../../../core/services/data_management_service.dart';
-import '../../../core/services/isar_service.dart';
+import '../../../core/services/hive_service.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
 import '../../../shared/widgets/cards/menu_list_item.dart';
@@ -21,49 +21,99 @@ class _SettingsPageState extends State<SettingsPage> {
   GoogleSignInAccount? _currentUser;
   bool _isAutoBackupEnabled = false;
   bool _isLoading = false;
-  bool _isInitializing = true;
+  late bool _isInitializing;
 
   @override
   void initState() {
     super.initState();
+    _isInitializing = !BackupService().isInitialized;
     _initBackupState();
   }
 
   Future<void> _initBackupState() async {
-    final backupService = BackupService();
-    await backupService.init();
+    try {
+      final backupService = BackupService();
+      GoogleSignInAccount? user;
 
-    final autoBackup = await IsarService.getPreference('auto_backup_enabled');
+      // If already initialized, we just grab the current user
+      if (backupService.isInitialized) {
+        user = backupService.currentUser;
+      } else {
+        await backupService.init();
+        user = backupService.currentUser;
+      }
 
-    if (mounted) {
-      setState(() {
-        _currentUser = backupService.currentUser;
-        _isAutoBackupEnabled = autoBackup == 'true';
-        _isInitializing = false;
-      });
+      final backupEnabled =
+          await HiveService.getPreference('auto_backup_enabled');
+
+      if (mounted) {
+        setState(() {
+          _isInitializing = false;
+          _currentUser = user;
+          _isAutoBackupEnabled = backupEnabled == 'true';
+        });
+      }
+    } catch (e) {
+      debugPrint('SettingsPage: Failed to initialize backup state: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isInitializing = false;
+        });
+      }
     }
   }
 
   Future<void> _handleGoogleConnect() async {
+    if (_isLoading) return;
     setState(() => _isLoading = true);
+
+    // Show loading popup as requested
+    AppDialogs.showLoadingDialog(context, 'Connecting to Google Drive...');
+
+    Object? error;
     try {
+      debugPrint('SettingsPage: Starting Google Sign-In...');
       final user = await BackupService().signIn();
       if (mounted) {
+        if (user == null) {
+          debugPrint('SettingsPage: Sign-In cancelled by user');
+          return;
+        }
+        debugPrint('SettingsPage: Sign-In successful: ${user.email}');
         setState(() {
           _currentUser = user;
         });
       }
     } catch (e) {
-      if (mounted) {
-        AppDialogs.showErrorDialog(
-          context: context,
-          title: 'Connection Failed',
-          message:
-              'Could not sign in to Google Drive. Please ensure configuration is correct.\n\nError: $e',
-        );
-      }
+      debugPrint('SettingsPage: Sign-In error caught: $e');
+      error = e;
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        debugPrint('SettingsPage: Hiding loading dialog...');
+        try {
+          AppDialogs.hideLoadingDialog(context);
+        } catch (e) {
+          debugPrint('SettingsPage: Error hiding dialog: $e');
+        }
+
+        setState(() => _isLoading = false);
+
+        if (error != null) {
+          debugPrint('SettingsPage: Showing error dialog...');
+          // Small delay to ensure loading dialog is fully gone
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) {
+              AppDialogs.showErrorDialog(
+                context: context,
+                title: 'Connection Failed',
+                message:
+                    'Could not sign in to Google Drive.\n\nNote: Check for a small login prompt in the top-right corner of your browser.\n\nError: $error',
+              );
+            }
+          });
+        }
+      }
     }
   }
 
@@ -77,6 +127,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _handleBackupNow() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
     AppDialogs.showLoadingDialog(context, 'Backing up your data...');
     try {
       await BackupService().backupDatabase();
@@ -91,12 +143,16 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } catch (e) {
       if (mounted) {
-        AppDialogs.hideLoadingDialog(context);
         AppDialogs.showErrorDialog(
           context: context,
           title: 'Backup Failed',
           message: e.toString(),
         );
+      }
+    } finally {
+      if (mounted) {
+        AppDialogs.hideLoadingDialog(context);
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -107,13 +163,16 @@ class _SettingsPageState extends State<SettingsPage> {
       if (_currentUser == null) return; // Failed to connect
     }
 
-    await IsarService.savePreference('auto_backup_enabled', value.toString());
+    await HiveService.savePreference('auto_backup_enabled', value.toString());
     setState(() {
       _isAutoBackupEnabled = value;
     });
   }
 
   Future<void> _handleExport(BuildContext context) async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
     AppDialogs.showLoadingDialog(context, 'Exporting to Excel...');
     try {
       await DataManagementService.exportData();
@@ -127,10 +186,13 @@ class _SettingsPageState extends State<SettingsPage> {
           message: e.toString(),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _handleRestore() async {
+    if (_isLoading) return;
     setState(() => _isLoading = true);
     try {
       final backups = await BackupService().listBackups();
@@ -209,16 +271,64 @@ class _SettingsPageState extends State<SettingsPage> {
 
         if (confirmed == true) {
           if (!mounted) return;
-          AppDialogs.showLoadingDialog(context, 'Restoring data from Cloud...');
 
-          await BackupService().restoreDatabase(selectedFileId);
+          final progressNotifier = ValueNotifier<double>(0.0);
+          final statusNotifier =
+              ValueNotifier<String>('Starting Cloud restore...');
+
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => PopScope(
+              canPop: false,
+              child: AlertDialog(
+                backgroundColor: AppColors.cardBg,
+                title: const Text('Restoring from Cloud',
+                    style: TextStyle(color: AppColors.textPrimary)),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ValueListenableBuilder<String>(
+                      valueListenable: statusNotifier,
+                      builder: (context, status, _) => Text(
+                        status,
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ValueListenableBuilder<double>(
+                      valueListenable: progressNotifier,
+                      builder: (context, value, _) => LinearProgressIndicator(
+                        value: value,
+                        backgroundColor: AppColors.darkBg,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+
+          await Future.delayed(const Duration(milliseconds: 300));
+
+          await BackupService().restoreDatabase(
+            selectedFileId,
+            onProgress: (p, msg) {
+              progressNotifier.value = p;
+              statusNotifier.value = msg;
+            },
+          );
 
           if (!mounted) return;
-          AppDialogs.hideLoadingDialog(context);
+          Navigator.pop(context); // Close progress dialog
+
           AppDialogs.showSuccessDialog(
             context: context,
             title: 'Restore Successful',
-            message: 'Application will now reload with new data.',
+            message:
+                'Application data has been successfully restored from Cloud.',
           );
         }
       }
@@ -255,22 +365,78 @@ class _SettingsPageState extends State<SettingsPage> {
       if (result != true) return;
       if (!context.mounted) return;
 
-      AppDialogs.showLoadingDialog(context, 'Importing data from file...');
-      final importResult = await DataManagementService.importData();
+      // 1. Pick file first (UI responsive)
+      final file = await DataManagementService.pickImportFile();
+      if (file == null) return; // Cancelled
+
+      if (!context.mounted) return;
+
+      // 2. Show Progress Dialog
+      // We use a StatefulBuilder or StateSetter to update the dialog content
+      final progressNotifier = ValueNotifier<double>(0.0);
+      final statusNotifier = ValueNotifier<String>('Starting...');
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            backgroundColor: AppColors.cardBg,
+            title: const Text('Importing Data',
+                style: TextStyle(color: AppColors.textPrimary)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ValueListenableBuilder<String>(
+                  valueListenable: statusNotifier,
+                  builder: (context, status, _) => Text(
+                    status,
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ValueListenableBuilder<double>(
+                  valueListenable: progressNotifier,
+                  builder: (context, value, _) => LinearProgressIndicator(
+                    value: value,
+                    backgroundColor: AppColors.darkBg,
+                    color: AppColors.accent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // 3. Process with callback
+      // Add a small delay for dialog to build
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      final importResult = await DataManagementService.importFile(
+        file,
+        onProgress: (progress, message) {
+          progressNotifier.value = progress;
+          statusNotifier.value = message;
+        },
+      );
 
       if (context.mounted) {
-        AppDialogs.hideLoadingDialog(context);
-        if (importResult != 'Import cancelled') {
-          await AppDialogs.showSuccessDialog(
-            context: context,
-            title: 'Import Successful',
-            message: importResult,
-          );
-        }
+        Navigator.pop(context); // Close progress dialog
+
+        await AppDialogs.showSuccessDialog(
+          context: context,
+          title: 'Import Successful',
+          message: importResult,
+        );
       }
     } catch (e) {
       if (context.mounted) {
-        AppDialogs.hideLoadingDialog(context);
+        // Close progress dialog if open
+        Navigator.pop(context);
+
         await AppDialogs.showErrorDialog(
           context: context,
           title: 'Import Failed',
@@ -292,6 +458,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
     if (confirmed != true) return;
 
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
     if (!context.mounted) return;
     AppDialogs.showLoadingDialog(context, 'Clearing all data...');
     try {
@@ -307,12 +475,21 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } catch (e) {
       if (context.mounted) {
-        AppDialogs.hideLoadingDialog(context);
         await AppDialogs.showErrorDialog(
           context: context,
           title: 'Error',
           message: 'Failed to clear data: ${e.toString()}',
         );
+      }
+    } finally {
+      if (mounted) {
+        // Safe hide if still open
+        if (context.mounted) {
+          try {
+            AppDialogs.hideLoadingDialog(context);
+          } catch (_) {}
+        }
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -348,10 +525,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
-              if (_isLoading)
-                const SliverToBoxAdapter(
-                  child: LinearProgressIndicator(color: AppColors.accent),
-                ),
               SliverPadding(
                 padding: const EdgeInsets.all(24),
                 sliver: SliverList(
@@ -382,7 +555,6 @@ class _SettingsPageState extends State<SettingsPage> {
                           icon: Icons.cloud_outlined,
                           color: AppColors.accent,
                           onTap: _handleGoogleConnect,
-                          isLoading: _isLoading,
                         ),
                       )
                     else ...[

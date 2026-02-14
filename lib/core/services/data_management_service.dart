@@ -1,12 +1,13 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:liftly/core/models/workout_plan.dart';
 import 'package:liftly/core/models/workout_session.dart';
-import 'package:liftly/core/services/isar_service.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:liftly/core/services/hive_service.dart';
 import 'package:share_plus/share_plus.dart';
 
 class DataManagementService {
@@ -15,42 +16,7 @@ class DataManagementService {
     final excel = Excel.createExcel();
 
     // 1. Fetch all data
-    // Assuming single user for now or fetch all.
-    // For export, we export everything.
-    // IsarService.getWorkouts requires userId.
-    // We export for current logged in user usually.
-    // But BackupService manages Google drive for current user.
-    // Yet ExportData is general.
-    // We should probably get user from a SessionService or similar if we strictly enforce user.
-    // However, existing implementation used raw query on ALL workouts (filtered by is_draft=0).
-    // IsarService getWorkouts needs userId.
-    // I'll assume we need to pass userId or fetch all.
-    // Since Isar is local, fetching all is fine if we want full backup.
-    // IsarService doesn't have getAllWorkouts() without userId.
-    // I should add getAllWorkouts() to IsarService? Or iterate users?
-    // Let's modify IsarService to allow fetching all workouts if we pass empty userId or null?
-    // Or just fetch hardcoded 'user_1' if that's what the app uses.
-    // The legacy code used: WHERE is_draft = 0 directly, implying it took all users.
-    // Let's try to get distinct user IDs first from Isar?
-    // IsarService doesn't expose users list.
-    // I will add `getAllWorkoutsForAllUsers` to IsarService or similar.
-    // OR just use `getAllWorkouts("user_1")` if the app is single user effectively.
-    // Let's assume single user for now as typical for local DB apps, or pass a specific user ID if I can get it.
-    // But DataManagementService is static.
-    // I will iterate all workouts provided by a new IsarService method `getAllWorkoutsRaw()` that returns everything.
-
-    // Let's assume for now we export for "user_1" as default or handle it better.
-    // Wait, IsarService.getWorkouts is user scoped.
-    // I will skip fetching logic details and implement the FLATTENING logic first.
-    // To support "All", I need IsarService to return all. This is cleaner.
-
-    // For now, let's implement the flattening structure.
-
-    // -- DATA FETCHING --
-    // We need a way to get EVERYTHING.
-    // I'll add `exportAllData` to IsarService that returns {workouts: [], plans: []}
-
-    final allData = await IsarService.getAllDataForExport();
+    final allData = await HiveService.getAllDataForExport();
     final workouts = allData['workouts'] as List<WorkoutSession>;
     final plans = allData['plans'] as List<WorkoutPlan>;
 
@@ -67,6 +33,7 @@ class DataManagementService {
         'id': w.id,
         'user_id': w.userId,
         'plan_id': w.planId,
+        'plan_name': w.planName,
         'workout_date': w.workoutDate.toIso8601String(),
         'started_at': w.startedAt?.toIso8601String(),
         'ended_at': w.endedAt?.toIso8601String(),
@@ -124,9 +91,6 @@ class DataManagementService {
 
       for (final ex in p.exercises) {
         planExRows.add({
-          // plan_exercises didn't use ID in repo?
-          // MigrationService generated one. Export should ideally export it if exists.
-          // In WorkoutPlan model (Dart), PlanExercise has ID.
           'id': ex.id,
           'plan_id': p.id,
           'name': ex.name,
@@ -147,7 +111,7 @@ class DataManagementService {
       excel.delete('Sheet1');
     }
 
-    final bytes = excel.save();
+    final bytes = excel.encode();
     if (bytes == null) throw Exception('Failed to generate Excel file');
     return Uint8List.fromList(bytes);
   }
@@ -173,29 +137,33 @@ class DataManagementService {
     }
   }
 
+  /// Export all data if auto-export is enabled in preferences
+
   /// Export all data to an Excel file and prompt user to share/save it
   static Future<void> exportData() async {
     try {
       final fileBytes = await generateExcelBytes();
-      final directory = await getTemporaryDirectory();
-      final dateStr = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final fileName = 'liftly_backup_$dateStr.xlsx';
-      final file = File('${directory.path}/$fileName');
+      final dateStr = DateFormat('ddMMyyyy_HHmmss').format(DateTime.now());
+      final fileName = 'backup_liftly_$dateStr.xlsx';
 
-      await file.writeAsBytes(fileBytes);
+      // Use XFile.fromData for cross-platform compatibility (direct download on web)
+      final xFile = XFile.fromData(
+        fileBytes,
+        name: fileName,
+        mimeType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
 
       // ignore: deprecated_member_use
-      await Share.shareXFiles([
-        XFile(file.path),
-      ], subject: 'Liftly Backup $dateStr');
+      await Share.shareXFiles([xFile], subject: 'Liftly Backup $dateStr');
     } catch (e) {
       if (kDebugMode) print('Export error: $e');
       rethrow;
     }
   }
 
-  /// Import data from an Excel file
-  static Future<String> importData({String targetUserId = '1'}) async {
+  /// Pick a file for import (UI step)
+  static Future<PlatformFile?> pickImportFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -203,338 +171,559 @@ class DataManagementService {
       );
 
       if (result == null || result.files.isEmpty) {
-        return 'Import cancelled';
+        return null;
       }
-
-      // Check for bytes if on web, or path if on mobile
-      Uint8List bytes;
-      if (kIsWeb) {
-        if (result.files.single.bytes != null) {
-          bytes = result.files.single.bytes!;
-        } else {
-          return 'Import failed: No file data';
-        }
-      } else {
-        final file = File(result.files.single.path!);
-        bytes = await file.readAsBytes();
-      }
-
-      return await importDataFromBytes(bytes, targetUserId: targetUserId);
+      return result.files.single;
     } catch (e) {
+      if (kDebugMode) print('Pick file error: $e');
+      return null;
+    }
+  }
+
+  /// Import data from a selected file (Processing step)
+  static Future<String> importFile(PlatformFile file,
+      {String targetUserId = '1',
+      Function(double progress, String message)? onProgress}) async {
+    try {
+      Map<String, dynamic> result;
+
+      if (kIsWeb) {
+        onProgress?.call(0.1, 'Reading file bytes (Web)...');
+        final bytes = file.bytes;
+        if (bytes == null) throw Exception('No file bytes provided');
+
+        result = await _processImportShared(
+          userId: targetUserId,
+          bytes: bytes,
+          onProgress: onProgress,
+        );
+      } else {
+        final receivePort = ReceivePort();
+        onProgress?.call(0.05, 'Preparing background process...');
+
+        // Prepare data for isolate
+        final isolateParams = {
+          'userId': targetUserId,
+          'path': file.path,
+          'bytes': file.bytes,
+          'sendPort': receivePort.sendPort,
+        };
+
+        // Spawn Isolate
+        final isolate =
+            await Isolate.spawn(_importIsolateEntryPoint, isolateParams);
+
+        final resultCompleter = Completer<Map<String, dynamic>>();
+
+        receivePort.listen((message) {
+          if (message is Map<String, dynamic>) {
+            final type = message['type'] as String;
+            if (type == 'progress') {
+              onProgress?.call(
+                  message['progress'] as double, message['message'] as String);
+            } else if (type == 'result') {
+              resultCompleter.complete(message['data'] as Map<String, dynamic>);
+              receivePort.close();
+            } else if (type == 'error') {
+              resultCompleter.completeError(message['error'] as String);
+              receivePort.close();
+            }
+          }
+        });
+
+        result = await resultCompleter.future;
+        isolate.kill();
+      }
+
+      onProgress?.call(0.5, 'Importing workouts...');
+
+      // Reconstruct models on MAIN THREAD with Chunking to prevent UI freeze
+      final rawWorkouts = result['workouts'] as List<dynamic>;
+      final rawPlans = result['plans'] as List<dynamic>;
+
+      final parsedWorkouts = <WorkoutSession>[];
+      final parsedPlans = <WorkoutPlan>[];
+
+      // Process Workouts in Chunks
+      const int batchSize = 100;
+      for (int i = 0; i < rawWorkouts.length; i += batchSize) {
+        final end = (i + batchSize < rawWorkouts.length)
+            ? i + batchSize
+            : rawWorkouts.length;
+        final batch = rawWorkouts.sublist(i, end);
+
+        parsedWorkouts.addAll(batch
+            .map((w) => WorkoutSession.fromMap(w as Map<String, dynamic>)));
+
+        // Yield to UI
+        await Future.delayed(Duration.zero);
+
+        // Update Progress (0.5 to 0.9 range)
+        final p = 0.5 + (0.4 * (end / rawWorkouts.length));
+        onProgress?.call(
+            p, 'Importing workouts ($end/${rawWorkouts.length})...');
+      }
+
+      onProgress?.call(0.9, 'Importing plans...');
+
+      // Process Plans
+      for (final p in rawPlans) {
+        parsedPlans.add(WorkoutPlan.fromMap(p as Map<String, dynamic>));
+      }
+
+      onProgress?.call(0.95, 'Saving to database...');
+
+      await HiveService.importWorkouts(parsedWorkouts);
+      await HiveService.importPlans(parsedPlans);
+
+      onProgress?.call(1.0, 'Done!');
+      return 'Successfully imported ${parsedWorkouts.length} workouts and ${parsedPlans.length} plans.';
+    } catch (e) {
+      // receivePort.close(); // This might not be available if kIsWeb path was taken
       rethrow;
     }
   }
 
+  // Deprecated: Kept for backward compatibility if needed, but redirects to new flow
+  static Future<String> importData({String targetUserId = '1'}) async {
+    final file = await pickImportFile();
+    if (file == null) return 'Import cancelled';
+    return await importFile(file, targetUserId: targetUserId);
+  }
+
   /// Generic import logic from bytes
   static Future<String> importDataFromBytes(Uint8List bytes,
-      {String targetUserId = '1'}) async {
+      {String targetUserId = '1',
+      Function(double progress, String message)? onProgress}) async {
     try {
-      // 1. Decode, Parse, Group, and Sort in background isolate
-      // This offloads the vast majority of CPU work from the main thread.
-      final structuredData = await compute(_decodeAndStructureExcel, bytes);
+      Map<String, dynamic> result;
 
-      // Yield to UI thread after heavy isolate work
-      await Future.delayed(Duration.zero);
-
-      final workoutsData =
-          structuredData['workouts'] as List<Map<String, dynamic>>;
-      final plansData = structuredData['plans'] as List<Map<String, dynamic>>;
-
-      int importedWorkouts = 0;
-      int importedPlans = 0;
-
-      // 2. Reconstruct Workouts (Mainly model instantiation)
-      final parsedWorkouts = <WorkoutSession>[];
-
-      for (final wData in workoutsData) {
-        final wRow = wData['row'] as Map<String, dynamic>;
-        if (wRow['is_draft'] == 1 || wRow['is_draft'] == '1') continue;
-
-        final workoutId = wRow['id'] as String;
-        final exercisesData = wData['exercises'] as List<Map<String, dynamic>>;
-
-        final exercises = exercisesData.map((eData) {
-          final eRow = eData['row'] as Map<String, dynamic>;
-          final exId = eRow['id'] as String;
-          final setsData = eData['sets'] as List<Map<String, dynamic>>;
-
-          final sets = setsData.map((sData) {
-            final sRow = sData['row'] as Map<String, dynamic>;
-            final setId = sRow['id'] as String;
-            final segmentsData =
-                sData['segments'] as List<Map<String, dynamic>>;
-
-            final segments = segmentsData.map((segRow) {
-              int rFrom = segRow['reps_from'] as int? ?? 0;
-              int rTo = segRow['reps_to'] as int? ?? 0;
-
-              if (rFrom == 0 && rTo == 0 && segRow.containsKey('reps')) {
-                final reps = segRow['reps'] as int? ?? 0;
-                if (reps > 0) {
-                  rFrom = 1;
-                  rTo = reps;
-                }
-              }
-
-              if (rFrom == rTo && rFrom > 1) {
-                rTo = rFrom;
-                rFrom = 1;
-              }
-
-              if (rFrom == 0) rFrom = 1;
-              if (rTo < rFrom) rTo = rFrom;
-
-              return SetSegment(
-                id: segRow['id'] as String,
-                weight: (segRow['weight'] as num).toDouble(),
-                repsFrom: rFrom,
-                repsTo: rTo,
-                segmentOrder: segRow['segment_order'] as int,
-                notes: segRow['notes'] as String? ?? '',
-              );
-            }).toList();
-
-            return ExerciseSet(
-              id: setId,
-              setNumber: sRow['set_number'] as int,
-              segments: segments,
-            );
-          }).toList();
-
-          return SessionExercise(
-            id: exId,
-            name: eRow['name'] as String,
-            order: eRow['exercise_order'] as int,
-            skipped: (eRow['skipped'] == 1 || eRow['skipped'] == '1'),
-            isTemplate:
-                (eRow['is_template'] == 1 || eRow['is_template'] == '1'),
-            sets: sets,
-          );
-        }).toList();
-
-        final workout = WorkoutSession(
-          id: workoutId,
+      if (kIsWeb) {
+        onProgress?.call(0.1, 'Reading data (Web)...');
+        result = await _processImportShared(
           userId: targetUserId,
-          planId: wRow['plan_id'] as String?,
-          planName: null,
-          workoutDate: DateTime.parse(wRow['workout_date'] as String),
-          startedAt: wRow['started_at'] != null
-              ? DateTime.parse(wRow['started_at'] as String)
-              : null,
-          endedAt: wRow['ended_at'] != null
-              ? DateTime.parse(wRow['ended_at'] as String)
-              : null,
-          exercises: exercises,
-          createdAt: DateTime.tryParse(wRow['created_at'] as String? ?? '') ??
-              DateTime.now(),
-          updatedAt: DateTime.tryParse(wRow['updated_at'] as String? ?? '') ??
-              DateTime.now(),
-          isDraft: false,
+          bytes: bytes,
+          onProgress: onProgress,
         );
+      } else {
+        final receivePort = ReceivePort();
+        onProgress?.call(0.05, 'Preparing background process...');
+        final isolateParams = {
+          'bytes': bytes,
+          'userId': targetUserId,
+          'sendPort': receivePort.sendPort,
+        };
 
-        parsedWorkouts.add(workout);
-        importedWorkouts++;
+        final isolate =
+            await Isolate.spawn(_importIsolateEntryPoint, isolateParams);
+        final resultCompleter = Completer<Map<String, dynamic>>();
 
-        // Yield less frequently (every 50 workouts) to improve performance
-        // but still keep UI indicator alive
-        if (importedWorkouts % 50 == 0) {
-          await Future.delayed(Duration.zero);
-        }
+        receivePort.listen((message) {
+          if (message is Map<String, dynamic>) {
+            final type = message['type'] as String;
+            if (type == 'progress') {
+              onProgress?.call(
+                  message['progress'] as double, message['message'] as String);
+            } else if (type == 'result') {
+              resultCompleter.complete(message['data'] as Map<String, dynamic>);
+              receivePort.close();
+            } else if (type == 'error') {
+              resultCompleter.completeError(message['error'] as String);
+              receivePort.close();
+            }
+          }
+        });
+
+        result = await resultCompleter.future;
+        isolate.kill();
       }
 
-      await IsarService.importWorkouts(parsedWorkouts);
+      onProgress?.call(0.5, 'Importing workouts...');
 
-      // 3. Reconstruct Plans
+      final rawWorkouts = result['workouts'] as List<dynamic>;
+      final rawPlans = result['plans'] as List<dynamic>;
+
+      final parsedWorkouts = <WorkoutSession>[];
       final parsedPlans = <WorkoutPlan>[];
 
-      for (final pData in plansData) {
-        final pRow = pData['row'] as Map<String, dynamic>;
-        final planId = pRow['id'] as String;
-        final pExData = pData['exercises'] as List<Map<String, dynamic>>;
+      // Process Workouts in Chunks
+      const int batchSize = 100;
+      for (int i = 0; i < rawWorkouts.length; i += batchSize) {
+        final end = (i + batchSize < rawWorkouts.length)
+            ? i + batchSize
+            : rawWorkouts.length;
+        final batch = rawWorkouts.sublist(i, end);
 
-        final exercises = pExData.map((eRow) {
-          return PlanExercise(
-            id: eRow['id'] as String,
-            name: eRow['name'] as String,
-            order: eRow['exercise_order'] as int,
-          );
-        }).toList();
+        parsedWorkouts.addAll(batch
+            .map((w) => WorkoutSession.fromMap(w as Map<String, dynamic>)));
 
-        final plan = WorkoutPlan(
-          id: planId,
-          userId: targetUserId,
-          name: pRow['name'] as String,
-          description: pRow['description'] as String?,
-          exercises: exercises,
-          createdAt: DateTime.tryParse(pRow['created_at'] as String? ?? '') ??
-              DateTime.now(),
-          updatedAt: DateTime.tryParse(pRow['updated_at'] as String? ?? '') ??
-              DateTime.now(),
-        );
+        // Yield to UI
+        await Future.delayed(Duration.zero);
 
-        parsedPlans.add(plan);
-        importedPlans++;
+        // Update Progress (0.5 to 0.9 range)
+        final p = 0.5 + (0.4 * (end / rawWorkouts.length));
+        onProgress?.call(
+            p, 'Importing workouts ($end/${rawWorkouts.length})...');
       }
 
-      await IsarService.importPlans(parsedPlans);
+      onProgress?.call(0.9, 'Importing plans...');
+      for (final p in rawPlans) {
+        parsedPlans.add(WorkoutPlan.fromMap(p as Map<String, dynamic>));
+      }
 
-      return 'Successfully imported $importedWorkouts workouts and $importedPlans plans.';
+      onProgress?.call(0.95, 'Saving to database...');
+      await HiveService.importWorkouts(parsedWorkouts);
+      await HiveService.importPlans(parsedPlans);
+
+      onProgress?.call(1.0, 'Done!');
+      return 'Successfully imported ${parsedWorkouts.length} workouts and ${parsedPlans.length} plans.';
     } catch (e) {
-      if (kDebugMode) {
-        print('Import error: $e');
-      }
-      throw Exception('Failed to import data: $e');
+      rethrow;
     }
   }
 
   /// Clear all data from the database
   static Future<void> clearAllData() async {
     try {
-      await IsarService.clearAllData();
+      await HiveService.clearAllData();
     } catch (e) {
       rethrow;
     }
   }
-}
 
-/// Isolate function for decoding, parsing AND structuring Excel data.
-Map<String, dynamic> _decodeAndStructureExcel(Uint8List bytes) {
-  final excel = Excel.decodeBytes(bytes);
+  static void _log(String message) {
+    if (kDebugMode) {
+      print('[ImportDebug] $message');
+    }
+  }
 
-  final workoutsMap = _parseSheetRaw(excel, 'workouts');
-  final workoutExercisesMap = _parseSheetRaw(excel, 'workout_exercises');
-  final workoutSetsMap = _parseSheetRaw(excel, 'workout_sets');
-  final setSegmentsMap = _parseSheetRaw(excel, 'set_segments');
-  final plansMap = _parseSheetRaw(excel, 'plans');
-  final planExercisesMap = _parseSheetRaw(excel, 'plan_exercises');
-
-  // Group everything in the isolate
-  final exercisesByWorkout =
-      _groupByInternal(workoutExercisesMap, 'workout_id');
-  final setsByExercise = _groupByInternal(workoutSetsMap, 'exercise_id');
-  final segmentsBySet = _groupByInternal(setSegmentsMap, 'set_id');
-  final planExByPlan = _groupByInternal(planExercisesMap, 'plan_id');
-
-  // 1. Structure Workouts
-  final structuredWorkouts = <Map<String, dynamic>>[];
-  for (final wRow in workoutsMap) {
-    final workoutId = wRow['id'] as String?;
-    if (workoutId == null) continue;
-
-    final exercisesData = exercisesByWorkout[workoutId] ?? [];
-    // Sort exercises in isolate
-    exercisesData.sort((a, b) =>
-        (a['exercise_order'] as int).compareTo(b['exercise_order'] as int));
-
-    final structuredExercises = <Map<String, dynamic>>[];
-    for (final eRow in exercisesData) {
-      final exId = eRow['id'] as String?;
-      if (exId == null) continue;
-
-      final setsData = setsByExercise[exId] ?? [];
-      // Sort sets in isolate
-      setsData.sort(
-          (a, b) => (a['set_number'] as int).compareTo(b['set_number'] as int));
-
-      final structuredSets = <Map<String, dynamic>>[];
-      for (final sRow in setsData) {
-        final setId = sRow['id'] as String?;
-        if (setId == null) continue;
-
-        final segmentsData = segmentsBySet[setId] ?? [];
-        // Sort segments in isolate
-        segmentsData.sort((a, b) =>
-            (a['segment_order'] as int).compareTo(b['segment_order'] as int));
-
-        structuredSets.add({
-          'row': sRow,
-          'segments': segmentsData,
-        });
+  /// Internal helper for grouping within isolate
+  static Map<String, List<Map<String, dynamic>>> _groupByInternal(
+      List<Map<String, dynamic>> list, String key) {
+    final map = <String, List<Map<String, dynamic>>>{};
+    for (final item in list) {
+      final val = item[key] as String?;
+      if (val != null) {
+        map.putIfAbsent(val, () => []).add(item);
       }
+    }
+    return map;
+  }
 
-      structuredExercises.add({
-        'row': eRow,
-        'sets': structuredSets,
-      });
+  /// Raw sheet parsing helper for isolate with row caching.
+  static List<Map<String, dynamic>> _parseSheetRaw(
+      Excel excel, String sheetName) {
+    if (!excel.tables.keys.contains(sheetName)) {
+      _log('Sheet $sheetName not found');
+      return [];
     }
 
-    structuredWorkouts.add({
-      'row': wRow,
-      'exercises': structuredExercises,
-    });
-  }
+    final sheet = excel.tables[sheetName]!;
+    final sheetRows = sheet.rows;
+    if (sheetRows.length <= 1) return [];
 
-  // 2. Structure Plans
-  final structuredPlans = <Map<String, dynamic>>[];
-  for (final pRow in plansMap) {
-    final planId = pRow['id'] as String?;
-    if (planId == null) continue;
+    final rows = <Map<String, dynamic>>[];
+    final headerRow = sheetRows.first;
+    // Safely convert headers to strings
+    final headers = headerRow.map((e) {
+      if (e == null) return '';
+      return e.value.toString();
+    }).toList();
 
-    final pExData = planExByPlan[planId] ?? [];
-    pExData.sort((a, b) =>
-        (a['exercise_order'] as int).compareTo(b['exercise_order'] as int));
-
-    structuredPlans.add({
-      'row': pRow,
-      'exercises': pExData,
-    });
-  }
-
-  return {
-    'workouts': structuredWorkouts,
-    'plans': structuredPlans,
-  };
-}
-
-/// Internal helper for grouping within isolate
-Map<String, List<Map<String, dynamic>>> _groupByInternal(
-    List<Map<String, dynamic>> list, String key) {
-  final map = <String, List<Map<String, dynamic>>>{};
-  for (final item in list) {
-    final val = item[key] as String?;
-    if (val != null) {
-      map.putIfAbsent(val, () => []).add(item);
-    }
-  }
-  return map;
-}
-
-/// Raw sheet parsing helper for isolate.
-List<Map<String, dynamic>> _parseSheetRaw(Excel excel, String sheetName) {
-  if (!excel.tables.keys.contains(sheetName)) return [];
-
-  final sheet = excel.tables[sheetName]!;
-  if (sheet.maxRows <= 1) return [];
-
-  final rows = <Map<String, dynamic>>[];
-  final headerRow = sheet.rows.first;
-  final headers = headerRow.map((e) => e?.value.toString() ?? '').toList();
-
-  for (int i = 1; i < sheet.rows.length; i++) {
-    final row = sheet.rows[i];
-    final Map<String, dynamic> rowMap = {};
-
-    for (int j = 0; j < headers.length; j++) {
-      if (j < row.length) {
-        final header = headers[j];
-        if (header.isEmpty) continue;
-
-        final cellValue = row[j]?.value;
-        if (cellValue == null) {
-          rowMap[header] = null;
-        } else if (cellValue is TextCellValue) {
-          final val = cellValue.value.toString();
-          rowMap[header] = (val == 'null' || val.isEmpty) ? null : val;
-        } else if (cellValue is IntCellValue) {
-          rowMap[header] = cellValue.value;
-        } else if (cellValue is DoubleCellValue) {
-          rowMap[header] = cellValue.value;
-        } else {
-          rowMap[header] = cellValue.toString();
+    for (int i = 1; i < sheetRows.length; i++) {
+      final row = sheetRows[i];
+      final Map<String, dynamic> rowMap = {};
+      for (int j = 0; j < headers.length; j++) {
+        if (j < row.length) {
+          final header = headers[j];
+          if (header.isEmpty) continue;
+          final cellValue = row[j];
+          if (cellValue == null) {
+            rowMap[header] = null;
+          } else {
+            // Check value type safely
+            final val = cellValue.value;
+            if (val is TextCellValue) {
+              // Handle potential TextSpan/RichText from excel package
+              final content = val.value;
+              if (content is String) {
+                rowMap[header] = content;
+              } else {
+                // Fallback for Rich Text (TextSpan)
+                // content.toString() usually gives the text, or we can try .text dynamic
+                try {
+                  rowMap[header] = (content as dynamic).text.toString();
+                } catch (_) {
+                  rowMap[header] = content.toString();
+                }
+              }
+            } else if (val is IntCellValue) {
+              rowMap[header] = val.value; // int
+            } else if (val is DoubleCellValue) {
+              rowMap[header] = val.value; // double
+            } else if (val is DateCellValue) {
+              // DateCellValue structure specific to excel package version
+              // It seems mostly to return value via .year .month etc or asDateTime
+              // Checking library source or common usage: .asDateTimeLocal is common helper
+              // Or simply val.year, val.month...
+              // Actually modern excel package: DateCellValue has .asDateTimeLocal
+              // But wait, the previous code used .value which was erroring.
+              // Let's rely on .toString() if uncertain, or try .asDateTimeLocal if available.
+              // Safest fallback without library inspection in-depth:
+              rowMap[header] = val.toString();
+            } else {
+              rowMap[header] = val.toString(); // Fallback
+            }
+          }
         }
       }
+      rows.add(rowMap);
     }
-    rows.add(rowMap);
+    return rows;
   }
-  return rows;
+
+  /// Shared Core Import Logic
+  /// Used by both Isolate (Native) and direct yielding calls (Web)
+  static Future<Map<String, dynamic>> _processImportShared({
+    required String userId,
+    Uint8List? bytes,
+    String? path,
+    Function(double progress, String message)? onProgress,
+  }) async {
+    Uint8List fileBytes;
+
+    onProgress?.call(0.1, 'Reading file bytes...');
+    if (bytes != null) {
+      fileBytes = bytes;
+    } else if (path != null) {
+      final file = File(path);
+      fileBytes = await file.readAsBytes();
+    } else {
+      throw Exception('No file source provided');
+    }
+
+    if (kIsWeb) await Future.delayed(Duration.zero); // Yield to UI
+
+    onProgress?.call(
+        0.2, 'Decoding Excel structure (this may take a moment)...');
+    final excel = Excel.decodeBytes(fileBytes);
+
+    if (kIsWeb) await Future.delayed(Duration.zero);
+
+    onProgress?.call(0.3, 'Parsing workout records...');
+    final workoutsMap = DataManagementService._parseSheetRaw(excel, 'workouts');
+
+    onProgress?.call(0.32, 'Parsing exercises...');
+    final workoutExercisesMap =
+        DataManagementService._parseSheetRaw(excel, 'workout_exercises');
+
+    onProgress?.call(0.34, 'Parsing sets...');
+    final workoutSetsMap =
+        DataManagementService._parseSheetRaw(excel, 'workout_sets');
+
+    onProgress?.call(0.36, 'Parsing segments...');
+    final setSegmentsMap =
+        DataManagementService._parseSheetRaw(excel, 'set_segments');
+
+    onProgress?.call(0.38, 'Parsing workout plans...');
+    final plansMap = DataManagementService._parseSheetRaw(excel, 'plans');
+    final planExercisesMap =
+        DataManagementService._parseSheetRaw(excel, 'plan_exercises');
+
+    if (kIsWeb) await Future.delayed(Duration.zero);
+
+    onProgress?.call(0.4, 'Grouping and connecting data...');
+    final exercisesByWorkout = DataManagementService._groupByInternal(
+        workoutExercisesMap, 'workout_id');
+    final setsByExercise =
+        DataManagementService._groupByInternal(workoutSetsMap, 'exercise_id');
+    final segmentsBySet =
+        DataManagementService._groupByInternal(setSegmentsMap, 'set_id');
+    final planExByPlan =
+        DataManagementService._groupByInternal(planExercisesMap, 'plan_id');
+
+    final planIdToName = <String, String>{};
+    for (final pRow in plansMap) {
+      final pId = pRow['id']?.toString();
+      final pName = pRow['name']?.toString();
+      if (pId != null && pName != null) {
+        planIdToName[pId] = pName;
+      }
+    }
+
+    onProgress?.call(0.45, 'Reconstructing ${workoutsMap.length} workouts...');
+    final workouts = <Map<String, dynamic>>[];
+    for (final wRow in workoutsMap) {
+      final isDraftVal = wRow['is_draft'];
+      bool isDraft = false;
+      if (isDraftVal is int) {
+        isDraft = isDraftVal == 1;
+      } else if (isDraftVal is String) {
+        isDraft = isDraftVal == '1';
+      }
+      if (isDraft) continue;
+
+      final workoutId = wRow['id'] as String?;
+      if (workoutId == null) continue;
+
+      final exercisesData = exercisesByWorkout[workoutId] ?? [];
+      exercisesData.sort((a, b) =>
+          (a['exercise_order'] as int).compareTo(b['exercise_order'] as int));
+
+      final exercises = exercisesData.map((eRow) {
+        final exId = eRow['id'] as String;
+        final setsData = setsByExercise[exId] ?? [];
+        setsData.sort((a, b) =>
+            (a['set_number'] as int).compareTo(b['set_number'] as int));
+
+        final sets = setsData.map((sRow) {
+          final setId = sRow['id'] as String;
+          final segmentsData = segmentsBySet[setId] ?? [];
+          segmentsData.sort((a, b) =>
+              (a['segment_order'] as int).compareTo(b['segment_order'] as int));
+
+          final segments = segmentsData.map((segRow) {
+            int rFrom = segRow['reps_from'] as int? ?? 1;
+            int rTo =
+                segRow['reps_to'] as int? ?? (segRow['reps'] as int? ?? 1);
+            if (rTo < rFrom) rTo = rFrom;
+
+            return {
+              'id': segRow['id'] as String,
+              'weight': (segRow['weight'] as num).toDouble(),
+              'repsFrom': rFrom,
+              'repsTo': rTo,
+              'segmentOrder': segRow['segment_order'] as int,
+              'notes': segRow['notes'] as String? ?? '',
+            };
+          }).toList();
+
+          return {
+            'id': setId,
+            'setNumber': sRow['set_number'] as int,
+            'segments': segments,
+          };
+        }).toList();
+
+        final skippedVal = eRow['skipped'];
+        bool skipped = false;
+        if (skippedVal is int) {
+          skipped = skippedVal == 1;
+        } else if (skippedVal is String) {
+          skipped = skippedVal == '1';
+        }
+        final templateVal = eRow['is_template'];
+        bool isTemplate = false;
+        if (templateVal is int) {
+          isTemplate = templateVal == 1;
+        } else if (templateVal is String) {
+          isTemplate = templateVal == '1';
+        }
+
+        return {
+          'id': exId,
+          'name': eRow['name']?.toString() ?? '',
+          'order': (eRow['exercise_order'] as num?)?.toInt() ?? 0,
+          'skipped': skipped,
+          'isTemplate': isTemplate,
+          'sets': sets,
+        };
+      }).toList();
+
+      final planId = wRow['plan_id']?.toString();
+
+      workouts.add({
+        'id': workoutId,
+        'userId': userId,
+        'planId': planId,
+        'planName': wRow['plan_name']?.toString() ??
+            (planId != null ? planIdToName[planId] : null),
+        'workoutDate':
+            (DateTime.tryParse(wRow['workout_date'] as String? ?? '') ??
+                    DateTime.now())
+                .toIso8601String(),
+        'startedAt': wRow['started_at'] != null
+            ? (DateTime.tryParse(wRow['started_at'] as String))
+                ?.toIso8601String()
+            : null,
+        'endedAt': wRow['ended_at'] != null
+            ? (DateTime.tryParse(wRow['ended_at'] as String))?.toIso8601String()
+            : null,
+        'exercises': exercises,
+        'createdAt': (DateTime.tryParse(wRow['created_at'] as String? ?? '') ??
+                DateTime.now())
+            .toIso8601String(),
+        'updatedAt': (DateTime.tryParse(wRow['updated_at'] as String? ?? '') ??
+                DateTime.now())
+            .toIso8601String(),
+        'isDraft': false,
+      });
+
+      if (kIsWeb) await Future.delayed(Duration.zero);
+    }
+
+    final plans = plansMap.map((pRow) {
+      final pId = pRow['id']?.toString() ?? '';
+      final pExData = planExByPlan[pId] ?? [];
+      pExData.sort((a, b) => ((a['exercise_order'] as num?)?.toInt() ?? 0)
+          .compareTo((b['exercise_order'] as num?)?.toInt() ?? 0));
+
+      final exercises = pExData
+          .map((eRow) => {
+                'id': eRow['id']?.toString() ?? '',
+                'name': eRow['name']?.toString() ?? '',
+                'order': (eRow['exercise_order'] as num?)?.toInt() ?? 0,
+              })
+          .toList();
+
+      return {
+        'id': pId,
+        'userId': userId,
+        'name': pRow['name'] as String? ?? 'Unnamed Plan',
+        'description': pRow['description'] as String?,
+        'exercises': exercises,
+        'createdAt': (DateTime.tryParse(pRow['created_at'] as String? ?? '') ??
+                DateTime.now())
+            .toIso8601String(),
+        'updatedAt': (DateTime.tryParse(pRow['updated_at'] as String? ?? '') ??
+                DateTime.now())
+            .toIso8601String(),
+      };
+    }).toList();
+
+    return {
+      'workouts': workouts,
+      'plans': plans,
+    };
+  }
+
+  /// Isolate Entry Point
+  static void _importIsolateEntryPoint(Map<String, dynamic> params) async {
+    final sendPort = params['sendPort'] as SendPort;
+
+    try {
+      final result = await _processImportShared(
+        userId: params['userId'] as String,
+        bytes: params['bytes'] as Uint8List?,
+        path: params['path'] as String?,
+        onProgress: (progress, message) {
+          sendPort.send({
+            'type': 'progress',
+            'progress': progress,
+            'message': message,
+          });
+        },
+      );
+
+      sendPort.send({
+        'type': 'result',
+        'data': result,
+      });
+    } catch (e) {
+      sendPort.send({
+        'type': 'error',
+        'error': e.toString(),
+      });
+    }
+  }
 }

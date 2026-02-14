@@ -219,7 +219,11 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
     Navigator.pushReplacement(
       context,
       SmoothPageRoute(
-        page: SessionPage(planId: _selectedPlan?.id, exercises: allExercises),
+        page: SessionPage(
+          planId: _selectedPlan?.id,
+          planName: _selectedPlan?.name,
+          exercises: allExercises,
+        ),
       ),
     );
   }
@@ -289,34 +293,34 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                     },
                     itemBuilder: (context) =>
                         PlanSortOption.values.map((option) {
-                          return PopupMenuItem(
-                            value: option,
-                            child: Row(
-                              children: [
-                                if (_sortOption == option)
-                                  const Icon(
-                                    Icons.check,
-                                    size: 16,
-                                    color: AppColors.accent,
-                                  )
-                                else
-                                  const SizedBox(width: 16),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _getSortLabel(option),
-                                  style: TextStyle(
-                                    color: _sortOption == option
-                                        ? AppColors.accent
-                                        : AppColors.textPrimary,
-                                    fontWeight: _sortOption == option
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              ],
+                      return PopupMenuItem(
+                        value: option,
+                        child: Row(
+                          children: [
+                            if (_sortOption == option)
+                              const Icon(
+                                Icons.check,
+                                size: 16,
+                                color: AppColors.accent,
+                              )
+                            else
+                              const SizedBox(width: 16),
+                            const SizedBox(width: 8),
+                            Text(
+                              _getSortLabel(option),
+                              style: TextStyle(
+                                color: _sortOption == option
+                                    ? AppColors.accent
+                                    : AppColors.textPrimary,
+                                fontWeight: _sortOption == option
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
                             ),
-                          );
-                        }).toList(),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -401,11 +405,11 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                           }, childCount: _sortedPlans.length),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 12,
-                                crossAxisSpacing: 12,
-                                childAspectRatio: 2.5,
-                              ),
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            childAspectRatio: 2.5,
+                          ),
                         );
                       }
                       final plansToShow = _sortedPlans
@@ -434,7 +438,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                     IconButton(
                                       onPressed: _planPageIndex > 0
                                           ? () =>
-                                                setState(() => _planPageIndex--)
+                                              setState(() => _planPageIndex--)
                                           : null,
                                       icon: const Icon(
                                         Icons.chevron_left_rounded,
@@ -452,11 +456,11 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                       ),
                                     ),
                                     IconButton(
-                                      onPressed:
-                                          (_planPageIndex + 1) * _plansPerPage <
+                                      onPressed: (_planPageIndex + 1) *
+                                                  _plansPerPage <
                                               _sortedPlans.length
                                           ? () =>
-                                                setState(() => _planPageIndex++)
+                                              setState(() => _planPageIndex++)
                                           : null,
                                       icon: const Icon(
                                         Icons.chevron_right_rounded,
@@ -492,7 +496,6 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
                       if (_selectedPlan != null)
                         Container(
                           margin: const EdgeInsets.only(bottom: 16),
@@ -552,7 +555,6 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                             ],
                           ),
                         ),
-
                       Container(
                         decoration: BoxDecoration(
                           color: _customExercises.isNotEmpty
@@ -571,175 +573,165 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                   .asMap()
                                   .entries
                                   .map((entry) {
-                                    final index =
-                                        (_queuePageIndex * _queuePerPage) +
+                                final index =
+                                    (_queuePageIndex * _queuePerPage) +
                                         entry.key;
-                                    final exercise = entry.value;
+                                final exercise = entry.value;
 
-                                    // Last visible item on this specific page
-                                    final currentVisibleCount = _customExercises
-                                        .skip(_queuePageIndex * _queuePerPage)
-                                        .take(_queuePerPage)
-                                        .length;
-                                    final isLastOnPage =
-                                        entry.key == currentVisibleCount - 1;
+                                // Last visible item on this specific page
+                                final currentVisibleCount = _customExercises
+                                    .skip(_queuePageIndex * _queuePerPage)
+                                    .take(_queuePerPage)
+                                    .length;
+                                final isLastOnPage =
+                                    entry.key == currentVisibleCount - 1;
 
-                                    if (_editingIndex == index) {
-                                      return FadeInSlide(
-                                        index: entry.key,
-                                        child: Container(
-                                          key: ValueKey(
-                                            'editing_${exercise.id}',
-                                          ),
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            border: Border(
-                                              bottom: isLastOnPage
-                                                  ? BorderSide.none
-                                                  : BorderSide(
-                                                      color: Colors.white
-                                                          .withValues(
-                                                            alpha: 0.05,
-                                                          ),
-                                                    ),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Expanded(
-                                                child: SuggestionTextField(
-                                                  controller:
-                                                      _exerciseController,
-                                                  focusNode: _exerciseFocusNode,
-                                                  hintText: 'Exercise name...',
-                                                  suggestions:
-                                                      _availableExercises,
-                                                  onSubmitted: (_) =>
-                                                      _updateCustomExercise(),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              IconButton(
-                                                onPressed:
-                                                    _updateCustomExercise,
-                                                icon: const Icon(
-                                                  Icons.check_rounded,
-                                                  color: AppColors.success,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    }
-
-                                    return FadeInSlide(
-                                      index: entry.key,
-                                      child: Container(
-                                        key: ValueKey(exercise.id),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                            bottom: isLastOnPage
-                                                ? BorderSide.none
-                                                : BorderSide(
-                                                    color: Colors.white
-                                                        .withValues(
-                                                          alpha: 0.05,
-                                                        ),
+                                if (_editingIndex == index) {
+                                  return FadeInSlide(
+                                    index: entry.key,
+                                    child: Container(
+                                      key: ValueKey(
+                                        'editing_${exercise.id}',
+                                      ),
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: isLastOnPage
+                                              ? BorderSide.none
+                                              : BorderSide(
+                                                  color:
+                                                      Colors.white.withValues(
+                                                    alpha: 0.05,
                                                   ),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                exercise.name,
-                                                style: const TextStyle(
-                                                  color: AppColors.textPrimary,
-                                                  fontWeight: FontWeight.w500,
-                                                  height: 1.2,
                                                 ),
-                                              ),
-                                            ),
-                                            if (!exercise.isTemplate) ...[
-                                              IconButton(
-                                                onPressed: () {
-                                                  setState(() {
-                                                    _editingIndex = index;
-                                                    _exerciseController.text =
-                                                        exercise.name;
-                                                    _exerciseFocusNode
-                                                        .requestFocus();
-                                                  });
-                                                },
-                                                icon: const Icon(
-                                                  Icons.edit_rounded,
-                                                  size: 16,
-                                                  color:
-                                                      AppColors.textSecondary,
-                                                ),
-                                                style: IconButton.styleFrom(
-                                                  tapTargetSize:
-                                                      MaterialTapTargetSize
-                                                          .shrinkWrap,
-                                                ),
-                                                padding: EdgeInsets.zero,
-                                                constraints:
-                                                    const BoxConstraints(),
-                                                visualDensity:
-                                                    VisualDensity.compact,
-                                              ),
-                                              const SizedBox(width: 16),
-                                              IconButton(
-                                                onPressed: () {
-                                                  setState(() {
-                                                    _customExercises.removeAt(
-                                                      index,
-                                                    );
-                                                    final maxPage =
-                                                        ((_customExercises
-                                                                        .length -
-                                                                    1) /
-                                                                _queuePerPage)
-                                                            .floor();
-                                                    // Check if we need to go back a page
-                                                    if (_queuePageIndex >
-                                                            maxPage &&
-                                                        maxPage >= 0) {
-                                                      _queuePageIndex = maxPage;
-                                                    } else if (_customExercises
-                                                        .isEmpty) {
-                                                      _queuePageIndex = 0;
-                                                    }
-                                                  });
-                                                },
-                                                icon: const Icon(
-                                                  Icons.close_rounded,
-                                                  size: 16,
-                                                  color:
-                                                      AppColors.textSecondary,
-                                                ),
-                                                style: IconButton.styleFrom(
-                                                  tapTargetSize:
-                                                      MaterialTapTargetSize
-                                                          .shrinkWrap,
-                                                ),
-                                                padding: EdgeInsets.zero,
-                                                constraints:
-                                                    const BoxConstraints(),
-                                                visualDensity:
-                                                    VisualDensity.compact,
-                                              ),
-                                            ],
-                                          ],
                                         ),
                                       ),
-                                    );
-                                  }),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: SuggestionTextField(
+                                              controller: _exerciseController,
+                                              focusNode: _exerciseFocusNode,
+                                              hintText: 'Exercise name...',
+                                              suggestions: _availableExercises,
+                                              onSubmitted: (_) =>
+                                                  _updateCustomExercise(),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          IconButton(
+                                            onPressed: _updateCustomExercise,
+                                            icon: const Icon(
+                                              Icons.check_rounded,
+                                              color: AppColors.success,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                return FadeInSlide(
+                                  index: entry.key,
+                                  child: Container(
+                                    key: ValueKey(exercise.id),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        bottom: isLastOnPage
+                                            ? BorderSide.none
+                                            : BorderSide(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.05,
+                                                ),
+                                              ),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            exercise.name,
+                                            style: const TextStyle(
+                                              color: AppColors.textPrimary,
+                                              fontWeight: FontWeight.w500,
+                                              height: 1.2,
+                                            ),
+                                          ),
+                                        ),
+                                        if (!exercise.isTemplate) ...[
+                                          IconButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                _editingIndex = index;
+                                                _exerciseController.text =
+                                                    exercise.name;
+                                                _exerciseFocusNode
+                                                    .requestFocus();
+                                              });
+                                            },
+                                            icon: const Icon(
+                                              Icons.edit_rounded,
+                                              size: 16,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                            style: IconButton.styleFrom(
+                                              tapTargetSize:
+                                                  MaterialTapTargetSize
+                                                      .shrinkWrap,
+                                            ),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          ),
+                                          const SizedBox(width: 16),
+                                          IconButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                _customExercises.removeAt(
+                                                  index,
+                                                );
+                                                final maxPage =
+                                                    ((_customExercises.length -
+                                                                1) /
+                                                            _queuePerPage)
+                                                        .floor();
+                                                // Check if we need to go back a page
+                                                if (_queuePageIndex > maxPage &&
+                                                    maxPage >= 0) {
+                                                  _queuePageIndex = maxPage;
+                                                } else if (_customExercises
+                                                    .isEmpty) {
+                                                  _queuePageIndex = 0;
+                                                }
+                                              });
+                                            },
+                                            icon: const Icon(
+                                              Icons.close_rounded,
+                                              size: 16,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                            style: IconButton.styleFrom(
+                                              tapTargetSize:
+                                                  MaterialTapTargetSize
+                                                      .shrinkWrap,
+                                            ),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
 
                               // Queue Pagination Controls
                               if (_customExercises.length > _queuePerPage)
@@ -753,8 +745,8 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                       IconButton(
                                         onPressed: _queuePageIndex > 0
                                             ? () => setState(
-                                                () => _queuePageIndex--,
-                                              )
+                                                  () => _queuePageIndex--,
+                                                )
                                             : null,
                                         icon: const Icon(
                                           Icons.chevron_left_rounded,
@@ -773,13 +765,12 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                         ),
                                       ),
                                       IconButton(
-                                        onPressed:
-                                            (_queuePageIndex + 1) *
+                                        onPressed: (_queuePageIndex + 1) *
                                                     _queuePerPage <
                                                 _customExercises.length
                                             ? () => setState(
-                                                () => _queuePageIndex++,
-                                              )
+                                                  () => _queuePageIndex++,
+                                                )
                                             : null,
                                         icon: const Icon(
                                           Icons.chevron_right_rounded,
@@ -793,7 +784,6 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                   ),
                                 ),
                             ],
-
                             if (_selectedPlan == null &&
                                 _customExercises.isEmpty &&
                                 !_isAddingExercise)
@@ -812,7 +802,6 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                           ],
                         ),
                       ),
-
                       if (_editingIndex == null) ...[
                         const SizedBox(height: 16),
                         if (_isAddingExercise)
@@ -901,8 +890,8 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                   child: FilledButton(
                     onPressed:
                         (_selectedPlan != null || _customExercises.isNotEmpty)
-                        ? _startSession
-                        : null,
+                            ? _startSession
+                            : null,
                     style: FilledButton.styleFrom(
                       disabledBackgroundColor: AppColors.accent.withValues(
                         alpha: 0.3,
@@ -947,8 +936,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                   _customExercises.addAll(
                     plan.exercises.map(
                       (e) => SessionExercise(
-                        id:
-                            DateTime.now().millisecondsSinceEpoch.toString() +
+                        id: DateTime.now().millisecondsSinceEpoch.toString() +
                             e.id,
                         name: e.name,
                         order: e.order,
@@ -983,9 +971,8 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                       isSelected
                           ? Icons.check_rounded
                           : Icons.fitness_center_rounded,
-                      color: isSelected
-                          ? Colors.white
-                          : AppColors.textSecondary,
+                      color:
+                          isSelected ? Colors.white : AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(width: 16),

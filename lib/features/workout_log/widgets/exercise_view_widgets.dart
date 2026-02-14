@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
-import '../../stats/bloc/stats_state.dart';
+import '../../../core/models/personal_record.dart';
 
 /// Lightweight header for view mode - only shows exercise info, no editing
 class ExerciseViewHeader extends StatelessWidget {
   final SessionExercise exercise;
-  final SessionExercise? history;
+  final WorkoutSession? history;
   final PersonalRecord? pr;
   final VoidCallback? onHistoryTap;
 
@@ -37,14 +37,14 @@ class ExerciseViewHeader extends StatelessWidget {
                 child: Text(
                   exercise.name,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: exercise.skipped
-                        ? AppColors.textSecondary
-                        : AppColors.textPrimary,
-                    decoration: exercise.skipped
-                        ? TextDecoration.lineThrough
-                        : null,
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: exercise.skipped
+                            ? AppColors.textSecondary
+                            : AppColors.textPrimary,
+                        decoration: exercise.skipped
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
                 ),
               ),
               if (history != null || pr != null)
@@ -392,14 +392,13 @@ class EditModeHeader extends StatelessWidget {
             child: Text(
               exercise.name,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: exercise.skipped
-                    ? AppColors.textSecondary
-                    : AppColors.textPrimary,
-                decoration: exercise.skipped
-                    ? TextDecoration.lineThrough
-                    : null,
-              ),
+                    fontWeight: FontWeight.w700,
+                    color: exercise.skipped
+                        ? AppColors.textSecondary
+                        : AppColors.textPrimary,
+                    decoration:
+                        exercise.skipped ? TextDecoration.lineThrough : null,
+                  ),
             ),
           ),
           TextButton(

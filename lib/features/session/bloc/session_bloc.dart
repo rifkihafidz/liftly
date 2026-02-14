@@ -1,13 +1,19 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../core/services/backup_service.dart';
+
 import '../../workout_log/repositories/workout_repository.dart';
-import '../../stats/bloc/stats_state.dart';
+import '../../../core/models/personal_record.dart';
 import 'session_event.dart';
 import 'session_state.dart';
 
 // Global counter for unique workout IDs
 int _workoutIdCounter = 0;
+
+void _log(String message) {
+  debugPrint('[SessionBloc] $message');
+}
 
 class SessionBloc extends Bloc<SessionEvent, SessionState> {
   final WorkoutRepository _workoutRepository = WorkoutRepository();
@@ -84,6 +90,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         id: generatedId,
         userId: event.userId,
         planId: event.planId,
+        planName: event.planName,
         workoutDate: workoutDate,
         startedAt: now,
         exercises: exercises,
@@ -91,11 +98,14 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         updatedAt: now,
       );
 
+      _log(
+          'SessionStarted: planName=${event.planName}, session.planName=${session.planName}');
+
       // Load history and PRs in parallel for better performance
       final exerciseNames = event.exerciseNames.toSet();
       final historyFutures = <Future<void>>[];
 
-      final previousSessions = <String, SessionExercise>{};
+      final previousSessions = <String, WorkoutSession>{};
       final exercisePRs = <String, PersonalRecord>{};
 
       for (final name in exerciseNames) {
@@ -103,16 +113,16 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
           _workoutRepository
               .getLastExerciseLog(userId: event.userId, exerciseName: name)
               .then((lastLog) {
-                if (lastLog != null) previousSessions[name] = lastLog;
-              }),
+            if (lastLog != null) previousSessions[name] = lastLog;
+          }),
         );
 
         historyFutures.add(
           _workoutRepository
               .getExercisePR(userId: event.userId, exerciseName: name)
               .then((pr) {
-                if (pr != null) exercisePRs[name] = pr;
-              }),
+            if (pr != null) exercisePRs[name] = pr;
+          }),
         );
       }
 
@@ -240,11 +250,11 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       ),
     ]);
 
-    final lastLog = results[0] as SessionExercise?;
+    final lastLog = results[0] as WorkoutSession?;
     final pr = results[1] as PersonalRecord?;
 
     if (lastLog != null || pr != null) {
-      Map<String, SessionExercise> updatedPreviousSessions = Map.from(
+      Map<String, WorkoutSession> updatedPreviousSessions = Map.from(
         updatedState.previousSessions,
       );
       Map<String, PersonalRecord> updatedExercisePRs = Map.from(
@@ -316,11 +326,11 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         ),
       ]);
 
-      final lastLog = results[0] as SessionExercise?;
+      final lastLog = results[0] as WorkoutSession?;
       final pr = results[1] as PersonalRecord?;
 
       if (lastLog != null || pr != null) {
-        Map<String, SessionExercise> updatedPreviousSessions = Map.from(
+        Map<String, WorkoutSession> updatedPreviousSessions = Map.from(
           currentState.previousSessions,
         );
         Map<String, PersonalRecord> updatedExercisePRs = Map.from(
@@ -601,14 +611,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     if (state is! SessionInProgress) return;
 
     final currentState = state as SessionInProgress;
-    final updatedSession = WorkoutSession(
-      id: currentState.session.id,
-      userId: currentState.session.userId,
-      planId: currentState.session.planId,
-      workoutDate: currentState.session.workoutDate,
-      startedAt: currentState.session.startedAt,
-      exercises: currentState.session.exercises,
-      createdAt: currentState.session.createdAt,
+    final updatedSession = currentState.session.copyWith(
       endedAt: currentState.session.endedAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -641,9 +644,12 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
 
       emit(SessionSaved(session: savedSession));
 
-      // Trigger auto-backup in background
+      // Trigger auto-backup (Cloud) in background
       // Fire and forget - don't block the UI
       BackupService().backupIfEnabled();
+
+      // Discard any drafts for this user now that we've finished a session
+      _workoutRepository.discardDrafts(userId: session.userId).ignore();
     } catch (e) {
       emit(SessionError(message: 'Failed to save session: $e'));
     }
@@ -656,12 +662,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     emit(const SessionLoading());
     try {
       final session = event.draftSession;
+      _log('SessionDraftResumed: draftSession.planName=${session.planName}');
 
       // Load history and PRs in parallel
       final exerciseNames = session.exercises.map((e) => e.name).toSet();
       final historyFutures = <Future<void>>[];
 
-      final previousSessions = <String, SessionExercise>{};
+      final previousSessions = <String, WorkoutSession>{};
       final exercisePRs = <String, PersonalRecord>{};
 
       for (final name in exerciseNames) {
@@ -669,16 +676,16 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
           _workoutRepository
               .getLastExerciseLog(userId: session.userId, exerciseName: name)
               .then((lastLog) {
-                if (lastLog != null) previousSessions[name] = lastLog;
-              }),
+            if (lastLog != null) previousSessions[name] = lastLog;
+          }),
         );
 
         historyFutures.add(
           _workoutRepository
               .getExercisePR(userId: session.userId, exerciseName: name)
               .then((pr) {
-                if (pr != null) exercisePRs[name] = pr;
-              }),
+            if (pr != null) exercisePRs[name] = pr;
+          }),
         );
       }
 
@@ -708,6 +715,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         isDraft: true,
         updatedAt: DateTime.now(),
       );
+      _log('SessionSaveDraftRequested: session.planName=${session.planName}');
 
       // Save workout directly using WorkoutRepository
       // createWorkout uses REPLACE conflict algorithm, so it handles updates too

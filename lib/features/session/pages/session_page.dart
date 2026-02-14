@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
+import '../../../core/models/personal_record.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/workout_form_widgets.dart';
 import '../../../shared/widgets/session_exercise_card.dart';
@@ -12,7 +13,7 @@ import '../../workout_log/pages/workout_detail_page.dart';
 import '../bloc/session_bloc.dart';
 import '../bloc/session_event.dart';
 import '../bloc/session_state.dart';
-import '../../stats/bloc/stats_state.dart';
+
 import '../widgets/session_exercise_history_sheet.dart';
 import '../../../shared/widgets/shimmer_widgets.dart';
 import '../../../core/utils/page_transitions.dart';
@@ -25,12 +26,14 @@ import '../../plans/bloc/plan_state.dart';
 class SessionPage extends StatefulWidget {
   final List<SessionExercise> exercises; // Updated from exerciseNames
   final String? planId;
+  final String? planName;
   final WorkoutSession? draftSession;
 
   const SessionPage({
     super.key,
     this.exercises = const [],
     this.planId,
+    this.planName,
     this.draftSession,
   });
 
@@ -56,6 +59,7 @@ class _SessionPageState extends State<SessionPage> {
       _sessionBloc.add(
         SessionStarted(
           planId: widget.planId,
+          planName: widget.planName,
           exerciseNames: widget.exercises.map((e) => e.name).toList(),
           userId: userId,
         ),
@@ -174,17 +178,17 @@ class _SessionPageState extends State<SessionPage> {
                               onPressed: () async {
                                 final confirm =
                                     await AppDialogs.showConfirmationDialog(
-                                      context: context,
-                                      title: 'Save Draft',
-                                      message:
-                                          'Save current progress as draft? You can resume it later.',
-                                      confirmText: 'Save',
-                                    );
+                                  context: context,
+                                  title: 'Save Draft',
+                                  message:
+                                      'Save current progress as draft? You can resume it later.',
+                                  confirmText: 'Save',
+                                );
 
                                 if (confirm == true && context.mounted) {
                                   context.read<SessionBloc>().add(
-                                    const SessionSaveDraftRequested(),
-                                  );
+                                        const SessionSaveDraftRequested(),
+                                      );
                                 }
                               },
                             ),
@@ -221,30 +225,27 @@ class _SessionPageState extends State<SessionPage> {
                                     startedAt: session.startedAt,
                                     endedAt: session.endedAt,
                                     onTap: () async {
-                                      final result =
-                                          await showDialog<
-                                            Map<String, DateTime?>
-                                          >(
-                                            context: context,
-                                            barrierDismissible: false,
-                                            builder: (context) =>
-                                                WorkoutDateTimeDialog(
-                                                  initialWorkoutDate:
-                                                      session.workoutDate,
-                                                  initialStartedAt:
-                                                      session.startedAt,
-                                                  initialEndedAt:
-                                                      session.endedAt,
-                                                ),
-                                          );
+                                      final result = await showDialog<
+                                          Map<String, DateTime?>>(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (context) =>
+                                            WorkoutDateTimeDialog(
+                                          initialWorkoutDate:
+                                              session.workoutDate,
+                                          initialStartedAt: session.startedAt,
+                                          initialEndedAt: session.endedAt,
+                                        ),
+                                      );
                                       if (result != null && context.mounted) {
                                         context.read<SessionBloc>().add(
-                                          SessionDateTimesUpdated(
-                                            workoutDate: result['workoutDate'],
-                                            startedAt: result['startedAt'],
-                                            endedAt: result['endedAt'],
-                                          ),
-                                        );
+                                              SessionDateTimesUpdated(
+                                                workoutDate:
+                                                    result['workoutDate'],
+                                                startedAt: result['startedAt'],
+                                                endedAt: result['endedAt'],
+                                              ),
+                                            );
                                       }
                                     },
                                   ),
@@ -317,71 +318,70 @@ class _SessionPageState extends State<SessionPage> {
                                           pr: state.exercisePRs[exercise.name],
                                           focusedSetIndex:
                                               state.focusedExerciseIndex ==
-                                                  exIndex
-                                              ? state.focusedSetIndex
-                                              : null,
+                                                      exIndex
+                                                  ? state.focusedSetIndex
+                                                  : null,
                                           focusedSegmentIndex:
                                               state.focusedExerciseIndex ==
-                                                  exIndex
-                                              ? state.focusedSegmentIndex
-                                              : null,
+                                                      exIndex
+                                                  ? state.focusedSegmentIndex
+                                                  : null,
                                           onSkipToggle: () {
                                             context.read<SessionBloc>().add(
-                                              SessionExerciseSkipToggled(
-                                                exerciseIndex: exIndex,
-                                              ),
-                                            );
+                                                  SessionExerciseSkipToggled(
+                                                    exerciseIndex: exIndex,
+                                                  ),
+                                                );
                                           },
                                           onHistoryTap: () {
                                             _showExerciseHistory(
                                               context,
                                               exercise.name,
-                                              state.previousSessions[exercise
-                                                  .name],
+                                              state.previousSessions[
+                                                  exercise.name],
                                               state.exercisePRs[exercise.name],
                                             );
                                           },
                                           onAddSet: () {
                                             context.read<SessionBloc>().add(
-                                              SessionSetAdded(
-                                                exerciseIndex: exIndex,
-                                              ),
-                                            );
+                                                  SessionSetAdded(
+                                                    exerciseIndex: exIndex,
+                                                  ),
+                                                );
                                           },
                                           onRemoveSet: (setIndex) {
                                             context.read<SessionBloc>().add(
-                                              SessionSetRemoved(
-                                                exerciseIndex: exIndex,
-                                                setIndex: setIndex,
-                                              ),
-                                            );
+                                                  SessionSetRemoved(
+                                                    exerciseIndex: exIndex,
+                                                    setIndex: setIndex,
+                                                  ),
+                                                );
                                           },
                                           onAddDropSet: (setIndex) {
                                             context.read<SessionBloc>().add(
-                                              SessionSegmentAdded(
-                                                exerciseIndex: exIndex,
-                                                setIndex: setIndex,
-                                              ),
-                                            );
+                                                  SessionSegmentAdded(
+                                                    exerciseIndex: exIndex,
+                                                    setIndex: setIndex,
+                                                  ),
+                                                );
                                           },
                                           onRemoveDropSet:
                                               (setIndex, segmentIndex) {
-                                                context.read<SessionBloc>().add(
+                                            context.read<SessionBloc>().add(
                                                   SessionSegmentRemoved(
                                                     exerciseIndex: exIndex,
                                                     setIndex: setIndex,
                                                     segmentIndex: segmentIndex,
                                                   ),
                                                 );
-                                              },
-                                          onUpdateSegment:
-                                              (
-                                                setIndex,
-                                                segmentIndex,
-                                                field,
-                                                value,
-                                              ) {
-                                                context.read<SessionBloc>().add(
+                                          },
+                                          onUpdateSegment: (
+                                            setIndex,
+                                            segmentIndex,
+                                            field,
+                                            value,
+                                          ) {
+                                            context.read<SessionBloc>().add(
                                                   SessionSegmentUpdated(
                                                     exerciseIndex: exIndex,
                                                     setIndex: setIndex,
@@ -390,21 +390,21 @@ class _SessionPageState extends State<SessionPage> {
                                                     value: value,
                                                   ),
                                                 );
-                                              },
+                                          },
                                           onEditName: exercise.isTemplate
                                               ? null
                                               : () => _showEditNameDialog(
-                                                  context,
-                                                  exIndex,
-                                                  exercise.name,
-                                                ),
+                                                    context,
+                                                    exIndex,
+                                                    exercise.name,
+                                                  ),
                                           onDelete: exercise.isTemplate
                                               ? null
                                               : () => _confirmDeleteExercise(
-                                                  context,
-                                                  exIndex,
-                                                  exercise.name,
-                                                ),
+                                                    context,
+                                                    exIndex,
+                                                    exercise.name,
+                                                  ),
                                           isLastExercise:
                                               exIndex == exercises.length - 1,
                                         ),
@@ -485,22 +485,21 @@ class _SessionPageState extends State<SessionPage> {
   void _showExerciseHistory(
     BuildContext context,
     String exerciseName,
-    SessionExercise? history,
+    WorkoutSession? lastSession,
     PersonalRecord? pr,
   ) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColors.cardBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
-        return SessionExerciseHistorySheet(
-          exerciseName: exerciseName,
-          history: history,
-          pr: pr,
-        );
-      },
+      builder: (context) => SessionExerciseHistorySheet(
+        exerciseName: exerciseName,
+        history: lastSession,
+        pr: pr,
+      ),
     );
   }
 
@@ -541,8 +540,8 @@ class _SessionPageState extends State<SessionPage> {
               onPressed: () {
                 Navigator.pop(dialogContext); // Close dialog
                 context.read<SessionBloc>().add(
-                  const SessionSaveDraftRequested(),
-                );
+                      const SessionSaveDraftRequested(),
+                    );
               },
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.accent,
@@ -603,8 +602,9 @@ class _SessionPageState extends State<SessionPage> {
       suggestions: availableExercises,
       onConfirm: (newName) {
         context.read<SessionBloc>().add(
-          SessionExerciseNameUpdated(exerciseIndex: index, newName: newName),
-        );
+              SessionExerciseNameUpdated(
+                  exerciseIndex: index, newName: newName),
+            );
       },
     );
   }
@@ -619,8 +619,8 @@ class _SessionPageState extends State<SessionPage> {
     ).then((confirm) {
       if (confirm == true && context.mounted) {
         context.read<SessionBloc>().add(
-          SessionExerciseRemoved(exerciseIndex: index),
-        );
+              SessionExerciseRemoved(exerciseIndex: index),
+            );
       }
     });
   }
@@ -669,8 +669,8 @@ class _SessionPageState extends State<SessionPage> {
       suggestions: availableExercises,
       onConfirm: (exerciseName) {
         context.read<SessionBloc>().add(
-          SessionExerciseAdded(exerciseName: exerciseName),
-        );
+              SessionExerciseAdded(exerciseName: exerciseName),
+            );
       },
     );
   }
@@ -736,7 +736,9 @@ class _SessionPageState extends State<SessionPage> {
                         children: [
                           Text(
                             'Reorder Exercises',
-                            style: Theme.of(context).textTheme.titleLarge
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.textPrimary,

@@ -41,11 +41,16 @@ class AppDialogs {
                 const SizedBox(height: 16),
                 Text(title, style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+                Flexible(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -109,11 +114,16 @@ class AppDialogs {
                 const SizedBox(height: 16),
                 Text(title, style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+                Flexible(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -179,11 +189,16 @@ class AppDialogs {
                 const SizedBox(height: 16),
                 Text(title, style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+                Flexible(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -198,9 +213,8 @@ class AppDialogs {
                     FilledButton(
                       onPressed: () => Navigator.pop(context, true),
                       style: FilledButton.styleFrom(
-                        backgroundColor: isDangerous
-                            ? AppColors.error
-                            : AppColors.accent,
+                        backgroundColor:
+                            isDangerous ? AppColors.error : AppColors.accent,
                       ),
                       child: Text(confirmText),
                     ),
@@ -363,8 +377,8 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
               decoration: InputDecoration(
                 hintText: widget.hintText ?? 'Exercise Name',
                 hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+                      color: AppColors.textSecondary,
+                    ),
                 filled: true,
                 fillColor: AppColors.inputBg,
                 border: OutlineInputBorder(
@@ -422,7 +436,9 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
                           ),
                           child: Text(
                             suggestion,
-                            style: Theme.of(context).textTheme.bodyMedium
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
                                 ?.copyWith(color: AppColors.textPrimary),
                           ),
                         ),

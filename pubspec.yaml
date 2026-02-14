@@ -1,6 +1,6 @@
 name: liftly
 description: "Gym workout tracker that logs workouts exactly as performed."
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -15,8 +15,6 @@ dependencies:
   bloc: ^9.1.0
   equatable: ^2.0.5
   intl: ^0.20.2
-  sqflite: ^2.3.0
-  sqflite_common_ffi_web: ^0.4.0
   path: ^1.9.0
   fl_chart: ^1.1.1
   screenshot: ^3.0.0
@@ -28,8 +26,7 @@ dependencies:
   google_sign_in: ^6.2.1
   googleapis: ^15.0.0
   http: ^1.1.0
-  isar: ^3.1.0+1
-  isar_flutter_libs: ^3.1.0+1
+
   shared_preferences: ^2.5.4
   hive: ^2.2.3
   hive_flutter: ^1.1.0
@@ -39,7 +36,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
-  isar_generator: ^3.1.0+1
+
   build_runner: ^2.4.13
   hive_generator: ^2.0.1
 
@@ -55,7 +52,6 @@ flutter_launcher_icons:
 
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

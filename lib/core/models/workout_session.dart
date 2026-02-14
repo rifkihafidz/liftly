@@ -1,11 +1,21 @@
 import 'package:equatable/equatable.dart';
+import 'package:hive/hive.dart';
 
+part 'workout_session.g.dart';
+
+@HiveType(typeId: 3)
 class SetSegment extends Equatable {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final double weight;
+  @HiveField(2)
   final int repsFrom;
+  @HiveField(3)
   final int repsTo;
+  @HiveField(4)
   final int segmentOrder;
+  @HiveField(5)
   final String notes;
 
   const SetSegment({
@@ -23,13 +33,13 @@ class SetSegment extends Equatable {
 
   @override
   List<Object?> get props => [
-    id,
-    weight,
-    repsFrom,
-    repsTo,
-    segmentOrder,
-    notes,
-  ];
+        id,
+        weight,
+        repsFrom,
+        repsTo,
+        segmentOrder,
+        notes,
+      ];
 
   SetSegment copyWith({
     String? id,
@@ -48,11 +58,37 @@ class SetSegment extends Equatable {
       notes: notes ?? this.notes,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'weight': weight,
+      'repsFrom': repsFrom,
+      'repsTo': repsTo,
+      'segmentOrder': segmentOrder,
+      'notes': notes,
+    };
+  }
+
+  factory SetSegment.fromMap(Map<String, dynamic> map) {
+    return SetSegment(
+      id: map['id'] as String,
+      weight: (map['weight'] as num).toDouble(),
+      repsFrom: map['repsFrom'] as int,
+      repsTo: map['repsTo'] as int,
+      segmentOrder: map['segmentOrder'] as int,
+      notes: map['notes'] as String? ?? '',
+    );
+  }
 }
 
+@HiveType(typeId: 2)
 class ExerciseSet extends Equatable {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final List<SetSegment> segments;
+  @HiveField(2)
   final int setNumber;
 
   const ExerciseSet({
@@ -77,14 +113,40 @@ class ExerciseSet extends Equatable {
       setNumber: setNumber ?? this.setNumber,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'setNumber': setNumber,
+      'segments': segments.map((seg) => seg.toMap()).toList(),
+    };
+  }
+
+  factory ExerciseSet.fromMap(Map<String, dynamic> map) {
+    return ExerciseSet(
+      id: map['id'] as String,
+      setNumber: map['setNumber'] as int,
+      segments: (map['segments'] as List<dynamic>?)
+              ?.map((seg) => SetSegment.fromMap(seg as Map<String, dynamic>))
+              .toList() ??
+          [],
+    );
+  }
 }
 
+@HiveType(typeId: 1)
 class SessionExercise extends Equatable {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String name;
+  @HiveField(2)
   final int order;
+  @HiveField(3)
   final bool skipped;
+  @HiveField(4)
   final bool isTemplate;
+  @HiveField(5)
   final List<ExerciseSet> sets;
 
   const SessionExercise({
@@ -130,19 +192,56 @@ class SessionExercise extends Equatable {
       sets: sets ?? this.sets,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'order': order,
+      'skipped': skipped,
+      'isTemplate': isTemplate,
+      'sets': sets.map((set) => set.toMap()).toList(),
+    };
+  }
+
+  factory SessionExercise.fromMap(Map<String, dynamic> map) {
+    return SessionExercise(
+      id: map['id'] as String,
+      name: map['name'] as String,
+      order: map['order'] as int,
+      skipped: map['skipped'] as bool? ?? false,
+      isTemplate: map['isTemplate'] as bool? ?? false,
+      sets: (map['sets'] as List<dynamic>?)
+              ?.map((set) => ExerciseSet.fromMap(set as Map<String, dynamic>))
+              .toList() ??
+          [],
+    );
+  }
 }
 
+@HiveType(typeId: 0)
 class WorkoutSession extends Equatable {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String userId;
+  @HiveField(2)
   final String? planId;
+  @HiveField(3)
   final String? planName;
+  @HiveField(4)
   final DateTime workoutDate;
+  @HiveField(5)
   final DateTime? startedAt;
+  @HiveField(6)
   final DateTime? endedAt;
+  @HiveField(7)
   final List<SessionExercise> exercises;
+  @HiveField(8)
   final DateTime createdAt;
+  @HiveField(9)
   final DateTime updatedAt;
+  @HiveField(10)
   final bool isDraft;
 
   const WorkoutSession({
@@ -226,18 +325,18 @@ class WorkoutSession extends Equatable {
 
   @override
   List<Object?> get props => [
-    id,
-    userId,
-    planId,
-    planName,
-    workoutDate,
-    startedAt,
-    endedAt,
-    exercises,
-    createdAt,
-    updatedAt,
-    isDraft,
-  ];
+        id,
+        userId,
+        planId,
+        planName,
+        workoutDate,
+        startedAt,
+        endedAt,
+        exercises,
+        createdAt,
+        updatedAt,
+        isDraft,
+      ];
 
   Map<String, dynamic> toMap() {
     return {
@@ -248,7 +347,7 @@ class WorkoutSession extends Equatable {
       'workoutDate': workoutDate.toIso8601String(),
       'startedAt': startedAt?.toIso8601String(),
       'endedAt': endedAt?.toIso8601String(),
-      'exercises': exercises.map((ex) => _sessionExerciseToMap(ex)).toList(),
+      'exercises': exercises.map((ex) => ex.toMap()).toList(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'isDraft': isDraft,
@@ -257,8 +356,8 @@ class WorkoutSession extends Equatable {
 
   static WorkoutSession fromMap(Map<String, dynamic> map) {
     return WorkoutSession(
-      id: _parseId(map['id']),
-      userId: _parseId(map['userId']),
+      id: map['id'] as String,
+      userId: map['userId'] as String,
       planId: map['planId'] != null ? _parseId(map['planId']) : null,
       planName: map['planName'] as String?,
       workoutDate: map['workoutDate'] is String
@@ -266,17 +365,16 @@ class WorkoutSession extends Equatable {
           : map['workoutDate'] as DateTime,
       startedAt: map['startedAt'] != null
           ? (map['startedAt'] is String
-                ? DateTime.parse(map['startedAt'] as String)
-                : map['startedAt'] as DateTime)
+              ? DateTime.parse(map['startedAt'] as String)
+              : map['startedAt'] as DateTime)
           : null,
       endedAt: map['endedAt'] != null
           ? (map['endedAt'] is String
-                ? DateTime.parse(map['endedAt'] as String)
-                : map['endedAt'] as DateTime)
+              ? DateTime.parse(map['endedAt'] as String)
+              : map['endedAt'] as DateTime)
           : null,
-      exercises:
-          (map['exercises'] as List<dynamic>?)
-              ?.map((ex) => _sessionExerciseFromMap(ex as Map<String, dynamic>))
+      exercises: (map['exercises'] as List<dynamic>?)
+              ?.map((ex) => SessionExercise.fromMap(ex as Map<String, dynamic>))
               .toList() ??
           [],
       createdAt: map['createdAt'] is String
@@ -297,79 +395,5 @@ class WorkoutSession extends Equatable {
     if (value is String) return value;
     if (value is int) return value.toString();
     return value.toString();
-  }
-
-  /// Helper: SessionExercise to Map
-  static Map<String, dynamic> _sessionExerciseToMap(SessionExercise exercise) {
-    return {
-      'id': exercise.id,
-      'name': exercise.name,
-      'order': exercise.order,
-      'skipped': exercise.skipped,
-      'isTemplate': exercise.isTemplate,
-      'sets': exercise.sets.map((set) => _exerciseSetToMap(set)).toList(),
-    };
-  }
-
-  /// Helper: SessionExercise from Map
-  static SessionExercise _sessionExerciseFromMap(Map<String, dynamic> map) {
-    return SessionExercise(
-      id: _parseId(map['id']),
-      name: map['name'] as String,
-      order: map['order'] as int,
-      skipped: map['skipped'] as bool? ?? false,
-      isTemplate: map['isTemplate'] as bool? ?? false,
-      sets:
-          (map['sets'] as List<dynamic>?)
-              ?.map((set) => _exerciseSetFromMap(set as Map<String, dynamic>))
-              .toList() ??
-          [],
-    );
-  }
-
-  /// Helper: ExerciseSet to Map
-  static Map<String, dynamic> _exerciseSetToMap(ExerciseSet set) {
-    return {
-      'id': set.id,
-      'setNumber': set.setNumber,
-      'segments': set.segments.map((seg) => _setSegmentToMap(seg)).toList(),
-    };
-  }
-
-  /// Helper: ExerciseSet from Map
-  static ExerciseSet _exerciseSetFromMap(Map<String, dynamic> map) {
-    return ExerciseSet(
-      id: _parseId(map['id']),
-      setNumber: map['setNumber'] as int,
-      segments:
-          (map['segments'] as List<dynamic>?)
-              ?.map((seg) => _setSegmentFromMap(seg as Map<String, dynamic>))
-              .toList() ??
-          [],
-    );
-  }
-
-  /// Helper: SetSegment to Map
-  static Map<String, dynamic> _setSegmentToMap(SetSegment segment) {
-    return {
-      'id': segment.id,
-      'weight': segment.weight,
-      'repsFrom': segment.repsFrom,
-      'repsTo': segment.repsTo,
-      'segmentOrder': segment.segmentOrder,
-      'notes': segment.notes,
-    };
-  }
-
-  /// Helper: SetSegment from Map
-  static SetSegment _setSegmentFromMap(Map<String, dynamic> map) {
-    return SetSegment(
-      id: _parseId(map['id']),
-      weight: (map['weight'] as num).toDouble(),
-      repsFrom: map['repsFrom'] as int,
-      repsTo: map['repsTo'] as int,
-      segmentOrder: map['segmentOrder'] as int,
-      notes: map['notes'] as String? ?? '',
-    );
   }
 }

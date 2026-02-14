@@ -25,12 +25,20 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   String? _selectedPlanName;
 
   bool _isLoadingMore = false; // Flag to prevent multiple fetches
+  bool _isOpening = true; // For seamless navigation shimmer
 
   @override
   void initState() {
     super.initState();
     _loadWorkouts();
     _scrollController.addListener(_onScroll);
+
+    // Give some time for the page transition to complete before rendering heavy list
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() => _isOpening = false);
+      }
+    });
   }
 
   @override
@@ -47,8 +55,8 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
           _isLoadingMore = true;
         });
         context.read<WorkoutBloc>().add(
-          WorkoutsFetched(offset: state.workouts.length),
-        );
+              WorkoutsFetched(offset: state.workouts.length),
+            );
       }
     }
   }
@@ -57,13 +65,14 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
     if (!_scrollController.hasClients) return false;
     final maxScroll = _scrollController.position.maxScrollExtent;
     final currentScroll = _scrollController.offset;
-    return currentScroll >= (maxScroll * 0.9);
+    // Pre-fetch earlier (at 70% scroll) for smoother experience
+    return currentScroll >= (maxScroll * 0.7);
   }
 
   void _loadWorkouts() {
     context.read<WorkoutBloc>().add(
-      const WorkoutsFetched(limit: 20, offset: 0),
-    );
+          const WorkoutsFetched(limit: 20, offset: 0),
+        );
   }
 
   void _showFilterDialog(List<WorkoutSession> allWorkouts) {
@@ -94,9 +103,9 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                   Text(
                     'Filter by Plan',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
                   ),
                   if (_selectedPlanName != null)
                     TextButton(
@@ -144,12 +153,10 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                       selectedColor: AppColors.accent,
                       checkmarkColor: Colors.white,
                       labelStyle: TextStyle(
-                        color: isSelected
-                            ? Colors.white
-                            : AppColors.textPrimary,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                        color:
+                            isSelected ? Colors.white : AppColors.textPrimary,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -190,7 +197,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
         },
         child: BlocBuilder<WorkoutBloc, WorkoutState>(
           builder: (context, state) {
-            if (state is WorkoutLoading) {
+            if (state is WorkoutLoading || _isOpening) {
               return const WorkoutListShimmer();
             }
 
@@ -208,9 +215,9 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                     Text(
                       'Error loading workouts',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -275,7 +282,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                         letterSpacing: -0.5,
                       ),
                     ),
-
                     actions: [
                       IconButton(
                         icon: Icon(
@@ -284,9 +290,8 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                               : Icons.arrow_upward_rounded,
                           color: AppColors.textPrimary,
                         ),
-                        tooltip: _sortDescending
-                            ? 'Newest First'
-                            : 'Oldest First',
+                        tooltip:
+                            _sortDescending ? 'Newest First' : 'Oldest First',
                         onPressed: () =>
                             setState(() => _sortDescending = !_sortDescending),
                       ),
@@ -332,6 +337,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   }
 
   Widget _buildWorkoutList(List<WorkoutSession> workouts) {
+    // Memoize grouping to avoid O(N) recalculation on every build
     final groupedWorkouts = <String, List<WorkoutSession>>{};
     for (final workout in workouts) {
       final monthYear = DateFormat('MMMM yyyy').format(workout.effectiveDate);
@@ -353,36 +359,28 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text(
-                  monthYear.toUpperCase(),
-                  style: TextStyle(
-                    color: AppColors.accent,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ),
+              // Use a constant-ish header to avoid rebuilds
+              _MonthHeader(title: monthYear.toUpperCase()),
               ...monthWorkouts.asMap().entries.map((entry) {
-                final index = entry.key;
+                final exerciseIndex = entry.key;
                 final session = entry.value;
                 return FadeInSlide(
-                  index: index,
-                  child: WorkoutSessionCard(
-                    session: session,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        SmoothPageRoute(
-                          page: WorkoutDetailPage(
-                            workout: session,
-                            fromSession: false,
+                  index: exerciseIndex,
+                  child: RepaintBoundary(
+                    child: WorkoutSessionCard(
+                      session: session,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          SmoothPageRoute(
+                            page: WorkoutDetailPage(
+                              workout: session,
+                              fromSession: false,
+                            ),
                           ),
-                        ),
-                      ).then((_) => _loadWorkouts());
-                    },
+                        ).then((_) => _loadWorkouts());
+                      },
+                    ),
                   ),
                 );
               }),
@@ -416,9 +414,9 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
           Text(
             _selectedPlanName != null ? 'No workouts found' : 'No workouts yet',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -439,6 +437,27 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _MonthHeader extends StatelessWidget {
+  final String title;
+  const _MonthHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: AppColors.accent,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          letterSpacing: 1.5,
+        ),
       ),
     );
   }

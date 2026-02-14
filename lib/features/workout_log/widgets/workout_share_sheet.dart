@@ -1,7 +1,5 @@
 import 'dart:developer';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/colors.dart';
@@ -48,18 +46,19 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
       );
 
       if (image != null) {
-        final directory = await getTemporaryDirectory();
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final imagePath = await File(
-          '${directory.path}/liftly_workout_$timestamp.png',
-        ).create();
-        await imagePath.writeAsBytes(image);
+        final fileName = 'liftly_workout_$timestamp.png';
+
+        // Use XFile.fromData for cross-platform compatibility
+        final xFile = XFile.fromData(
+          image,
+          name: fileName,
+          mimeType: 'image/png',
+        );
 
         if (context.mounted) {
           // ignore: deprecated_member_use
-          await Share.shareXFiles([
-            XFile(imagePath.path),
-          ], text: 'My workout on Liftly!');
+          await Share.shareXFiles([xFile], text: 'My workout on Liftly!');
         }
       }
     } catch (e, stackTrace) {

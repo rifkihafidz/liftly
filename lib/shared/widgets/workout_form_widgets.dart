@@ -93,9 +93,9 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                   Text(
                     'Workout Timing',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
-                    ),
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
+                        ),
                   ),
                 ],
               ),
@@ -128,12 +128,26 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                     child: _buildPickerSection(
                       context,
                       label: 'Started At',
-                      value: startTime.format(context),
+                      value: DateFormat('HH:mm').format(DateTime(
+                        selectedDate.year,
+                        selectedDate.month,
+                        selectedDate.day,
+                        startTime.hour,
+                        startTime.minute,
+                      )),
                       icon: Icons.play_circle_outline_rounded,
                       onTap: () async {
                         final picked = await showTimePicker(
                           context: context,
                           initialTime: startTime,
+                          builder: (context, child) {
+                            return MediaQuery(
+                              data: MediaQuery.of(context).copyWith(
+                                alwaysUse24HourFormat: true,
+                              ),
+                              child: child!,
+                            );
+                          },
                         );
                         if (picked != null) {
                           setState(() => startTime = picked);
@@ -146,12 +160,26 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                     child: _buildPickerSection(
                       context,
                       label: 'Ended At',
-                      value: endTime.format(context),
+                      value: DateFormat('HH:mm').format(DateTime(
+                        selectedDate.year,
+                        selectedDate.month,
+                        selectedDate.day,
+                        endTime.hour,
+                        endTime.minute,
+                      )),
                       icon: Icons.stop_circle_outlined,
                       onTap: () async {
                         final picked = await showTimePicker(
                           context: context,
                           initialTime: endTime,
+                          builder: (context, child) {
+                            return MediaQuery(
+                              data: MediaQuery.of(context).copyWith(
+                                alwaysUse24HourFormat: true,
+                              ),
+                              child: child!,
+                            );
+                          },
                         );
                         if (picked != null) {
                           setState(() => endTime = picked);
@@ -240,9 +268,9 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
             Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
             const SizedBox(height: 8),
             Row(
@@ -252,9 +280,9 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                   child: Text(
                     value,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -761,9 +789,8 @@ class DateTimeInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formattedTime = dateTime != null
-        ? '${dateTime!.hour.toString().padLeft(2, '0')}:${dateTime!.minute.toString().padLeft(2, '0')}'
-        : '--:--';
+    final formattedTime =
+        dateTime != null ? DateFormat('HH:mm').format(dateTime!) : '--:--';
 
     return GestureDetector(
       onTap: onTap,

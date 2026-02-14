@@ -10,17 +10,19 @@ abstract class SessionEvent extends Equatable {
 
 class SessionStarted extends SessionEvent {
   final String? planId;
+  final String? planName;
   final List<String> exerciseNames;
   final String userId;
 
   const SessionStarted({
     this.planId,
+    this.planName,
     required this.exerciseNames,
     required this.userId,
   });
 
   @override
-  List<Object?> get props => [planId, exerciseNames, userId];
+  List<Object?> get props => [planId, planName, exerciseNames, userId];
 }
 
 class SessionCheckDraftRequested extends SessionEvent {
@@ -128,12 +130,12 @@ class SessionSegmentUpdated extends SessionEvent {
 
   @override
   List<Object?> get props => [
-    exerciseIndex,
-    setIndex,
-    segmentIndex,
-    field,
-    value,
-  ];
+        exerciseIndex,
+        setIndex,
+        segmentIndex,
+        field,
+        value,
+      ];
 }
 
 class SessionDateTimesUpdated extends SessionEvent {

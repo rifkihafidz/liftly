@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/colors.dart';
 import '../../core/models/workout_session.dart';
-import '../../features/stats/bloc/stats_state.dart';
+import '../../core/models/personal_record.dart';
+
 import 'workout_form_widgets.dart';
 
 class SessionExerciseCard extends StatefulWidget {
   final SessionExercise exercise;
   final int exerciseIndex;
-  final SessionExercise? history;
+  final WorkoutSession? history;
   final PersonalRecord? pr;
   final VoidCallback onSkipToggle;
   final VoidCallback onHistoryTap;
@@ -17,7 +18,7 @@ class SessionExerciseCard extends StatefulWidget {
   final Function(int setIndex) onAddDropSet;
   final Function(int setIndex, int segmentIndex) onRemoveDropSet;
   final Function(int setIndex, int segmentIndex, String field, dynamic value)
-  onUpdateSegment;
+      onUpdateSegment;
   final VoidCallback? onEditName;
   final VoidCallback? onDelete;
   final int? focusedSetIndex;
@@ -71,8 +72,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
 
     final isAddSet =
         widget.exercise.sets.length > oldWidget.exercise.sets.length;
-    final hasNewScrollTarget =
-        (widget.focusedSetIndex != null &&
+    final hasNewScrollTarget = (widget.focusedSetIndex != null &&
             (widget.focusedSetIndex != oldWidget.focusedSetIndex ||
                 widget.focusedSegmentIndex != oldWidget.focusedSegmentIndex ||
                 isAddSet ||
@@ -80,21 +80,14 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                     oldWidget.focusedSetIndex != null &&
                     oldWidget.focusedSetIndex! <
                         oldWidget.exercise.sets.length &&
-                    widget
-                            .exercise
-                            .sets[widget.focusedSetIndex!]
-                            .segments
+                    widget.exercise.sets[widget.focusedSetIndex!].segments
                             .length !=
-                        oldWidget
-                            .exercise
-                            .sets[widget.focusedSetIndex!]
-                            .segments
-                            .length))) ||
+                        oldWidget.exercise.sets[widget.focusedSetIndex!]
+                            .segments.length))) ||
         (isAddSet && widget.focusedSetIndex == null);
 
     if (hasNewScrollTarget) {
-      _scrollToSetIndex =
-          widget.focusedSetIndex ??
+      _scrollToSetIndex = widget.focusedSetIndex ??
           (isAddSet ? widget.exercise.sets.length - 1 : null);
 
       if (!_isExpanded) {
@@ -238,11 +231,9 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                               const Divider(height: 1),
                             ],
                             const SizedBox(height: 16),
-                            for (
-                              int setIndex = 0;
-                              setIndex < sets.length;
-                              setIndex++
-                            )
+                            for (int setIndex = 0;
+                                setIndex < sets.length;
+                                setIndex++)
                               _SetRow(
                                 key: ValueKey('set_row_${sets[setIndex].id}'),
                                 set: sets[setIndex],
@@ -262,11 +253,11 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                         ),
                       )
                     : (!_isExpanded && !isSkipped)
-                    ? Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: _buildCollapsedSummary(context),
-                      )
-                    : const SizedBox.shrink(),
+                        ? Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                            child: _buildCollapsedSummary(context),
+                          )
+                        : const SizedBox.shrink(),
               ),
           ],
         ),
@@ -313,12 +304,12 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
               Text(
                 widget.exercise.name,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: isSkipped
-                      ? AppColors.textSecondary
-                      : AppColors.textPrimary,
-                  decoration: isSkipped ? TextDecoration.lineThrough : null,
-                ),
+                      fontWeight: FontWeight.w700,
+                      color: isSkipped
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
+                      decoration: isSkipped ? TextDecoration.lineThrough : null,
+                    ),
               ),
             ],
           ),
@@ -378,10 +369,10 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                       Text(
                         'Skipped',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                        ),
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10,
+                            ),
                       ),
                     ],
                   ],
@@ -528,7 +519,7 @@ class _SetRow extends StatelessWidget {
   final String exerciseName;
   final GlobalKey? scrollTargetKey;
   final Function(int setIndex, int segmentIndex, String field, dynamic value)
-  onUpdateSegment;
+      onUpdateSegment;
   final Function(int setIndex) onRemoveSet;
   final VoidCallback onAddSet;
   final Function(int setIndex) onAddDropSet;
@@ -659,9 +650,9 @@ class _SetHeader extends StatelessWidget {
               child: Text(
                 'Set ${set.setNumber}',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.accent,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.accent,
+                    ),
               ),
             ),
             const SizedBox(width: 8),
@@ -675,11 +666,11 @@ class _SetHeader extends StatelessWidget {
                 child: Text(
                   'DROP SET',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.accent,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 10,
-                    letterSpacing: 0.5,
-                  ),
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      ),
                 ),
               ),
             const Spacer(),
@@ -710,7 +701,7 @@ class _SegmentRow extends StatelessWidget {
   final String setId;
   final bool canDelete;
   final Function(int setIndex, int segmentIndex, String field, dynamic value)
-  onUpdateSegment;
+      onUpdateSegment;
   final Function(int setIndex, int segmentIndex) onRemoveDropSet;
 
   const _SegmentRow({
@@ -729,8 +720,7 @@ class _SegmentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     // Validation Logic
     final isToInvalid = segment.repsTo < segment.repsFrom;
-    final isDropSetInvalid =
-        segmentIndex > 0 &&
+    final isDropSetInvalid = segmentIndex > 0 &&
         previousSegment != null &&
         (segment.repsFrom <= previousSegment!.repsFrom ||
             segment.repsTo <= previousSegment!.repsTo);

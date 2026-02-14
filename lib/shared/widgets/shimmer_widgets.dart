@@ -141,20 +141,31 @@ class WorkoutListShimmer extends StatelessWidget {
         SliverAppBar(
           pinned: true,
           centerTitle: false,
+          elevation: 0,
+          scrolledUnderElevation: 0,
           backgroundColor: AppColors.darkBg,
           surfaceTintColor: AppColors.darkBg,
-          title: Shimmer.fromColors(
-            baseColor: AppColors.shimmerBase,
-            highlightColor: AppColors.shimmerHighlight,
-            child: Container(
-              width: 150,
-              height: 24,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-              ),
+          title: Text(
+            'Workout History',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.5,
             ),
           ),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.arrow_downward_rounded,
+                  color: AppColors.textPrimary),
+              onPressed: null,
+            ),
+            IconButton(
+              icon:
+                  Icon(Icons.filter_list_rounded, color: AppColors.textPrimary),
+              onPressed: null,
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
         SliverPadding(
           padding: padding,

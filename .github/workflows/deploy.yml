@@ -23,9 +23,6 @@ jobs:
       - name: Enable Web
         run: flutter config --enable-web
 
-      - name: Setup SQLite Web
-        run: dart run sqflite_common_ffi_web:setup
-
       - name: Build Web
         run: flutter build web --release --base-href /liftly/
 

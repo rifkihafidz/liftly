@@ -1,6 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liftly/core/models/workout_session.dart';
-import 'package:liftly/core/services/sqlite_service.dart';
 import '../repositories/workout_repository.dart';
 import 'workout_event.dart';
 import 'workout_state.dart';
@@ -214,7 +213,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
       if (value is DateTime) return value;
       if (value is String) {
         try {
-          return SQLiteService.parseDateTime(value);
+          return DateTime.parse(value);
         } catch (_) {
           return now;
         }
@@ -228,7 +227,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
       if (value is DateTime) return value;
       if (value is String) {
         try {
-          return SQLiteService.parseDateTime(value);
+          return DateTime.parse(value);
         } catch (_) {
           return null;
         }
