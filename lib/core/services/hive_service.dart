@@ -25,6 +25,15 @@ class HiveService {
   // Cache for PRs to avoid re-calculating on every request
   static final Map<String, PersonalRecord> _prCache = {};
 
+  // Cache for exercise history to avoid re-scanning workouts
+  // Key: "userId:exerciseName", Value: List of history records
+  static final Map<String, List<Map<String, dynamic>>> _exerciseHistoryCache =
+      {};
+
+  // Cache for exercise names to avoid re-scanning workouts
+  // Key: userId, Value: Set of exercise names
+  static final Map<String, Set<String>> _exerciseNamesCache = {};
+
   // Lightweight Index for History Page Optimization
   // Key: userId, Value: List of (id, date) sorted by date DESC.
   static final Map<String, List<({String id, DateTime date, bool isDraft})>>
@@ -102,6 +111,25 @@ class HiveService {
     }
   }
 
+  static void _invalidateExerciseHistoryCache(
+      {String? userId, String? exerciseName}) {
+    if (userId != null && exerciseName != null) {
+      _exerciseHistoryCache.remove('$userId:${exerciseName.toLowerCase()}');
+    } else if (userId != null) {
+      _exerciseHistoryCache.removeWhere((key, _) => key.startsWith('$userId:'));
+    } else {
+      _exerciseHistoryCache.clear();
+    }
+  }
+
+  static void _invalidateExerciseNamesCache({String? userId}) {
+    if (userId != null) {
+      _exerciseNamesCache.remove(userId);
+    } else {
+      _exerciseNamesCache.clear();
+    }
+  }
+
   static void _invalidateWorkoutCache({String? userId}) {
     if (userId != null) {
       _workoutIndexCache.remove(userId);
@@ -141,11 +169,14 @@ class HiveService {
           isDraft: workout.isDraft,
         ));
 
-    // Invalidate PR cache for affected exercises
+    // Invalidate caches for affected exercises
     for (final exercise in workout.exercises) {
       _invalidatePRCache(userId: workout.userId, exerciseName: exercise.name);
+      _invalidateExerciseHistoryCache(
+          userId: workout.userId, exerciseName: exercise.name);
     }
     _invalidateWorkoutCache(userId: workout.userId);
+    _invalidateExerciseNamesCache(userId: workout.userId);
   }
 
   static Future<void> importWorkouts(List<WorkoutSession> workouts) async {
@@ -164,8 +195,11 @@ class HiveService {
     await _workoutBox.putAll(workoutMap);
     await _metaBox.putAll(metaMap);
 
-    _invalidatePRCache(); // Clear all cache on import
+    // Clear all caches on import
+    _invalidatePRCache();
     _invalidateWorkoutCache();
+    _invalidateExerciseHistoryCache();
+    _invalidateExerciseNamesCache();
   }
 
   static Future<List<WorkoutSession>> getWorkouts(String userId,
@@ -222,8 +256,11 @@ class HiveService {
     if (workout != null) {
       for (final exercise in workout.exercises) {
         _invalidatePRCache(userId: workout.userId, exerciseName: exercise.name);
+        _invalidateExerciseHistoryCache(
+            userId: workout.userId, exerciseName: exercise.name);
       }
       _invalidateWorkoutCache(userId: workout.userId);
+      _invalidateExerciseNamesCache(userId: workout.userId);
     }
   }
 
@@ -240,8 +277,11 @@ class HiveService {
         ));
     for (final exercise in workout.exercises) {
       _invalidatePRCache(userId: workout.userId, exerciseName: exercise.name);
+      _invalidateExerciseHistoryCache(
+          userId: workout.userId, exerciseName: exercise.name);
     }
     _invalidateWorkoutCache(userId: workout.userId);
+    _invalidateExerciseNamesCache(userId: workout.userId);
   }
 
   static Future<WorkoutSession?> getDraftWorkout(String userId) async {
@@ -335,6 +375,12 @@ class HiveService {
       String userId, String exerciseName) async {
     await init();
 
+    // Check cache first
+    final cacheKey = '$userId:${exerciseName.toLowerCase()}';
+    if (_exerciseHistoryCache.containsKey(cacheKey)) {
+      return _exerciseHistoryCache[cacheKey]!;
+    }
+
     final history = <Map<String, dynamic>>[];
     final workouts = _workoutBox.values
         .where((w) => w.userId == userId && !w.isDraft)
@@ -413,6 +459,9 @@ class HiveService {
         }
       }
     }
+
+    // Cache the result
+    _exerciseHistoryCache[cacheKey] = history;
     return history;
   }
 
@@ -437,6 +486,12 @@ class HiveService {
 
   static Future<List<String>> getExerciseNames(String userId) async {
     await init();
+
+    // Check cache first
+    if (_exerciseNamesCache.containsKey(userId)) {
+      return _exerciseNamesCache[userId]!.toList()..sort();
+    }
+
     final names = <String>{};
     for (final w in _workoutBox.values) {
       if (w.userId == userId) {
@@ -445,6 +500,9 @@ class HiveService {
         }
       }
     }
+
+    // Cache the result
+    _exerciseNamesCache[userId] = names;
     return names.toList()..sort();
   }
 
@@ -558,24 +616,186 @@ class HiveService {
       DateTime? endDate}) async {
     await init();
 
-    // Get all distinct exercise names first
-    final names = await getExerciseNames(userId);
+    // Single-pass optimization: collect all exercise data in one iteration
+    final exerciseHistories = <String, List<Map<String, dynamic>>>{};
+
+    final workouts = _workoutBox.values
+        .where((w) => w.userId == userId && !w.isDraft)
+        .toList();
+
+    // Filter by date if needed
+    final filteredWorkouts = workouts.where((w) {
+      if (startDate != null && w.workoutDate.isBefore(startDate)) return false;
+      if (endDate != null && w.workoutDate.isAfter(endDate)) return false;
+      return true;
+    }).toList()
+      ..sort((a, b) => a.workoutDate.compareTo(b.workoutDate));
+
+    // Single pass: collect all exercise session data
+    for (final w in filteredWorkouts) {
+      for (final ex in w.exercises) {
+        if (ex.skipped) continue;
+
+        final exerciseNameLower = ex.name.toLowerCase();
+        exerciseHistories.putIfAbsent(exerciseNameLower, () => []);
+
+        // Calculate session metrics (same logic as getExerciseHistory)
+        double sessionMaxWeight = 0;
+        int sessionMaxWeightReps = 0;
+        double sessionTotalVolume = 0;
+        double bestSetVolume = 0;
+        String bestSetVolumeBreakdown = '';
+        double bestSetVolumeWeight = 0;
+        int bestSetVolumeReps = 0;
+        int sessionTotalReps = 0;
+
+        for (final set in ex.sets) {
+          final segments = set.segments;
+          double currentSetVolume = 0;
+          List<String> breakdownParts = [];
+          double firstSegmentWeight = 0;
+          int totalSetReps = 0;
+
+          for (int i = 0; i < segments.length; i++) {
+            final seg = segments[i];
+            final effectiveReps = seg.repsTo - seg.repsFrom + 1;
+
+            if (i == 0) firstSegmentWeight = seg.weight;
+
+            totalSetReps += effectiveReps;
+            sessionTotalReps += effectiveReps;
+
+            if (seg.weight > sessionMaxWeight) {
+              sessionMaxWeight = seg.weight;
+              sessionMaxWeightReps = effectiveReps;
+            } else if (seg.weight == sessionMaxWeight) {
+              if (effectiveReps > sessionMaxWeightReps) {
+                sessionMaxWeightReps = effectiveReps;
+              }
+            }
+
+            final vol = seg.weight * effectiveReps;
+            currentSetVolume += vol;
+            sessionTotalVolume += vol;
+
+            breakdownParts.add(
+                '${seg.weight % 1 == 0 ? seg.weight.toInt() : seg.weight} kg x $effectiveReps');
+          }
+
+          if (currentSetVolume > bestSetVolume) {
+            bestSetVolume = currentSetVolume;
+            bestSetVolumeBreakdown = breakdownParts.join(' + ');
+            bestSetVolumeWeight = firstSegmentWeight;
+            bestSetVolumeReps = totalSetReps;
+          }
+        }
+
+        if (sessionTotalVolume > 0 || sessionMaxWeight > 0) {
+          exerciseHistories[exerciseNameLower]!.add({
+            'workoutDate': w.workoutDate.toIso8601String(),
+            'totalVolume': sessionTotalVolume,
+            'totalReps': sessionTotalReps,
+            'maxWeight': sessionMaxWeight,
+            'maxWeightReps': sessionMaxWeightReps,
+            'bestSetVolume': bestSetVolume,
+            'bestSetVolumeBreakdown': bestSetVolumeBreakdown,
+            'bestSetVolumeWeight': bestSetVolumeWeight,
+            'bestSetVolumeReps': bestSetVolumeReps,
+            'sets': ex.sets,
+          });
+        }
+      }
+    }
+
+    // Calculate PRs from collected data
     final results = <String, PersonalRecord>{};
-
-    // Calculate PRs for each exercise (Reuse logic)
-    // For 100 exercises this might be slightly less efficient than a single pass,
-    // but ensures consistency and given usage pattern (User Profile), it's acceptable.
-    // Iterating 100 times over in-memory list of ~500 workouts is instant.
-
-    for (final name in names) {
-      final pr = await getExercisePR(userId, name,
-          startDate: startDate, endDate: endDate);
+    for (final entry in exerciseHistories.entries) {
+      final pr = _calculatePRFromHistory(entry.key, entry.value);
       if (pr != null) {
-        results[name] = pr;
+        results[entry.key] = pr;
       }
     }
 
     return results;
+  }
+
+  // Helper method to calculate PR from history data
+  static PersonalRecord? _calculatePRFromHistory(
+      String exerciseName, List<Map<String, dynamic>> history) {
+    if (history.isEmpty) return null;
+
+    double globalMaxWeight = 0;
+    int globalMaxWeightReps = 0;
+
+    double globalMaxSetVolume = 0;
+    double globalMaxSetVolumeWeight = 0;
+    int globalMaxSetVolumeReps = 0;
+    String globalMaxSetVolumeBreakdown = '';
+
+    double globalBestSessionVolume = 0;
+    int globalBestSessionReps = 0;
+    String? globalBestSessionDate;
+    List<ExerciseSet>? globalBestSessionSets;
+
+    for (final record in history) {
+      // 1. Max Weight
+      final rMaxWeight = record['maxWeight'] as double;
+      if (rMaxWeight > globalMaxWeight) {
+        globalMaxWeight = rMaxWeight;
+        globalMaxWeightReps = record['maxWeightReps'] as int;
+      }
+
+      // 2. Max Set Volume
+      final rBestSetVol = record['bestSetVolume'] as double;
+      if (rBestSetVol > globalMaxSetVolume) {
+        globalMaxSetVolume = rBestSetVol;
+        globalMaxSetVolumeWeight = record['bestSetVolumeWeight'] as double;
+        globalMaxSetVolumeReps = record['bestSetVolumeReps'] as int;
+        globalMaxSetVolumeBreakdown =
+            record['bestSetVolumeBreakdown'] as String;
+      }
+
+      // 3. Best Session Volume
+      final rSessionVol = record['totalVolume'] as double;
+      final rSessionReps = record['totalReps'] as int? ?? 0;
+
+      bool isNewBest = false;
+      if (rSessionVol > globalBestSessionVolume) {
+        isNewBest = true;
+      } else if (globalBestSessionVolume == 0 && rSessionVol == 0) {
+        if (rSessionReps > globalBestSessionReps) {
+          isNewBest = true;
+        }
+      }
+
+      if (isNewBest) {
+        globalBestSessionVolume = rSessionVol;
+        globalBestSessionReps = rSessionReps;
+        globalBestSessionDate = record['workoutDate'] as String;
+        globalBestSessionSets = record['sets'] as List<ExerciseSet>;
+      }
+    }
+
+    if (globalMaxWeight == 0 &&
+        globalMaxSetVolume == 0 &&
+        globalBestSessionVolume == 0 &&
+        globalBestSessionReps == 0) {
+      return null;
+    }
+
+    return PersonalRecord(
+      maxWeight: globalMaxWeight,
+      maxWeightReps: globalMaxWeightReps,
+      maxVolume: globalMaxSetVolume,
+      maxVolumeWeight: globalMaxSetVolumeWeight,
+      maxVolumeReps: globalMaxSetVolumeReps,
+      maxVolumeBreakdown: globalMaxSetVolumeBreakdown,
+      bestSessionVolume: globalBestSessionVolume,
+      bestSessionReps: globalBestSessionReps,
+      bestSessionDate: globalBestSessionDate,
+      bestSessionSets: globalBestSessionSets,
+      exerciseName: exerciseName,
+    );
   }
 
   // ================= Utility =================
@@ -587,6 +807,8 @@ class HiveService {
     await _settingsBox.clear();
     await _metaBox.clear();
     _prCache.clear();
+    _exerciseHistoryCache.clear();
+    _exerciseNamesCache.clear();
     _invalidateWorkoutCache();
   }
 

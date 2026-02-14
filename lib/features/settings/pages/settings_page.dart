@@ -26,21 +26,16 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
-    _isInitializing = !BackupService().isInitialized;
-    _initBackupState();
+    _isInitializing = false; // No auto-init to prevent popup
+    _loadBackupState();
   }
 
-  Future<void> _initBackupState() async {
+  Future<void> _loadBackupState() async {
     try {
+      // Only check if already signed in, don't trigger sign-in
       final backupService = BackupService();
-      GoogleSignInAccount? user;
-
-      // If already initialized, we just grab the current user
       if (backupService.isInitialized) {
-        user = backupService.currentUser;
-      } else {
-        await backupService.init();
-        user = backupService.currentUser;
+        _currentUser = backupService.currentUser;
       }
 
       final backupEnabled =
@@ -48,19 +43,11 @@ class _SettingsPageState extends State<SettingsPage> {
 
       if (mounted) {
         setState(() {
-          _isInitializing = false;
-          _currentUser = user;
           _isAutoBackupEnabled = backupEnabled == 'true';
         });
       }
     } catch (e) {
-      debugPrint('SettingsPage: Failed to initialize backup state: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isInitializing = false;
-        });
-      }
+      debugPrint('SettingsPage: Failed to load backup state: $e');
     }
   }
 
