@@ -45,8 +45,16 @@
   <body>
     <script src="flutter_bootstrap.js" async></script>
     <script>
-      window.addEventListener("load", function () {
-        if ("serviceWorker" in navigator) {
+      let refreshing = false;
+      // Detect when a new service worker takes control and reload
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (refreshing) return;
+          refreshing = true;
+          window.location.reload();
+        });
+
+        window.addEventListener("load", function () {
           navigator.serviceWorker
             .getRegistrations()
             .then(function (registrations) {
@@ -54,8 +62,8 @@
                 registration.update();
               }
             });
-        }
-      });
+        });
+      }
     </script>
   </body>
 </html>
