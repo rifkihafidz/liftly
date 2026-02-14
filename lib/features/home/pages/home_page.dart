@@ -120,29 +120,29 @@ class _HomePageState extends State<HomePage> {
                           'EEEE, dd MMMM yyyy',
                         ).format(DateTime.now()).toUpperCase(),
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.accent,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                        ),
+                              color: AppColors.accent,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.5,
+                            ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         _getGreeting(),
-                        style: Theme.of(context).textTheme.displaySmall
-                            ?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w800,
-                              height: 1.1,
-                              fontSize: 32,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.displaySmall?.copyWith(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.1,
+                                  fontSize: 32,
+                                ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         _quote,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: AppColors.textSecondary,
-                          fontSize: 16,
-                        ),
+                              color: AppColors.textSecondary,
+                              fontSize: 16,
+                            ),
                       ),
                       const SizedBox(height: 32),
                       // Hero Section - Start Workout
@@ -152,8 +152,8 @@ class _HomePageState extends State<HomePage> {
                         icon: Icons.add_rounded,
                         onTap: () {
                           context.read<SessionBloc>().add(
-                            const SessionCheckDraftRequested(userId: '1'),
-                          );
+                                const SessionCheckDraftRequested(userId: '1'),
+                              );
                         },
                       ),
                       const SizedBox(height: 24),
@@ -165,9 +165,8 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 sliver: SliverLayoutBuilder(
                   builder: (context, constraints) {
-                    final crossAxisCount = constraints.crossAxisExtent > 600
-                        ? 3
-                        : 2;
+                    final crossAxisCount =
+                        constraints.crossAxisExtent > 600 ? 3 : 2;
                     return SliverGrid(
                       delegate: SliverChildListDelegate([
                         FadeInSlide(
@@ -233,7 +232,23 @@ class _HomePageState extends State<HomePage> {
                   },
                 ),
               ),
-              const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: Text(
+                      'v1.0.0',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.5,
+                            ),
+                            fontSize: 12,
+                            letterSpacing: 1.0,
+                          ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -301,31 +316,31 @@ class _HeroCard extends StatelessWidget {
                         ),
                         child: Text(
                           'NEW SESSION',
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                                fontSize: 10,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                    fontSize: 10,
+                                  ),
                         ),
                       ),
                       const SizedBox(height: 12),
                       Text(
                         title,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 22,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 22,
+                                ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         subtitle,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.8),
-                        ),
+                              color: Colors.white.withValues(alpha: 0.8),
+                            ),
                       ),
                     ],
                   ),

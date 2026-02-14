@@ -25,7 +25,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
   }
 
   String _formatDate(DateTime date) {
-    return DateFormat('d MMM yyyy').format(date);
+    return DateFormat('dd MMM yyyy').format(date);
   }
 
   @override

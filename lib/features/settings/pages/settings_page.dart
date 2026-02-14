@@ -34,6 +34,7 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       // Only check if already signed in, don't trigger sign-in
       final backupService = BackupService();
+      await backupService.init(); // Attempt silent sign-in
       if (backupService.isInitialized) {
         _currentUser = backupService.currentUser;
       }

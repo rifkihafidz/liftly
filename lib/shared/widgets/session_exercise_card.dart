@@ -739,7 +739,7 @@ class _SegmentRow extends StatelessWidget {
                   setIndex,
                   segmentIndex,
                   'weight',
-                  double.tryParse(v) ?? 0,
+                  double.tryParse(v.replaceAll(',', '.')) ?? 0,
                 ),
               ),
             ),

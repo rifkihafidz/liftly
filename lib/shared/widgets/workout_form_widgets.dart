@@ -344,7 +344,9 @@ class WeightFieldState extends State<WeightField> {
       controller.text = '0'; // Instant feedback
     } else {
       // Optimistic formatting
-      final val = double.tryParse(text);
+      // Replace comma with dot for iOS keyboard compatibility
+      final normalizedText = text.replaceAll(',', '.');
+      final val = double.tryParse(normalizedText);
       if (val != null) {
         // Standardize to double string (e.g. "50.0") if integer, to match BLoC
         final formatted = val.toString();
@@ -376,8 +378,9 @@ class WeightFieldState extends State<WeightField> {
       if (!_focusNode.hasFocus) {
         // Only update if value is mathematically different to avoid jumping
         // e.g. "50" vs "50.0"
-        final d1 = double.tryParse(widget.initialValue) ?? 0;
-        final d2 = double.tryParse(controller.text) ?? 0;
+        final d1 =
+            double.tryParse(widget.initialValue.replaceAll(',', '.')) ?? 0;
+        final d2 = double.tryParse(controller.text.replaceAll(',', '.')) ?? 0;
         if ((d1 - d2).abs() > 0.001) {
           controller.text = widget.initialValue;
         }
@@ -409,13 +412,16 @@ class WeightFieldState extends State<WeightField> {
           focusNode: _focusNode,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            DecimalInputFormatter(),
             LengthLimitingTextInputFormatter(6),
           ],
           onChanged: (v) {
             if (_debounce?.isActive ?? false) _debounce!.cancel();
             _debounce = Timer(const Duration(milliseconds: 500), () {
-              widget.onChanged(v.isEmpty || v == '.' ? '0' : v);
+              widget.onChanged(v.isEmpty || v == '.' || v == ','
+                  ? '0'
+                  : v.replaceAll(',', '.'));
             });
           },
           onSubmitted: (_) {
@@ -919,5 +925,35 @@ class WorkoutDateTimeCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// A formatter that allows only one decimal separator (dot or comma)
+class DecimalInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+
+    // 1. Block consecutive separators (e.g., .., ,, ,. .,)
+    if (newValue.text.contains('..') ||
+        newValue.text.contains(',,') ||
+        newValue.text.contains('.,') ||
+        newValue.text.contains(',.')) {
+      return oldValue;
+    }
+
+    // 2. Count total separators
+    final dotCount = newValue.text.split('.').length - 1;
+    final commaCount = newValue.text.split(',').length - 1;
+
+    // 3. Block if more than one total separator exists in the string
+    if (dotCount + commaCount > 1) {
+      return oldValue;
+    }
+
+    return newValue;
   }
 }
