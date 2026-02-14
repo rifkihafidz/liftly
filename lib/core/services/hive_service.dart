@@ -6,6 +6,7 @@ import 'package:liftly/core/models/workout_metadata.dart';
 import 'package:liftly/core/models/workout_plan.dart';
 import 'package:liftly/core/models/workout_session.dart';
 import 'package:liftly/core/models/personal_record.dart';
+import 'package:liftly/core/utils/persistence_helper.dart';
 import 'package:path_provider/path_provider.dart';
 
 class HiveService {
@@ -55,6 +56,8 @@ class HiveService {
         await Hive.initFlutter(dir.path);
       } else {
         await Hive.initFlutter();
+        // Request storage persistence on web
+        await requestPersistence();
       }
 
       // Register Adapters
