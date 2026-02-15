@@ -1027,6 +1027,7 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
               onEditName: widget.onEditName ??
                   (_currentExercise.isTemplate ? null : () {}),
               onDelete: widget.onDelete,
+              isLastExercise: true,
             ),
 
             // Save Button

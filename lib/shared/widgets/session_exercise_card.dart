@@ -209,6 +209,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                         onAddSet: widget.onAddSet,
                         onAddDropSet: widget.onAddDropSet,
                         onRemoveDropSet: widget.onRemoveDropSet,
+                        isLastExercise: widget.isLastExercise,
                       ),
                   ],
                 ),
@@ -248,6 +249,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                                 onAddSet: widget.onAddSet,
                                 onAddDropSet: widget.onAddDropSet,
                                 onRemoveDropSet: widget.onRemoveDropSet,
+                                isLastExercise: widget.isLastExercise,
                               ),
                           ],
                         ),
@@ -524,6 +526,7 @@ class _SetRow extends StatelessWidget {
   final VoidCallback onAddSet;
   final Function(int setIndex) onAddDropSet;
   final Function(int setIndex, int segmentIndex) onRemoveDropSet;
+  final bool isLastExercise;
 
   const _SetRow({
     super.key,
@@ -537,12 +540,18 @@ class _SetRow extends StatelessWidget {
     required this.onAddSet,
     required this.onAddDropSet,
     required this.onRemoveDropSet,
+    required this.isLastExercise,
   });
 
   @override
   Widget build(BuildContext context) {
     final segments = set.segments;
     final isDropSet = segments.length > 1;
+
+    final isLastSet = setIndex == totalSets - 1;
+    final targetedPadding = isLastExercise && isLastSet
+        ? const EdgeInsets.only(bottom: 350)
+        : const EdgeInsets.all(20.0);
 
     return RepaintBoundary(
       child: Column(
@@ -568,6 +577,7 @@ class _SetRow extends StatelessWidget {
               canDelete: segments.length > 1 && segIndex > 0,
               onUpdateSegment: onUpdateSegment,
               onRemoveDropSet: onRemoveDropSet,
+              scrollPadding: targetedPadding,
             ),
           const SizedBox(height: 8),
           if (segments.isNotEmpty)
@@ -575,6 +585,7 @@ class _SetRow extends StatelessWidget {
               key: ValueKey('notes_${set.id}'),
               initialValue: segments[0].notes,
               onChanged: (v) => onUpdateSegment(setIndex, 0, 'notes', v),
+              scrollPadding: targetedPadding,
             ),
           Padding(
             key: scrollTargetKey,
@@ -591,6 +602,8 @@ class _SetRow extends StatelessWidget {
     );
   }
 }
+// This needs more care as _ActionButtons is below the segment rows.
+// I need to update _SegmentRow to accept scrollPadding.
 
 /// Extracted widget for set header - static UI that rarely changes
 class _SetHeader extends StatelessWidget {
@@ -703,6 +716,7 @@ class _SegmentRow extends StatelessWidget {
   final Function(int setIndex, int segmentIndex, String field, dynamic value)
       onUpdateSegment;
   final Function(int setIndex, int segmentIndex) onRemoveDropSet;
+  final EdgeInsets scrollPadding;
 
   const _SegmentRow({
     super.key,
@@ -714,6 +728,7 @@ class _SegmentRow extends StatelessWidget {
     required this.canDelete,
     required this.onUpdateSegment,
     required this.onRemoveDropSet,
+    this.scrollPadding = const EdgeInsets.all(20.0),
   });
 
   @override
@@ -741,6 +756,7 @@ class _SegmentRow extends StatelessWidget {
                   'weight',
                   double.tryParse(v.replaceAll(',', '.')) ?? 0,
                 ),
+                scrollPadding: scrollPadding,
               ),
             ),
             const SizedBox(width: 8),
@@ -756,6 +772,7 @@ class _SegmentRow extends StatelessWidget {
                   int.tryParse(v) ?? 0,
                 ),
                 hasError: isDropSetInvalid,
+                scrollPadding: scrollPadding,
               ),
             ),
             const SizedBox(width: 8),
@@ -773,6 +790,7 @@ class _SegmentRow extends StatelessWidget {
                     ? () => onRemoveDropSet(setIndex, segmentIndex)
                     : null,
                 hasError: isToInvalid || isDropSetInvalid,
+                scrollPadding: scrollPadding,
               ),
             ),
           ],

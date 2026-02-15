@@ -300,11 +300,13 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
 class WeightField extends StatefulWidget {
   final String initialValue;
   final Function(String) onChanged;
+  final EdgeInsets scrollPadding;
 
   const WeightField({
     super.key,
     required this.initialValue,
     required this.onChanged,
+    this.scrollPadding = const EdgeInsets.all(20.0),
   });
 
   @override
@@ -442,6 +444,7 @@ class NumberField extends StatefulWidget {
   final String initialValue;
   final Function(String) onChanged;
   final bool hasError;
+  final EdgeInsets scrollPadding;
 
   const NumberField({
     super.key,
@@ -449,6 +452,7 @@ class NumberField extends StatefulWidget {
     required this.initialValue,
     required this.onChanged,
     this.hasError = false,
+    this.scrollPadding = const EdgeInsets.all(20.0),
   });
 
   @override
@@ -564,6 +568,7 @@ class ToField extends StatefulWidget {
   final Function(String) onChanged;
   final VoidCallback? onDeleteTap;
   final bool hasError;
+  final EdgeInsets scrollPadding;
 
   const ToField({
     super.key,
@@ -571,6 +576,7 @@ class ToField extends StatefulWidget {
     required this.onChanged,
     this.onDeleteTap,
     this.hasError = false,
+    this.scrollPadding = const EdgeInsets.all(20.0),
   });
 
   @override
@@ -697,11 +703,13 @@ class _ToFieldState extends State<ToField> {
 class NotesField extends StatefulWidget {
   final String initialValue;
   final Function(String) onChanged;
+  final EdgeInsets scrollPadding;
 
   const NotesField({
     super.key,
     required this.initialValue,
     required this.onChanged,
+    this.scrollPadding = const EdgeInsets.all(20.0),
   });
 
   @override
