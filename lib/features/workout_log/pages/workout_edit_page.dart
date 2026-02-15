@@ -826,7 +826,7 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
         ...sets.map(
           (set) => ViewSetRow(key: ValueKey('view_set_${set.id}'), set: set),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 16),
         FilledButton.icon(
           onPressed: () => setState(() => _isEditing = true),
           icon: const Icon(Icons.edit_rounded),
