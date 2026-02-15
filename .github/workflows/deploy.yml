@@ -14,6 +14,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Discord Notification - Start
+        run: |
+          curl -H "Content-Type: application/json" \
+          -X POST \
+          -d '{
+            "embeds": [{
+              "title": "🚀 Deployment Started",
+              "description": "Building and deploying **Liftly** to GitHub Pages...",
+              "color": 3447003,
+              "fields": [
+                { "name": "Branch", "value": "${{ github.ref_name }}", "inline": true },
+                { "name": "Commit", "value": "`${{ github.sha }}`", "inline": true }
+              ]
+            }]
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK }}
+
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -32,3 +49,35 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build/web
           publish_branch: gh-pages
+
+      - name: Discord Notification - Success
+        if: success()
+        run: |
+          curl -H "Content-Type: application/json" \
+          -X POST \
+          -d '{
+            "embeds": [{
+              "title": "✅ Deployment Successful",
+              "description": "Liftly has been successfully deployed to GitHub Pages!",
+              "color": 3066993,
+              "url": "https://${{ github.repository_owner }}.github.io/liftly/"
+            }]
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK }}
+
+      - name: Discord Notification - Failure
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" \
+          -X POST \
+          -d '{
+            "embeds": [{
+              "title": "❌ Deployment Failed",
+              "description": "Something went wrong during the Liftly deployment process.",
+              "color": 15158332,
+              "fields": [
+                { "name": "Reason", "value": "Check GitHub Actions logs for details." }
+              ]
+            }]
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK }}
