@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import '../../../../core/constants/colors.dart';
 import 'home_page.dart';
 import '../../../../core/utils/page_transitions.dart';
@@ -23,11 +22,11 @@ class _SplashPageState extends State<SplashPage>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: kIsWeb ? Duration.zero : const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 1800),
     );
 
     _scaleAnimation = Tween<double>(
-      begin: kIsWeb ? 1.0 : 0.8, // Start slightly larger for smoother entry
+      begin: 0.8, // Start slightly larger for smoother entry
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _controller,
@@ -35,7 +34,7 @@ class _SplashPageState extends State<SplashPage>
     ));
 
     _opacityAnimation = Tween<double>(
-      begin: kIsWeb ? 1.0 : 0.0,
+      begin: 0.0,
       end: 1.0,
     ).animate(
       CurvedAnimation(
@@ -51,8 +50,7 @@ class _SplashPageState extends State<SplashPage>
 
   Future<void> _initializeApp() async {
     // Wait for both animation (min duration) and Hive init (critical data)
-    final minDuration =
-        kIsWeb ? Duration.zero : const Duration(milliseconds: 1800);
+    const minDuration = Duration(milliseconds: 1800);
 
     await Future.wait([
       Future.delayed(minDuration),
@@ -61,7 +59,7 @@ class _SplashPageState extends State<SplashPage>
 
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        SmoothPageRoute(page: const HomePage()),
+        SimpleFadePageRoute(page: const HomePage()),
       );
     }
   }
@@ -84,41 +82,41 @@ class _SplashPageState extends State<SplashPage>
               opacity: _opacityAnimation.value,
               child: Transform.scale(
                 scale: _scaleAnimation.value,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: AppColors.accent,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.accent.withValues(alpha: 0.3),
-                            blurRadius: 30,
-                            spreadRadius: 10,
-                          ),
-                        ],
+                child: RepaintBoundary(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.accent.withValues(alpha: 0.3),
+                              blurRadius: 30,
+                              spreadRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.fitness_center_rounded,
+                          size: 64,
+                          color: Colors.white,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.fitness_center_rounded,
-                        size: 64,
-                        color: Colors.white,
+                      const SizedBox(height: 32),
+                      Text(
+                        'LIFTLY',
+                        style:
+                            Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 4,
+                                ),
                       ),
-                    ),
-                    const SizedBox(height: 32),
-                    Text(
-                      'LIFTLY',
-                      style:
-                          Theme.of(context).textTheme.headlineLarge?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 4,
-                              ),
-                    ),
-                    if (!kIsWeb) ...[
                       const SizedBox(height: 48),
-                      SizedBox(
+                      const SizedBox(
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(
@@ -128,7 +126,7 @@ class _SplashPageState extends State<SplashPage>
                         ),
                       ),
                     ],
-                  ],
+                  ),
                 ),
               ),
             );

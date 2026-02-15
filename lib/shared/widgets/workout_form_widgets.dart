@@ -410,6 +410,7 @@ class WeightFieldState extends State<WeightField> {
         TextField(
           controller: controller,
           focusNode: _focusNode,
+          scrollPadding: const EdgeInsets.only(bottom: 250),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
@@ -538,6 +539,7 @@ class _NumberFieldState extends State<NumberField> {
         TextField(
           controller: controller,
           focusNode: _focusNode,
+          scrollPadding: const EdgeInsets.only(bottom: 250),
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
@@ -672,6 +674,7 @@ class _ToFieldState extends State<ToField> {
         TextField(
           controller: controller,
           focusNode: focusNode,
+          scrollPadding: const EdgeInsets.only(bottom: 250),
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
@@ -759,6 +762,7 @@ class _NotesFieldState extends State<NotesField> {
         TextField(
           controller: controller,
           focusNode: focusNode,
+          scrollPadding: const EdgeInsets.only(bottom: 250),
           maxLines: 2,
           onChanged: (v) {
             if (_debounce?.isActive ?? false) _debounce!.cancel();
