@@ -35,13 +35,18 @@ class UpdateService {
         final data = json.decode(response.body);
         final serverVersion = data['version'] as String?;
 
-        if (serverVersion != null && serverVersion != AppConstants.appVersion) {
-          if (kDebugMode) {
-            print(
-                'New version available: $serverVersion. Current: ${AppConstants.appVersion}');
+        if (serverVersion != null) {
+          // Sync check: ignore build numbers (the part after +)
+          final cleanServer = serverVersion.split('+')[0];
+          final cleanApp = AppConstants.appVersion.split('+')[0];
+
+          if (cleanServer != cleanApp) {
+            if (kDebugMode) {
+              print('New version available: $cleanServer. Current: $cleanApp');
+            }
+            _timer?.cancel();
+            platform.reloadPage();
           }
-          _timer?.cancel();
-          platform.reloadPage();
         }
       }
     } catch (e) {
