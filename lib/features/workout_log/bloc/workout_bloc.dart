@@ -201,6 +201,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
             order: exMap['order'] as int? ?? 0,
             sets: sets,
             skipped: exMap['skipped'] as bool? ?? false,
+            isTemplate: exMap['isTemplate'] as bool? ?? false,
           ),
         );
       }
@@ -245,12 +246,16 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
           '${workoutDate.millisecondsSinceEpoch}_${now.millisecondsSinceEpoch}_$_workoutIdCounter',
       userId: userId,
       planId: data['planId'] as String?,
+      planName: data['planName'] as String?,
       workoutDate: workoutDate,
       startedAt: parseNullableDateTime(data['startedAt']),
       endedAt: parseNullableDateTime(data['endedAt']),
       exercises: exercises,
       createdAt: parseDateTime(data['createdAt']),
       updatedAt: parseDateTime(data['updatedAt']),
+      isDraft: data['isDraft'] is int
+          ? (data['isDraft'] as int) == 1
+          : (data['isDraft'] as bool? ?? false),
     );
   }
 }

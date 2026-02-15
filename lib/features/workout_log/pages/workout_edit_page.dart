@@ -116,7 +116,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
             );
           }
         },
-        child: Center(
+        child: Align(
+          alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 800),
             child: CustomScrollView(
@@ -267,7 +268,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                   ),
                 ),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 48),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
                   sliver: SliverToBoxAdapter(
                     child: Column(
                       children: [

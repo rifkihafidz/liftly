@@ -116,46 +116,62 @@ class _HomePageState extends State<HomePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        DateFormat(
-                          'EEEE, dd MMMM yyyy',
-                        ).format(DateTime.now()).toUpperCase(),
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.accent,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.5,
-                            ),
+                      FadeInSlide(
+                        index: 0,
+                        child: Text(
+                          DateFormat(
+                            'EEEE, dd MMMM yyyy',
+                          ).format(DateTime.now()).toUpperCase(),
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.5,
+                                  ),
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        _getGreeting(),
-                        style:
-                            Theme.of(context).textTheme.displaySmall?.copyWith(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.1,
-                                  fontSize: 32,
-                                ),
+                      FadeInSlide(
+                        index: 1,
+                        child: Text(
+                          _getGreeting(),
+                          style: Theme.of(context)
+                              .textTheme
+                              .displaySmall
+                              ?.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                                height: 1.1,
+                                fontSize: 32,
+                              ),
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        _quote,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: AppColors.textSecondary,
-                              fontSize: 16,
-                            ),
+                      FadeInSlide(
+                        index: 2,
+                        child: Text(
+                          _quote,
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 16,
+                                  ),
+                        ),
                       ),
                       const SizedBox(height: 32),
                       // Hero Section - Start Workout
-                      _HeroCard(
-                        title: 'Start Workout',
-                        subtitle: 'Log a new session manually',
-                        icon: Icons.add_rounded,
-                        onTap: () {
-                          context.read<SessionBloc>().add(
-                                const SessionCheckDraftRequested(userId: '1'),
-                              );
-                        },
+                      FadeInSlide(
+                        index: 3,
+                        child: _HeroCard(
+                          title: 'Start Workout',
+                          subtitle: 'Log a new session manually',
+                          icon: Icons.add_rounded,
+                          onTap: () {
+                            context.read<SessionBloc>().add(
+                                  const SessionCheckDraftRequested(userId: '1'),
+                                );
+                          },
+                        ),
                       ),
                       const SizedBox(height: 24),
                     ],
@@ -171,7 +187,7 @@ class _HomePageState extends State<HomePage> {
                     return SliverGrid(
                       delegate: SliverChildListDelegate([
                         FadeInSlide(
-                          index: 0,
+                          index: 4,
                           child: MenuGridItem(
                             title: 'History',
                             subtitle: 'Past sessions',
@@ -184,7 +200,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         FadeInSlide(
-                          index: 1,
+                          index: 5,
                           child: MenuGridItem(
                             title: 'Statistics',
                             subtitle: 'Your progress',
@@ -197,7 +213,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         FadeInSlide(
-                          index: 2,
+                          index: 6,
                           child: MenuGridItem(
                             title: 'Plans',
                             subtitle: 'Routines',
@@ -210,7 +226,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         FadeInSlide(
-                          index: 3,
+                          index: 7,
                           child: MenuGridItem(
                             title: 'Settings',
                             subtitle: 'Preferences',

@@ -182,7 +182,8 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
             _loadAvailableExercises();
           }
         },
-        child: Center(
+        child: Align(
+          alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 800),
             child: CustomScrollView(
@@ -436,19 +437,19 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                           child: OutlinedButton.icon(
                             onPressed:
                                 (_isAddingExercise || _editingIndex != null)
-                                ? null
-                                : () {
-                                    setState(() {
-                                      _isAddingExercise = true;
-                                      // Delay to ensure widget is built
-                                      Future.delayed(
-                                        const Duration(milliseconds: 100),
-                                        () {
-                                          _focusNode.requestFocus();
-                                        },
-                                      );
-                                    });
-                                  },
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          _isAddingExercise = true;
+                                          // Delay to ensure widget is built
+                                          Future.delayed(
+                                            const Duration(milliseconds: 100),
+                                            () {
+                                              _focusNode.requestFocus();
+                                            },
+                                          );
+                                        });
+                                      },
                             icon: const Icon(Icons.add_rounded),
                             label: const Text('Add Exercise'),
                           ),
@@ -489,7 +490,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                   ),
                 ),
                 // Add extra padding at bottom
-                const SliverToBoxAdapter(child: SizedBox(height: 48)),
+                const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
             ),
           ),

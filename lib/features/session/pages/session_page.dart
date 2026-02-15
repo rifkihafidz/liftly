@@ -138,7 +138,8 @@ class _SessionPageState extends State<SessionPage> {
                 final session = state.session;
                 final exercises = session.exercises;
 
-                return Center(
+                return Align(
+                  alignment: Alignment.topCenter,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 800),
                     child: CustomScrollView(
@@ -426,7 +427,7 @@ class _SessionPageState extends State<SessionPage> {
 
                         // Footer Actions
                         SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 48),
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
                           sliver: SliverToBoxAdapter(
                             child: Column(
                               children: [

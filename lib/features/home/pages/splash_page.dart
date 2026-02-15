@@ -23,23 +23,24 @@ class _SplashPageState extends State<SplashPage>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: kIsWeb
-          ? Duration.zero
-          : const Duration(seconds: 2), // Instant on web to match pre-loader
+      duration: kIsWeb ? Duration.zero : const Duration(milliseconds: 1800),
     );
 
     _scaleAnimation = Tween<double>(
-      begin: kIsWeb ? 1.0 : 0.5, // Start full scale on web
+      begin: kIsWeb ? 1.0 : 0.8, // Start slightly larger for smoother entry
       end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
 
     _opacityAnimation = Tween<double>(
-      begin: kIsWeb ? 1.0 : 0.0, // Start full opacity on web
+      begin: kIsWeb ? 1.0 : 0.0,
       end: 1.0,
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
+        curve: const Interval(0.0, 0.4, curve: Curves.easeIn),
       ),
     );
 
@@ -50,7 +51,8 @@ class _SplashPageState extends State<SplashPage>
 
   Future<void> _initializeApp() async {
     // Wait for both animation (min duration) and Hive init (critical data)
-    final minDuration = kIsWeb ? Duration.zero : const Duration(seconds: 2);
+    final minDuration =
+        kIsWeb ? Duration.zero : const Duration(milliseconds: 1800);
 
     await Future.wait([
       Future.delayed(minDuration),

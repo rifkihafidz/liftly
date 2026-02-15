@@ -532,7 +532,8 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.darkBg,
-      body: Center(
+      body: Align(
+        alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
           child: CustomScrollView(
@@ -700,6 +701,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ]),
                 ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
             ],
           ),
         ),
