@@ -12,9 +12,15 @@ import 'features/workout_log/repositories/workout_repository.dart';
 
 import 'package:flutter/foundation.dart';
 import 'shared/widgets/error_view.dart';
+import 'core/services/update_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (kIsWeb) {
+    UpdateService.startPolling();
+  }
+
   if (!kIsWeb) {
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
