@@ -9,6 +9,8 @@ import 'features/plans/bloc/plan_bloc.dart';
 import 'features/plans/repositories/plan_repository.dart';
 import 'features/workout_log/bloc/workout_bloc.dart';
 import 'features/workout_log/repositories/workout_repository.dart';
+import 'features/stats/bloc/stats_bloc.dart';
+import 'features/stats/bloc/stats_event.dart';
 
 import 'package:flutter/foundation.dart';
 import 'shared/widgets/error_view.dart';
@@ -94,6 +96,10 @@ class _LiftlyState extends State<Liftly> with WidgetsBindingObserver {
         BlocProvider(
           create: (context) =>
               WorkoutBloc(workoutRepository: WorkoutRepository()),
+        ),
+        BlocProvider(
+          create: (context) =>
+              StatsBloc()..add(const StatsFetched(userId: '1')),
         ),
       ],
       child: MaterialApp(

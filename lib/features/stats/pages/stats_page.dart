@@ -196,165 +196,162 @@ class _StatsPageState extends State<StatsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => StatsBloc()..add(const StatsFetched(userId: '1')),
-      child: BlocBuilder<StatsBloc, StatsState>(
-        builder: (context, state) {
-          if (state is StatsLoading) {
-            return const StatsPageShimmer();
-          }
+    return BlocBuilder<StatsBloc, StatsState>(
+      builder: (context, state) {
+        if (state is StatsLoading) {
+          return const StatsPageShimmer();
+        }
 
-          if (state is StatsError) {
-            return Scaffold(
-              appBar: AppBar(title: const Text('Statistics'), elevation: 0),
-              body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 64, color: AppColors.error),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Error',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.titleLarge?.copyWith(color: AppColors.error),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        state.message,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: () {
-                        context.read<StatsBloc>().add(
-                              const StatsFetched(userId: '1'),
-                            );
-                      },
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          if (state is StatsLoaded) {
-            final filteredSessions = state.filteredSessions;
-
-            return Scaffold(
-              body: Stack(
+        if (state is StatsError) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Statistics'), elevation: 0),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CustomScrollView(
-                    controller: _scrollController,
-                    slivers: [
-                      SliverAppBar(
-                        pinned: true,
-                        centerTitle: false,
-                        automaticallyImplyLeading: false,
-                        backgroundColor: AppColors.darkBg,
-                        surfaceTintColor: AppColors.darkBg,
-                        elevation: 0,
-                        title: Text(
-                          'Statistics',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        leading: Navigator.canPop(context)
-                            ? IconButton(
-                                icon: const Icon(
-                                  Icons.arrow_back,
-                                  color: AppColors.textPrimary,
-                                ),
-                                onPressed: () => Navigator.pop(context),
-                              )
-                            : null,
-                        actions: [
-                          IconButton(
-                            onPressed: () => _shareAsStoryImage(context, state),
-                            icon: const Icon(Icons.share),
-                            tooltip: 'Share as story',
-                          ),
-                        ],
-                      ),
-                      // Sticky Header for Time Period
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: _StickySelectorDelegate(
-                          child: Container(
-                            color: AppColors.darkBg,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            child: _TimePeriodSelector(
-                              selectedPeriod: state.timePeriod,
-                              referenceDate: state.referenceDate,
-                              onPeriodChanged: (period) {
-                                context.read<StatsBloc>().add(
-                                      StatsPeriodChanged(timePeriod: period),
-                                    );
-                              },
-                              onDateChanged: (date) {
-                                context.read<StatsBloc>().add(
-                                      StatsDateChanged(date: date),
-                                    );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Main Content
-                      SliverPadding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        sliver: SliverList(
-                          delegate: SliverChildListDelegate([
-                            _buildOverview(context, filteredSessions),
-                            _buildDynamicContent(context, state),
-                            const SizedBox(
-                              height: 100,
-                            ), // Padding to avoid footer overlap
-                          ]),
-                        ),
-                      ),
-                    ],
+                  Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleLarge?.copyWith(color: AppColors.error),
                   ),
-
-                  // Offscreen share preview widget for capture
-                  Positioned(
-                    left: -2000,
-                    top: 0,
-                    child: SizedBox(
-                      width: 720,
-                      height: 1280,
-                      child: Screenshot(
-                        controller: _sharePreviewController,
-                        child: _StatsSharePreview(
-                          selectedPeriod: state.timePeriod,
-                          sessions: filteredSessions,
-                          referenceDate: state.referenceDate,
-                        ),
-                      ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      state.message,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                     ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: () {
+                      context.read<StatsBloc>().add(
+                            const StatsFetched(userId: '1'),
+                          );
+                    },
+                    child: const Text('Retry'),
                   ),
                 ],
               ),
-            );
-          }
+            ),
+          );
+        }
 
-          return const SizedBox.shrink();
-        },
-      ),
+        if (state is StatsLoaded) {
+          final filteredSessions = state.filteredSessions;
+
+          return Scaffold(
+            body: Stack(
+              children: [
+                CustomScrollView(
+                  controller: _scrollController,
+                  slivers: [
+                    SliverAppBar(
+                      pinned: true,
+                      centerTitle: false,
+                      automaticallyImplyLeading: false,
+                      backgroundColor: AppColors.darkBg,
+                      surfaceTintColor: AppColors.darkBg,
+                      elevation: 0,
+                      title: Text(
+                        'Statistics',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      leading: Navigator.canPop(context)
+                          ? IconButton(
+                              icon: const Icon(
+                                Icons.arrow_back,
+                                color: AppColors.textPrimary,
+                              ),
+                              onPressed: () => Navigator.pop(context),
+                            )
+                          : null,
+                      actions: [
+                        IconButton(
+                          onPressed: () => _shareAsStoryImage(context, state),
+                          icon: const Icon(Icons.share),
+                          tooltip: 'Share as story',
+                        ),
+                      ],
+                    ),
+                    // Sticky Header for Time Period
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _StickySelectorDelegate(
+                        child: Container(
+                          color: AppColors.darkBg,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          child: _TimePeriodSelector(
+                            selectedPeriod: state.timePeriod,
+                            referenceDate: state.referenceDate,
+                            onPeriodChanged: (period) {
+                              context.read<StatsBloc>().add(
+                                    StatsPeriodChanged(timePeriod: period),
+                                  );
+                            },
+                            onDateChanged: (date) {
+                              context.read<StatsBloc>().add(
+                                    StatsDateChanged(date: date),
+                                  );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Main Content
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          _buildOverview(context, filteredSessions),
+                          _buildDynamicContent(context, state),
+                          const SizedBox(
+                            height: 100,
+                          ), // Padding to avoid footer overlap
+                        ]),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Offscreen share preview widget for capture
+                Positioned(
+                  left: -2000,
+                  top: 0,
+                  child: SizedBox(
+                    width: 720,
+                    height: 1280,
+                    child: Screenshot(
+                      controller: _sharePreviewController,
+                      child: _StatsSharePreview(
+                        selectedPeriod: state.timePeriod,
+                        sessions: filteredSessions,
+                        referenceDate: state.referenceDate,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
     );
   }
 

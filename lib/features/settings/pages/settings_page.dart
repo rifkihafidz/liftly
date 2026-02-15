@@ -16,6 +16,8 @@ import '../../plans/bloc/plan_bloc.dart';
 import '../../plans/bloc/plan_event.dart';
 import '../../workout_log/bloc/workout_bloc.dart';
 import '../../workout_log/bloc/workout_event.dart';
+import '../../stats/bloc/stats_bloc.dart';
+import '../../stats/bloc/stats_event.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -353,6 +355,7 @@ class _SettingsPageState extends State<SettingsPage> {
           // Refresh Blocs so UI updates immediately
           context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
           context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: '1'));
+          context.read<StatsBloc>().add(const StatsFetched(userId: '1'));
 
           AppDialogs.showSuccessDialog(
             context: context,
@@ -459,6 +462,7 @@ class _SettingsPageState extends State<SettingsPage> {
         // Refresh Blocs so UI updates immediately
         context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
         context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: '1'));
+        context.read<StatsBloc>().add(const StatsFetched(userId: '1'));
 
         await AppDialogs.showSuccessDialog(
           context: context,
@@ -501,11 +505,17 @@ class _SettingsPageState extends State<SettingsPage> {
       await DataManagementService.clearAllData();
       if (context.mounted) {
         AppDialogs.hideLoadingDialog(context);
-        await AppDialogs.showSuccessDialog(
-          context: context,
-          title: 'Success',
-          message: 'All data cleared successfully',
-        );
+        if (context.mounted) {
+          context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
+          context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: '1'));
+          context.read<StatsBloc>().add(const StatsFetched(userId: '1'));
+
+          AppDialogs.showSuccessDialog(
+            context: context,
+            title: 'Success',
+            message: 'All data cleared successfully',
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
