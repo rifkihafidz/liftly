@@ -14,6 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract Version
+        id: extract_version
+        run: |
+          VERSION=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Discord Notification - Start
         run: |
           curl -H "Content-Type: application/json" \
@@ -21,11 +28,11 @@ jobs:
           -d '{
             "embeds": [{
               "title": "🚀 Deployment Started",
-              "description": "Building and deploying **Liftly** to GitHub Pages...",
+              "description": "Building and deploying **Liftly v${{ env.VERSION }}** to GitHub Pages...",
               "color": 3447003,
               "fields": [
-                { "name": "Branch", "value": "${{ github.ref_name }}", "inline": true },
-                { "name": "Commit", "value": "`${{ github.sha }}`", "inline": true }
+                { "name": "Version", "value": "`${{ env.VERSION }}`", "inline": true },
+                { "name": "Branch", "value": "${{ github.ref_name }}", "inline": true }
               ]
             }]
           }' \
@@ -58,7 +65,7 @@ jobs:
           -d '{
             "embeds": [{
               "title": "✅ Deployment Successful",
-              "description": "Liftly has been successfully deployed to GitHub Pages!",
+              "description": "Liftly **v${{ env.VERSION }}** has been successfully deployed to GitHub Pages!",
               "color": 3066993,
               "url": "https://${{ github.repository_owner }}.github.io/liftly/"
             }]

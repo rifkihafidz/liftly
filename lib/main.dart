@@ -67,6 +67,13 @@ class _LiftlyState extends State<Liftly> with WidgetsBindingObserver {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && kIsWeb) {
+      UpdateService.checkVersion();
+    }
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();

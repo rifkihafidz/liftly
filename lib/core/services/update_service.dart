@@ -10,20 +10,24 @@ import 'update_service_web.dart' if (dart.library.io) 'update_service_stub.dart'
 
 class UpdateService {
   static Timer? _timer;
+  static bool _isChecking = false;
 
   static void startPolling() {
     if (!kIsWeb) return;
 
     // Initial check
-    _checkVersion();
+    checkVersion();
 
-    // Poll every 5 minutes
-    _timer = Timer.periodic(const Duration(minutes: 5), (timer) {
-      _checkVersion();
+    // Poll every 1 minute
+    _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      checkVersion();
     });
   }
 
-  static Future<void> _checkVersion() async {
+  static Future<void> checkVersion() async {
+    if (_isChecking) return;
+    _isChecking = true;
+
     try {
       // Use timestamp to bust cache for version.json
       final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -53,6 +57,8 @@ class UpdateService {
       if (kDebugMode) {
         print('Failed to check version: $e');
       }
+    } finally {
+      _isChecking = false;
     }
   }
 
