@@ -164,6 +164,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } catch (e) {
       if (mounted) {
+        AppDialogs.hideLoadingDialog(context);
         AppDialogs.showErrorDialog(
           context: context,
           title: 'Backup Failed',
@@ -172,7 +173,6 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } finally {
       if (mounted) {
-        AppDialogs.hideLoadingDialog(context);
         setState(() => _isLoading = false);
       }
     }
@@ -519,6 +519,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } catch (e) {
       if (context.mounted) {
+        AppDialogs.hideLoadingDialog(context);
         await AppDialogs.showErrorDialog(
           context: context,
           title: 'Error',
@@ -527,12 +528,6 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } finally {
       if (mounted) {
-        // Safe hide if still open
-        if (context.mounted) {
-          try {
-            AppDialogs.hideLoadingDialog(context);
-          } catch (_) {}
-        }
         setState(() => _isLoading = false);
       }
     }
