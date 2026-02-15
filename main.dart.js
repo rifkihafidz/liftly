@@ -33083,23 +33083,25 @@ arw:function arw(a){this.a=a},
 arx:function arx(){},
 bun(){A.a3s()
 $.bfD=A.b7Q(B.UP,new A.aH4())},
-a3s(){var s=0,r=A.u(t.H),q=1,p=[],o,n,m,l,k,j,i
+a3s(){var s=0,r=A.u(t.H),q=1,p=[],o,n,m,l,k,j,i,h,g
 var $async$a3s=A.v(function(a,b){if(a===1){p.push(b)
 s=q}for(;;)switch(s){case 0:q=3
 o=Date.now()
 s=6
 return A.n(A.bA9(A.jh("version.json?v="+A.m(o),0,null)),$async$a3s)
 case 6:n=b
-if(n.b===200){k=n
-m=B.dz.dU(0,A.b9k(A.b8N(k.e)).dU(0,k.w))
+if(n.b===200){i=n
+m=B.dz.dU(0,A.b9k(A.b8N(i.e)).dU(0,i.w))
 l=A.am(J.b7(m,"version"))
-if(l!=null&&l!=="1.0.8"){k=$.bfD
-if(k!=null)k.aU(0)
-v.G.window.location.reload()}}q=1
+if(l!=null){k=l.split("+")[0]
+j="1.0.8".split("+")[0]
+if(!J.d(k,j)){i=$.bfD
+if(i!=null)i.aU(0)
+v.G.window.location.reload()}}}q=1
 s=5
 break
 case 3:q=2
-i=p.pop()
+g=p.pop()
 s=5
 break
 case 2:s=1
