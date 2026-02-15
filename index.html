@@ -164,6 +164,24 @@
           }
         }, 100);
       });
+
+      // Global function to be called from Dart/UpdateService
+      window.triggerAppUpdate = function () {
+        console.log("Update check triggered from App...");
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            for (let reg of regs) {
+              reg.update();
+              if (reg.waiting) {
+                console.log("Found waiting worker, skipping waiting...");
+                reg.waiting.postMessage({ type: "SKIP_WAITING" });
+              }
+            }
+          });
+        } else {
+          window.location.reload();
+        }
+      };
     </script>
     <script>
       let refreshing = false;
@@ -173,7 +191,11 @@
         navigator.serviceWorker.addEventListener("controllerchange", () => {
           if (refreshing) return;
           refreshing = true;
-          window.location.reload();
+          console.log("Service Worker controller changed. Reloading...");
+          // Small delay to ensure smooth transition
+          setTimeout(() => {
+            window.location.reload();
+          }, 100);
         });
 
         window.addEventListener("load", function () {
