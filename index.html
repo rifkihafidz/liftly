@@ -31,20 +31,81 @@
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="favicon.png" />
+    <meta name="theme-color" content="#0F0F0F" />
+
+    <!-- Preload Fonts & Critical Assets -->
+    <link
+      rel="preload"
+      href="https://fonts.gstatic.com/s/materialicons/v140/flUhRq6tzZclQEJ-Vdg-IuiaDsNcIhQ8tQ.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
 
     <!-- Google Sign-In for Web -->
-    <meta
-      name="google-signin-client_id"
-      content="640418928410-gi91t91l20sn2roq14r7snvpptlff6mq.apps.googleusercontent.com"
-    />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
 
     <title>Liftly - Workout Tracker</title>
     <link rel="manifest" href="manifest.json" />
+
+    <style>
+      body {
+        background-color: #0f0f0f;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      .loading-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100vw;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: white;
+      }
+      .loader {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #1e88e5;
+        border-bottom-color: transparent;
+        border-radius: 50%;
+        display: inline-block;
+        box-sizing: border-box;
+        animation: rotation 1s linear infinite;
+        margin-bottom: 20px;
+      }
+      .loading-text {
+        font-size: 14px;
+        letter-spacing: 2px;
+        opacity: 0.8;
+      }
+      @keyframes rotation {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="loading_screen" class="loading-container">
+      <div class="loader"></div>
+      <div class="loading-text">LOADING LIFTLY</div>
+    </div>
+
     <script src="flutter_bootstrap.js" async></script>
     <script>
+      window.addEventListener("load", function () {
+        // Remove loading screen when Flutter is ready
+        // Flutter will replace the body content, but we can also manually remove it
+        // during the bootstrap process if needed.
+      });
+
       let refreshing = false;
       // Detect when a new service worker takes control and reload
       if ("serviceWorker" in navigator) {
