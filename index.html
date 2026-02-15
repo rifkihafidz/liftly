@@ -145,6 +145,9 @@
                 // Check for updates on every load
                 registration.update();
 
+                // Keep checking periodically during the session
+                setInterval(() => registration.update(), 5000);
+
                 // If there's a waiting service worker already, skip waiting and notify
                 if (registration.waiting) {
                   registration.waiting.postMessage({ type: "SKIP_WAITING" });
