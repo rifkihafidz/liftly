@@ -7,13 +7,14 @@ import 'package:liftly/core/models/workout_plan.dart';
 import 'package:liftly/core/models/workout_session.dart';
 import 'package:liftly/core/models/personal_record.dart';
 import 'package:liftly/core/utils/persistence_helper.dart';
+import 'package:liftly/core/constants/app_constants.dart';
 import 'package:path_provider/path_provider.dart';
 
 class HiveService {
-  static const String _workoutBoxName = 'workouts';
-  static const String _planBoxName = 'plans';
-  static const String _settingsBoxName = 'settings';
-  static const String _metaBoxName = 'workout_metadata';
+  static const String _workoutBoxName = AppConstants.workoutBox;
+  static const String _planBoxName = AppConstants.planBox;
+  static const String _settingsBoxName = AppConstants.settingsBox;
+  static const String _metaBoxName = AppConstants.metaBox;
 
   static late Box<WorkoutSession> _workoutBox;
   static late Box<WorkoutPlan> _planBox;

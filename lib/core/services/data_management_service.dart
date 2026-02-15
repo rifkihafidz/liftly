@@ -8,16 +8,20 @@ import 'package:intl/intl.dart';
 import 'package:liftly/core/models/workout_plan.dart';
 import 'package:liftly/core/models/workout_session.dart';
 import 'package:liftly/core/services/hive_service.dart';
+import 'package:liftly/core/constants/app_constants.dart';
 import 'package:share_plus/share_plus.dart';
 
 class DataManagementService {
   /// Generate Excel file bytes from Isar data (maintaining legacy tabular format)
-  static Future<Uint8List> generateExcelBytes() async {
+  static Future<Uint8List> generateExcelBytes(
+      {bool exportOnlyPlans = false}) async {
     final excel = Excel.createExcel();
 
     // 1. Fetch all data
     final allData = await HiveService.getAllDataForExport();
-    final workouts = allData['workouts'] as List<WorkoutSession>;
+    final workouts = exportOnlyPlans
+        ? <WorkoutSession>[]
+        : (allData['workouts'] as List<WorkoutSession>);
     final plans = allData['plans'] as List<WorkoutPlan>;
 
     // -- WORKOUTS FLATTENING --
@@ -26,7 +30,9 @@ class DataManagementService {
     final setRows = <Map<String, dynamic>>[];
     final segmentRows = <Map<String, dynamic>>[];
 
-    for (final w in workouts) {
+    for (int i = 0; i < workouts.length; i++) {
+      if (kIsWeb && i % 10 == 0) await Future.delayed(Duration.zero);
+      final w = workouts[i];
       if (w.isDraft) continue;
 
       workoutRows.add({
@@ -79,7 +85,9 @@ class DataManagementService {
     final planRows = <Map<String, dynamic>>[];
     final planExRows = <Map<String, dynamic>>[];
 
-    for (final p in plans) {
+    for (int i = 0; i < plans.length; i++) {
+      if (kIsWeb && i % 20 == 0) await Future.delayed(Duration.zero);
+      final p = plans[i];
       planRows.add({
         'id': p.id,
         'user_id': p.userId,
@@ -100,12 +108,14 @@ class DataManagementService {
     }
 
     // -- WRITING TO EXCEL --
-    _writeSheet(excel, 'workouts', workoutRows);
-    _writeSheet(excel, 'workout_exercises', exerciseRows);
-    _writeSheet(excel, 'workout_sets', setRows);
-    _writeSheet(excel, 'set_segments', segmentRows);
-    _writeSheet(excel, 'plans', planRows);
-    _writeSheet(excel, 'plan_exercises', planExRows);
+    if (!exportOnlyPlans) {
+      _writeSheet(excel, AppConstants.sheetWorkouts, workoutRows);
+      _writeSheet(excel, AppConstants.sheetWorkoutExercises, exerciseRows);
+      _writeSheet(excel, AppConstants.sheetWorkoutSets, setRows);
+      _writeSheet(excel, AppConstants.sheetSetSegments, segmentRows);
+    }
+    _writeSheet(excel, AppConstants.sheetPlans, planRows);
+    _writeSheet(excel, AppConstants.sheetPlanExercises, planExRows);
 
     if (excel.sheets.length > 1 && excel.sheets.keys.contains('Sheet1')) {
       excel.delete('Sheet1');
@@ -140,22 +150,29 @@ class DataManagementService {
   /// Export all data if auto-export is enabled in preferences
 
   /// Export all data to an Excel file and prompt user to share/save it
-  static Future<void> exportData() async {
+  static Future<void> exportData({bool exportOnlyPlans = false}) async {
     try {
-      final fileBytes = await generateExcelBytes();
+      final fileBytes =
+          await generateExcelBytes(exportOnlyPlans: exportOnlyPlans);
       final dateStr = DateFormat('ddMMyyyy_HHmmss').format(DateTime.now());
-      final fileName = 'backup_liftly_$dateStr.xlsx';
+      final prefix = exportOnlyPlans ? 'plans' : 'backup';
+      final fileName = '${prefix}_liftly_$dateStr.xlsx';
 
-      // Use XFile.fromData for cross-platform compatibility (direct download on web)
+      // Use XFile.fromData for cross-platform compatibility
       final xFile = XFile.fromData(
         fileBytes,
         name: fileName,
-        mimeType:
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        mimeType: AppConstants.excelMimeType,
       );
 
-      // ignore: deprecated_member_use
-      await Share.shareXFiles([xFile], subject: 'Liftly Backup $dateStr');
+      if (kIsWeb) {
+        // Direct download on web to avoid noisy Share API logs on desktop browsers
+        await xFile.saveTo('');
+      } else {
+        // Use native share sheet on mobile
+        // ignore: deprecated_member_use
+        await Share.shareXFiles([xFile], subject: 'Liftly Backup $dateStr');
+      }
     } catch (e) {
       if (kDebugMode) print('Export error: $e');
       rethrow;
@@ -376,8 +393,12 @@ class DataManagementService {
       await HiveService.importPlans(parsedPlans);
 
       onProgress?.call(1.0, 'Done!');
-      return 'Successfully imported ${parsedWorkouts.length} workouts and ${parsedPlans.length} plans.';
+      final message =
+          'Successfully imported ${parsedWorkouts.length} workouts and ${parsedPlans.length} plans.';
+      _log('Import: $message');
+      return message;
     } catch (e) {
+      _log('Import error: $e');
       rethrow;
     }
   }
@@ -511,24 +532,34 @@ class DataManagementService {
     if (kIsWeb) await Future.delayed(Duration.zero);
 
     onProgress?.call(0.3, 'Parsing workout records...');
-    final workoutsMap = DataManagementService._parseSheetRaw(excel, 'workouts');
+    final workoutsMap =
+        DataManagementService._parseSheetRaw(excel, AppConstants.sheetWorkouts);
 
     onProgress?.call(0.32, 'Parsing exercises...');
-    final workoutExercisesMap =
-        DataManagementService._parseSheetRaw(excel, 'workout_exercises');
+    final workoutExercisesMap = DataManagementService._parseSheetRaw(
+        excel, AppConstants.sheetWorkoutExercises);
 
     onProgress?.call(0.34, 'Parsing sets...');
-    final workoutSetsMap =
-        DataManagementService._parseSheetRaw(excel, 'workout_sets');
+    final workoutSetsMap = DataManagementService._parseSheetRaw(
+        excel, AppConstants.sheetWorkoutSets);
 
     onProgress?.call(0.36, 'Parsing segments...');
-    final setSegmentsMap =
-        DataManagementService._parseSheetRaw(excel, 'set_segments');
+    final setSegmentsMap = DataManagementService._parseSheetRaw(
+        excel, AppConstants.sheetSetSegments);
 
     onProgress?.call(0.38, 'Parsing workout plans...');
-    final plansMap = DataManagementService._parseSheetRaw(excel, 'plans');
-    final planExercisesMap =
-        DataManagementService._parseSheetRaw(excel, 'plan_exercises');
+    final plansMap =
+        DataManagementService._parseSheetRaw(excel, AppConstants.sheetPlans);
+    final planExercisesMap = DataManagementService._parseSheetRaw(
+        excel, AppConstants.sheetPlanExercises);
+
+    _log('Import: Found ${workoutsMap.length} workout rows');
+    _log('Import: Found ${plansMap.length} plan rows');
+
+    if (plansMap.isEmpty) {
+      _log(
+          'Import WARNING: No plans found in "${AppConstants.sheetPlans}" sheet.');
+    }
 
     if (kIsWeb) await Future.delayed(Duration.zero);
 
@@ -553,7 +584,9 @@ class DataManagementService {
 
     onProgress?.call(0.45, 'Reconstructing ${workoutsMap.length} workouts...');
     final workouts = <Map<String, dynamic>>[];
-    for (final wRow in workoutsMap) {
+    for (int i = 0; i < workoutsMap.length; i++) {
+      if (kIsWeb && i % 10 == 0) await Future.delayed(Duration.zero);
+      final wRow = workoutsMap[i];
       final isDraftVal = wRow['is_draft'];
       bool isDraft = false;
       if (isDraftVal is int) {
@@ -662,13 +695,16 @@ class DataManagementService {
       if (kIsWeb) await Future.delayed(Duration.zero);
     }
 
-    final plans = plansMap.map((pRow) {
+    final plans = <Map<String, dynamic>>[];
+    for (int i = 0; i < plansMap.length; i++) {
+      if (kIsWeb && i % 20 == 0) await Future.delayed(Duration.zero);
+      final pRow = plansMap[i];
       final pId = pRow['id']?.toString() ?? '';
       final pExData = planExByPlan[pId] ?? [];
       pExData.sort((a, b) => ((a['exercise_order'] as num?)?.toInt() ?? 0)
           .compareTo((b['exercise_order'] as num?)?.toInt() ?? 0));
 
-      final exercises = pExData
+      final planExercises = pExData
           .map((eRow) => {
                 'id': eRow['id']?.toString() ?? '',
                 'name': eRow['name']?.toString() ?? '',
@@ -676,20 +712,20 @@ class DataManagementService {
               })
           .toList();
 
-      return {
+      plans.add({
         'id': pId,
         'userId': userId,
         'name': pRow['name'] as String? ?? 'Unnamed Plan',
         'description': pRow['description'] as String?,
-        'exercises': exercises,
+        'exercises': planExercises,
         'createdAt': (DateTime.tryParse(pRow['created_at'] as String? ?? '') ??
                 DateTime.now())
             .toIso8601String(),
         'updatedAt': (DateTime.tryParse(pRow['updated_at'] as String? ?? '') ??
                 DateTime.now())
             .toIso8601String(),
-      };
-    }).toList();
+      });
+    }
 
     return {
       'workouts': workouts,

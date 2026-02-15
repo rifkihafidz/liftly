@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import 'data_management_service.dart';
 import 'hive_service.dart';
+import '../constants/app_constants.dart';
 
 class BackupException implements Exception {
   final String message;
@@ -26,17 +27,25 @@ class BackupService {
 
   factory BackupService() => _instance;
 
-  BackupService._internal();
+  BackupService._internal() {
+    _googleSignIn.onCurrentUserChanged.listen((user) {
+      _currentUser = user;
+    });
+  }
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: kIsWeb
-        ? '640418928410-gi91t91l20sn2roq14r7snvpptlff6mq.apps.googleusercontent.com'
-        : null,
-    scopes: [drive.DriveApi.driveFileScope],
+    clientId: kIsWeb ? AppConstants.googleClientId : null,
+    scopes: [
+      'email',
+      'openid',
+      drive.DriveApi.driveFileScope,
+    ],
   );
 
   GoogleSignInAccount? _currentUser;
   GoogleSignInAccount? get currentUser => _currentUser;
+  Stream<GoogleSignInAccount?> get onCurrentUserChanged =>
+      _googleSignIn.onCurrentUserChanged;
   bool _initialized = false;
   bool get isInitialized => _initialized;
   Future<void>? _initFuture;
@@ -52,6 +61,11 @@ class BackupService {
 
   Future<void> _initInternal() async {
     try {
+      // Small delay on Web to ensure GSI is ready
+      if (kIsWeb) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
       // Add a timeout to prevent hanging on web
       _currentUser = await _googleSignIn
           .signInSilently()
@@ -113,28 +127,41 @@ class BackupService {
   }
 
   /// Backup database to Google Drive (now in .xlsx format)
-  Future<String?> backupDatabase({bool silent = false}) async {
+  Future<String?> backupDatabase({
+    bool silent = false,
+    bool exportOnlyPlans = false,
+  }) async {
     if (_currentUser == null) {
       if (!silent) throw BackupException('User not signed in');
       return null;
     }
 
+    // Ensure we have the required scopes (especially important on Web)
+    debugPrint('BackupService: Verifying Drive scope before backup...');
+    await _ensureDriveScope(silent: silent);
+
     try {
+      debugPrint('BackupService: Retrieving auth headers...');
       final headers = await _currentUser!.authHeaders;
+      debugPrint(
+          'BackupService: Headers retrieved successfully. Initializing client...');
       final client = _GoogleAuthClient(headers);
       final driveApi = drive.DriveApi(client);
 
-      final fileBytes = await DataManagementService.generateExcelBytes();
+      debugPrint('BackupService: Generating Excel bytes...');
+      final fileBytes = await DataManagementService.generateExcelBytes(
+          exportOnlyPlans: exportOnlyPlans);
 
+      debugPrint('BackupService: Accessing backup folder...');
       final folderId = await _getOrCreateBackupFolder(driveApi);
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final fileName = 'liftly_data_$timestamp.xlsx';
+      final prefix = exportOnlyPlans ? 'plans' : 'liftly_data';
+      final fileName = '${prefix}_$timestamp.xlsx';
 
       final driveFile = drive.File();
       driveFile.name = fileName;
       driveFile.parents = [folderId];
-      driveFile.mimeType =
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      driveFile.mimeType = AppConstants.excelMimeType;
 
       final result = await driveApi.files.create(
         driveFile,
@@ -157,8 +184,8 @@ class BackupService {
   }
 
   Future<String> _getOrCreateBackupFolder(drive.DriveApi driveApi) async {
-    const folderName = 'Liftly Backup';
-    const folderMime = 'application/vnd.google-apps.folder';
+    const folderName = AppConstants.backupFolderName;
+    const folderMime = AppConstants.backupMimeFolder;
 
     try {
       final found = await driveApi.files.list(
@@ -186,6 +213,8 @@ class BackupService {
   Future<List<drive.File>> listBackups() async {
     if (_currentUser == null) throw BackupException('User not signed in');
 
+    await _ensureDriveScope();
+
     try {
       final headers = await _currentUser!.authHeaders;
       final client = _GoogleAuthClient(headers);
@@ -212,6 +241,8 @@ class BackupService {
     Function(double progress, String message)? onProgress,
   }) async {
     if (_currentUser == null) throw RestoreException('User not signed in');
+
+    await _ensureDriveScope();
 
     try {
       final headers = await _currentUser!.authHeaders;
@@ -276,5 +307,32 @@ class _GoogleAuthClient extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) {
     request.headers.addAll(_headers);
     return _client.send(request);
+  }
+}
+
+extension on BackupService {
+  Future<void> _ensureDriveScope({bool silent = false}) async {
+    try {
+      debugPrint(
+          'BackupService: Checking for scope: ${drive.DriveApi.driveFileScope}');
+      final hasScope =
+          await _googleSignIn.canAccessScopes([drive.DriveApi.driveFileScope]);
+
+      debugPrint('BackupService: hasScope result: $hasScope');
+
+      if (!hasScope) {
+        debugPrint(
+            'BackupService: Missing Drive scope, requesting via popup...');
+        final granted =
+            await _googleSignIn.requestScopes([drive.DriveApi.driveFileScope]);
+        debugPrint('BackupService: requestScopes granted result: $granted');
+        if (!granted && !silent) {
+          throw BackupException(
+              'Permission denied: Google Drive access is required to use this feature.');
+        }
+      }
+    } catch (e) {
+      debugPrint('BackupService: Scope check/request failed: $e');
+    }
   }
 }

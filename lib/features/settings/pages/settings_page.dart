@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/services/backup_service.dart';
 import '../../../core/services/data_management_service.dart';
 import '../../../core/services/hive_service.dart';
@@ -9,6 +12,10 @@ import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
 import '../../../shared/widgets/cards/menu_list_item.dart';
 import '../../../shared/widgets/text/section_header.dart';
+import '../../plans/bloc/plan_bloc.dart';
+import '../../plans/bloc/plan_event.dart';
+import '../../workout_log/bloc/workout_bloc.dart';
+import '../../workout_log/bloc/workout_event.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -22,12 +29,30 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isAutoBackupEnabled = false;
   bool _isLoading = false;
   late bool _isInitializing;
+  StreamSubscription<GoogleSignInAccount?>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
     _isInitializing = false; // No auto-init to prevent popup
     _loadBackupState();
+    _setupAuthListener();
+  }
+
+  void _setupAuthListener() {
+    _authSubscription = BackupService().onCurrentUserChanged.listen((user) {
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadBackupState() async {
@@ -116,10 +141,16 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _handleBackupNow() async {
     if (_isLoading) return;
+    final exportType = await _showDataSelectionDialog(context);
+    if (exportType == null) return;
+
+    if (!mounted) return;
     setState(() => _isLoading = true);
     AppDialogs.showLoadingDialog(context, 'Backing up your data...');
     try {
-      await BackupService().backupDatabase();
+      await BackupService().backupDatabase(
+        exportOnlyPlans: exportType == 'plans',
+      );
       if (mounted) {
         AppDialogs.hideLoadingDialog(context);
         AppDialogs.showSuccessDialog(
@@ -159,11 +190,18 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _handleExport(BuildContext context) async {
     if (_isLoading) return;
+
+    final exportType = await _showDataSelectionDialog(context);
+    if (exportType == null) return;
+
     setState(() => _isLoading = true);
 
+    if (!context.mounted) return;
     AppDialogs.showLoadingDialog(context, 'Exporting to Excel...');
     try {
-      await DataManagementService.exportData();
+      await DataManagementService.exportData(
+        exportOnlyPlans: exportType == 'plans',
+      );
       if (context.mounted) AppDialogs.hideLoadingDialog(context);
     } catch (e) {
       if (context.mounted) {
@@ -271,7 +309,7 @@ class _SettingsPageState extends State<SettingsPage> {
               canPop: false,
               child: AlertDialog(
                 backgroundColor: AppColors.cardBg,
-                title: const Text('Restoring from Cloud',
+                title: const Text(AppConstants.titleRestoreCloud,
                     style: TextStyle(color: AppColors.textPrimary)),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -312,6 +350,10 @@ class _SettingsPageState extends State<SettingsPage> {
           if (!mounted) return;
           Navigator.pop(context); // Close progress dialog
 
+          // Refresh Blocs so UI updates immediately
+          context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
+          context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: '1'));
+
           AppDialogs.showSuccessDialog(
             context: context,
             title: 'Restore Successful',
@@ -343,7 +385,7 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final result = await AppDialogs.showConfirmationDialog(
         context: context,
-        title: 'Import Data',
+        title: AppConstants.titleImportData,
         message:
             'Importing data will replace existing records with the same IDs. Are you sure you want to continue?',
         confirmText: 'Import',
@@ -413,6 +455,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
       if (context.mounted) {
         Navigator.pop(context); // Close progress dialog
+
+        // Refresh Blocs so UI updates immediately
+        context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
+        context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: '1'));
 
         await AppDialogs.showSuccessDialog(
           context: context,
@@ -514,12 +560,13 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(AppConstants.defaultPadding),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     FadeInSlide(
                       index: 0,
-                      child: SectionHeader(title: 'CLOUD BACKUP'),
+                      child:
+                          SectionHeader(title: AppConstants.headerCloudBackup),
                     ),
                     const SizedBox(height: 16),
                     if (_isInitializing)
@@ -560,7 +607,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppConstants.itemSpacing),
                       FadeInSlide(
                         index: 2,
                         child: MenuListItem(
@@ -578,7 +625,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppConstants.itemSpacing),
                       FadeInSlide(
                         index: 3,
                         child: MenuListItem(
@@ -589,7 +636,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           onTap: _handleBackupNow,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppConstants.itemSpacing),
                       FadeInSlide(
                         index: 4,
                         child: MenuListItem(
@@ -601,14 +648,14 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 32),
+                    const SizedBox(height: AppConstants.sectionSpacing),
 
                     // DATA MANAGEMENT SECTION
                     FadeInSlide(
                       index: 5,
-                      child: SectionHeader(title: 'LOCAL DATA'),
+                      child: SectionHeader(title: AppConstants.headerLocalData),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppConstants.subSectionSpacing),
                     FadeInSlide(
                       index: 6,
                       child: MenuListItem(
@@ -619,7 +666,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         onTap: () => _handleExport(context),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppConstants.itemSpacing),
                     FadeInSlide(
                       index: 7,
                       child: MenuListItem(
@@ -630,12 +677,13 @@ class _SettingsPageState extends State<SettingsPage> {
                         onTap: () => _handleImport(context),
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: AppConstants.sectionSpacing),
 
                     // DANGER ZONE
                     FadeInSlide(
                       index: 8,
-                      child: SectionHeader(title: 'DANGER ZONE'),
+                      child:
+                          SectionHeader(title: AppConstants.headerDangerZone),
                     ),
                     const SizedBox(height: 16),
                     FadeInSlide(
@@ -649,12 +697,62 @@ class _SettingsPageState extends State<SettingsPage> {
                         onTap: () => _handleClearAll(context),
                       ),
                     ),
+                    const SizedBox(height: 48),
+                    Center(
+                      child: Text(
+                        '${AppConstants.appName} v${AppConstants.appVersion}',
+                        style: AppConstants.versionStyle.copyWith(
+                          color: AppColors.textSecondary.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppConstants.defaultPadding),
                   ]),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Future<String?> _showDataSelectionDialog(BuildContext context) {
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.cardBg,
+        title: const Text(
+          AppConstants.titleExportOptions,
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text(
+                'Everything (Workouts & Plans)',
+                style: TextStyle(color: AppColors.textPrimary),
+              ),
+              leading: const Icon(Icons.all_inclusive, color: AppColors.accent),
+              onTap: () => Navigator.pop(context, 'everything'),
+            ),
+            ListTile(
+              title: const Text(
+                'Plans Only',
+                style: TextStyle(color: AppColors.textPrimary),
+              ),
+              leading: const Icon(Icons.list_alt, color: AppColors.success),
+              onTap: () => Navigator.pop(context, 'plans'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
       ),
     );
   }

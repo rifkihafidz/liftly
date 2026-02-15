@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:liftly/core/constants/app_constants.dart';
 import '../../../core/constants/colors.dart';
 import '../../session/bloc/session_bloc.dart';
 import '../../session/bloc/session_event.dart';
@@ -237,7 +238,7 @@ class _HomePageState extends State<HomePage> {
                   padding: const EdgeInsets.symmetric(vertical: 32),
                   child: Center(
                     child: Text(
-                      'v1.0.0',
+                      AppConstants.appVersion,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppColors.textSecondary.withValues(
                               alpha: 0.5,

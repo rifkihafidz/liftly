@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/constants/colors.dart';
 import 'home_page.dart';
 import '../../../../core/utils/page_transitions.dart';
@@ -21,7 +22,8 @@ class _SplashPageState extends State<SplashPage>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration:
+          kIsWeb ? const Duration(seconds: 1) : const Duration(seconds: 2),
     );
 
     _scaleAnimation = Tween<double>(
@@ -91,12 +93,12 @@ class _SplashPageState extends State<SplashPage>
                     const SizedBox(height: 32),
                     Text(
                       'LIFTLY',
-                      style: Theme.of(context).textTheme.headlineLarge
-                          ?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 4,
-                          ),
+                      style:
+                          Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 4,
+                              ),
                     ),
                   ],
                 ),
