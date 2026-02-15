@@ -127,13 +127,8 @@
 
     <script src="flutter_bootstrap.js" async></script>
     <script>
-      window.addEventListener("load", function () {
-        // Remove loading screen when Flutter is ready
-        // Flutter will replace the body content, but we can also manually remove it
-        // during the bootstrap process if needed.
-      });
-
       let refreshing = false;
+
       // Detect when a new service worker takes control and reload
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.addEventListener("controllerchange", () => {
@@ -147,7 +142,29 @@
             .getRegistrations()
             .then(function (registrations) {
               for (let registration of registrations) {
+                // Check for updates on every load
                 registration.update();
+
+                // If there's a waiting service worker already, skip waiting and notify
+                if (registration.waiting) {
+                  registration.waiting.postMessage({ type: "SKIP_WAITING" });
+                }
+
+                // If a new service worker is found, listen for its state change
+                registration.onupdatefound = () => {
+                  const installingWorker = registration.installing;
+                  if (installingWorker) {
+                    installingWorker.onstatechange = () => {
+                      if (
+                        installingWorker.state === "installed" &&
+                        navigator.serviceWorker.controller
+                      ) {
+                        // New version installed, skip waiting to trigger controllerchange
+                        installingWorker.postMessage({ type: "SKIP_WAITING" });
+                      }
+                    };
+                  }
+                };
               }
             });
         });

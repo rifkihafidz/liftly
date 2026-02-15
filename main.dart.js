@@ -117791,7 +117791,7 @@ q=t.p
 r=A.an(A.b([n,B.aB,o,B.aB,A.dX(A.R(s,p,p,p,p,r==null?p:r.ja(B.u,16),p,p,p),2),B.cR,A.dX(new A.a7Z("Start Workout","Log a new session manually",B.wp,new A.aPI(a),p),3),B.aZ],q),B.D,p,B.i,B.h,0,B.p)
 s=A.b7y(new A.aPJ())
 o=A.x(a).ok.Q
-return A.jW(p,B.a1,A.uW(p,A.xB(!0,A.j2(0,p,p,B.Q,p,B.S,p,p,B.cV,p,p,!1,B.a2,!1,A.b([new A.eB(B.Vs,new A.fe(r,p),p),new A.eB(B.fp,s,p),new A.fe(new A.ap(B.vv,A.d1(A.R("1.0.5",p,p,p,p,o==null?p:o.Qg(B.u.ai(0.5),12,1),p,p,p),p,p),p),p)],q)),!0,B.a3,!0,!0),p,new A.aPK(),t.Q,t.CK),p)}}
+return A.jW(p,B.a1,A.uW(p,A.xB(!0,A.j2(0,p,p,B.Q,p,B.S,p,p,B.cV,p,p,!1,B.a2,!1,A.b([new A.eB(B.Vs,new A.fe(r,p),p),new A.eB(B.fp,s,p),new A.fe(new A.ap(B.vv,A.d1(A.R("1.0.6",p,p,p,p,o==null?p:o.Qg(B.u.ai(0.5),12,1),p,p,p),p,p),p),p)],q)),!0,B.a3,!0,!0),p,new A.aPK(),t.Q,t.CK),p)}}
 A.aPK.prototype={
 $2(a,b){return this.abj(a,b)},
 abj(a,b){var s=0,r=A.u(t.H),q,p,o,n
