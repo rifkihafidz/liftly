@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'config/theme/app_theme.dart';
-import 'core/services/hive_service.dart';
 
 import 'features/home/pages/splash_page.dart';
 import 'features/session/bloc/session_bloc.dart';
@@ -43,8 +42,6 @@ void main() async {
     }
     return true;
   };
-
-  await HiveService.init();
 
   runApp(const Liftly());
 }

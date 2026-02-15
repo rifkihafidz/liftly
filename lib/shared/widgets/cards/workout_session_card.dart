@@ -80,7 +80,7 @@ class WorkoutSessionCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      if (planName != '-')
+                      if (planName != '-' && planName.trim().isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,

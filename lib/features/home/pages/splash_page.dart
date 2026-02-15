@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/constants/colors.dart';
 import 'home_page.dart';
 import '../../../../core/utils/page_transitions.dart';
+import '../../../../core/services/hive_service.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -22,32 +23,45 @@ class _SplashPageState extends State<SplashPage>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration:
-          kIsWeb ? const Duration(seconds: 1) : const Duration(seconds: 2),
+      duration: kIsWeb
+          ? Duration.zero
+          : const Duration(seconds: 2), // Instant on web to match pre-loader
     );
 
     _scaleAnimation = Tween<double>(
-      begin: 0.5,
+      begin: kIsWeb ? 1.0 : 0.5, // Start full scale on web
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
-    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _opacityAnimation = Tween<double>(
+      begin: kIsWeb ? 1.0 : 0.0, // Start full opacity on web
+      end: 1.0,
+    ).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
       ),
     );
 
-    _controller.forward().then((_) {
-      // Navigate to home after animation
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).pushReplacement(SmoothPageRoute(page: const HomePage()));
-        }
-      });
-    });
+    // Start animation and initialization in parallel
+    _controller.forward();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    // Wait for both animation (min duration) and Hive init (critical data)
+    final minDuration = kIsWeb ? Duration.zero : const Duration(seconds: 2);
+
+    await Future.wait([
+      Future.delayed(minDuration),
+      HiveService.init(),
+    ]);
+
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        SmoothPageRoute(page: const HomePage()),
+      );
+    }
   }
 
   @override
@@ -100,6 +114,18 @@ class _SplashPageState extends State<SplashPage>
                                 letterSpacing: 4,
                               ),
                     ),
+                    if (!kIsWeb) ...[
+                      const SizedBox(height: 48),
+                      SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

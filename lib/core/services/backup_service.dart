@@ -69,13 +69,16 @@ class BackupService {
       // Add a timeout to prevent hanging on web
       _currentUser = await _googleSignIn
           .signInSilently()
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 5));
       debugPrint(
           'BackupService: Silent sign in successful: ${_currentUser?.email}');
+
+      // Only mark initialized if successful (even if user is null)
+      _initialized = true;
     } catch (e) {
       debugPrint('BackupService: Silent sign in skipped or timed out: $e');
+      // Do NOT mark initialized on error, allowing retry later
     } finally {
-      _initialized = true;
       _initFuture = null;
     }
   }

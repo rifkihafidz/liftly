@@ -205,6 +205,9 @@ class DataManagementService {
       Map<String, dynamic> result;
 
       if (kIsWeb) {
+        onProgress?.call(0.05, 'Clearing existing data...');
+        await clearAllData();
+
         onProgress?.call(0.1, 'Reading file bytes (Web)...');
         final bytes = file.bytes;
         if (bytes == null) throw Exception('No file bytes provided');
@@ -250,6 +253,11 @@ class DataManagementService {
 
         result = await resultCompleter.future;
         isolate.kill();
+
+        // Clear data on main thread (Hive boxes are not shared across isolates in this implementation easily without re-opening)
+        // Since we are about to import, we should clear UI-facing data first.
+        onProgress?.call(0.4, 'Clearing existing data...');
+        await DataManagementService.clearAllData();
       }
 
       onProgress?.call(0.5, 'Importing workouts...');
@@ -316,6 +324,9 @@ class DataManagementService {
       Map<String, dynamic> result;
 
       if (kIsWeb) {
+        onProgress?.call(0.05, 'Clearing existing data...');
+        await clearAllData();
+
         onProgress?.call(0.1, 'Reading data (Web)...');
         result = await _processImportShared(
           userId: targetUserId,
@@ -323,36 +334,15 @@ class DataManagementService {
           onProgress: onProgress,
         );
       } else {
-        final receivePort = ReceivePort();
         onProgress?.call(0.05, 'Preparing background process...');
-        final isolateParams = {
+        // Use compute to offload parsing to a separate isolate
+        result = await compute(_processImportIsolate, {
           'bytes': bytes,
           'userId': targetUserId,
-          'sendPort': receivePort.sendPort,
-        };
-
-        final isolate =
-            await Isolate.spawn(_importIsolateEntryPoint, isolateParams);
-        final resultCompleter = Completer<Map<String, dynamic>>();
-
-        receivePort.listen((message) {
-          if (message is Map<String, dynamic>) {
-            final type = message['type'] as String;
-            if (type == 'progress') {
-              onProgress?.call(
-                  message['progress'] as double, message['message'] as String);
-            } else if (type == 'result') {
-              resultCompleter.complete(message['data'] as Map<String, dynamic>);
-              receivePort.close();
-            } else if (type == 'error') {
-              resultCompleter.completeError(message['error'] as String);
-              receivePort.close();
-            }
-          }
         });
 
-        result = await resultCompleter.future;
-        isolate.kill();
+        onProgress?.call(0.4, 'Clearing existing data...');
+        await clearAllData();
       }
 
       onProgress?.call(0.5, 'Importing workouts...');
@@ -401,6 +391,167 @@ class DataManagementService {
       _log('Import error: $e');
       rethrow;
     }
+  }
+
+  /// Isolate entry point for heavy parsing
+  static Future<Map<String, dynamic>> _processImportIsolate(
+      Map<String, dynamic> params) async {
+    final bytes = params['bytes'] as Uint8List;
+    final userId = params['userId'] as String;
+
+    final excel = Excel.decodeBytes(bytes);
+
+    // Parse all sheets
+    final workoutsMap =
+        DataManagementService._parseSheetRaw(excel, AppConstants.sheetWorkouts);
+    final workoutExercisesMap = DataManagementService._parseSheetRaw(
+        excel, AppConstants.sheetWorkoutExercises);
+    final workoutSetsMap = DataManagementService._parseSheetRaw(
+        excel, AppConstants.sheetWorkoutSets);
+    final setSegmentsMap = DataManagementService._parseSheetRaw(
+        excel, AppConstants.sheetSetSegments);
+
+    final plansMap =
+        DataManagementService._parseSheetRaw(excel, AppConstants.sheetPlans);
+    final planExercisesMap = DataManagementService._parseSheetRaw(
+        excel, AppConstants.sheetPlanExercises);
+
+    // Grouping
+    final exercisesByWorkout = DataManagementService._groupByInternal(
+        workoutExercisesMap, 'workout_id');
+    final setsByExercise =
+        DataManagementService._groupByInternal(workoutSetsMap, 'exercise_id');
+    final segmentsBySet =
+        DataManagementService._groupByInternal(setSegmentsMap, 'set_id');
+    final planExByPlan =
+        DataManagementService._groupByInternal(planExercisesMap, 'plan_id');
+
+    // Reconstruct Workouts
+    final workouts = <Map<String, dynamic>>[];
+    for (final wRow in workoutsMap) {
+      final wId = wRow['id']?.toString();
+      if (wId == null) continue;
+
+      final exercises = <Map<String, dynamic>>[];
+      final wExercises = exercisesByWorkout[wId] ?? [];
+
+      // Sort exercises by order
+      wExercises.sort((a, b) =>
+          (int.tryParse(a['exercise_order']?.toString() ?? '0') ?? 0).compareTo(
+              int.tryParse(b['exercise_order']?.toString() ?? '0') ?? 0));
+
+      for (final exRow in wExercises) {
+        final exId = exRow['id']?.toString();
+        if (exId == null) continue;
+
+        final sets = <Map<String, dynamic>>[];
+        final exSets = setsByExercise[exId] ?? [];
+
+        // Sort sets
+        exSets.sort((a, b) =>
+            (int.tryParse(a['set_number']?.toString() ?? '0') ?? 0).compareTo(
+                int.tryParse(b['set_number']?.toString() ?? '0') ?? 0));
+
+        for (final sRow in exSets) {
+          final sId = sRow['id']?.toString();
+          if (sId == null) continue;
+
+          final segments = <Map<String, dynamic>>[];
+          final sSegments = segmentsBySet[sId] ?? [];
+
+          // Sort segments
+          sSegments.sort((a, b) =>
+              (int.tryParse(a['segment_order']?.toString() ?? '0') ?? 0)
+                  .compareTo(
+                      int.tryParse(b['segment_order']?.toString() ?? '0') ??
+                          0));
+
+          for (final segRow in sSegments) {
+            segments.add({
+              'id': segRow['id'],
+              'weight':
+                  double.tryParse(segRow['weight']?.toString() ?? '0.0') ?? 0.0,
+              'reps_from':
+                  int.tryParse(segRow['reps_from']?.toString() ?? '0') ?? 0,
+              'reps_to':
+                  int.tryParse(segRow['reps_to']?.toString() ?? '0') ?? 0,
+              'segment_order':
+                  int.tryParse(segRow['segment_order']?.toString() ?? '0') ?? 0,
+              'notes': segRow['notes']?.toString(),
+            });
+          }
+
+          sets.add({
+            'id': sId,
+            'set_number':
+                int.tryParse(sRow['set_number']?.toString() ?? '0') ?? 0,
+            'segments': segments,
+          });
+        }
+
+        exercises.add({
+          'id': exId,
+          'name': exRow['name']?.toString() ?? 'Unknown Exercise',
+          'order':
+              int.tryParse(exRow['exercise_order']?.toString() ?? '0') ?? 0,
+          'skipped': (exRow['skipped']?.toString() == '1'),
+          'is_template': (exRow['is_template']?.toString() == '1'),
+          'sets': sets,
+        });
+      }
+
+      workouts.add({
+        'id': wId,
+        'user_id': userId,
+        'plan_id': wRow['plan_id']?.toString(),
+        'plan_name': wRow['plan_name']?.toString(),
+        'workout_date': wRow['workout_date']?.toString(),
+        'started_at': wRow['started_at']?.toString(),
+        'ended_at': wRow['ended_at']?.toString(),
+        'is_draft': (wRow['is_draft']?.toString() == '1'),
+        'created_at': wRow['created_at']?.toString(),
+        'updated_at': wRow['updated_at']?.toString(),
+        'exercises': exercises,
+      });
+    }
+
+    // Reconstruct Plans
+    final plans = <Map<String, dynamic>>[];
+    for (final pRow in plansMap) {
+      final pId = pRow['id']?.toString();
+      if (pId == null) continue;
+
+      final exercises = <Map<String, dynamic>>[];
+      final pExercises = planExByPlan[pId] ?? [];
+
+      pExercises.sort((a, b) =>
+          (int.tryParse(a['exercise_order']?.toString() ?? '0') ?? 0).compareTo(
+              int.tryParse(b['exercise_order']?.toString() ?? '0') ?? 0));
+
+      for (final exRow in pExercises) {
+        exercises.add({
+          'id': exRow['id']?.toString(),
+          'name': exRow['name']?.toString(),
+          'order':
+              int.tryParse(exRow['exercise_order']?.toString() ?? '0') ?? 0,
+        });
+      }
+
+      plans.add({
+        'id': pId,
+        'user_id': userId,
+        'name': pRow['name']?.toString(),
+        'description': pRow['description']?.toString(),
+        'created_at': pRow['created_at']?.toString(),
+        'updated_at': pRow['updated_at']?.toString(),
+        'exercises': exercises,
+      });
+    }
+
+    return {
+      'workouts': workouts,
+      'plans': plans,
+    };
   }
 
   /// Clear all data from the database

@@ -290,8 +290,8 @@ class _SettingsPageState extends State<SettingsPage> {
           context: context,
           title: 'Restore Backup',
           message:
-              'This will replace current records with data from this backup. Are you sure?',
-          confirmText: 'Restore Now',
+              'Restoring from cloud will PERMANENTLY DELETE all current existing records and replace them with the backup data. This action cannot be undone. Are you sure?',
+          confirmText: 'Clear & Restore',
           isDangerous: true,
         );
 
@@ -387,9 +387,9 @@ class _SettingsPageState extends State<SettingsPage> {
         context: context,
         title: AppConstants.titleImportData,
         message:
-            'Importing data will replace existing records with the same IDs. Are you sure you want to continue?',
-        confirmText: 'Import',
-        isDangerous: false,
+            'Importing data will PERMANENTLY DELETE all current existing records and replace them with the backup data. This action cannot be undone. Are you sure?',
+        confirmText: 'Clear & Import',
+        isDangerous: true,
       );
 
       if (result != true) return;
@@ -697,16 +697,6 @@ class _SettingsPageState extends State<SettingsPage> {
                         onTap: () => _handleClearAll(context),
                       ),
                     ),
-                    const SizedBox(height: 48),
-                    Center(
-                      child: Text(
-                        '${AppConstants.appName} v${AppConstants.appVersion}',
-                        style: AppConstants.versionStyle.copyWith(
-                          color: AppColors.textSecondary.withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppConstants.defaultPadding),
                   ]),
                 ),
               ),
