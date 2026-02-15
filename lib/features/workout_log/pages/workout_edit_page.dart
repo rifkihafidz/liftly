@@ -1021,7 +1021,7 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
           // Save Button
           Padding(
             key: _saveButtonKey,
-            padding: const EdgeInsets.only(top: 24, bottom: 100),
+            padding: const EdgeInsets.only(top: 24, bottom: 350),
             child: SizedBox(
               width: double.infinity,
               child: FilledButton(
