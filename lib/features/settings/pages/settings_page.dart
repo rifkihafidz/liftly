@@ -222,9 +222,11 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _handleRestore() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
+    AppDialogs.showLoadingDialog(context, 'Checking for backups...');
     try {
       final backups = await BackupService().listBackups();
 
+      if (mounted) AppDialogs.hideLoadingDialog(context);
       if (!mounted) return;
       setState(() => _isLoading = false);
 

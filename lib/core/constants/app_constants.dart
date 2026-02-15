@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppConstants {
   // --- General ---
-  static const String appVersion = '1.2.4';
+  static const String appVersion = '1.2.5';
   static const String appName = 'Liftly';
 
   // --- Backup & Cloud ---

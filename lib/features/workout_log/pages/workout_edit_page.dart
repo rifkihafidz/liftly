@@ -797,25 +797,6 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
               Expanded(child: _isEditing ? _buildEditMode() : _buildViewMode()),
             ],
           ),
-
-          // Floating Edit Button (only in view mode)
-          if (!_isEditing)
-            Positioned(
-              bottom: 24,
-              right: 16,
-              left: 16,
-              child: FilledButton.icon(
-                onPressed: () => setState(() => _isEditing = true),
-                icon: const Icon(Icons.edit_rounded),
-                label: const Text('Edit Exercise'),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -845,6 +826,19 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
         ...sets.map(
           (set) => ViewSetRow(key: ValueKey('view_set_${set.id}'), set: set),
         ),
+        const SizedBox(height: 32),
+        FilledButton.icon(
+          onPressed: () => setState(() => _isEditing = true),
+          icon: const Icon(Icons.edit_rounded),
+          label: const Text('Edit Exercise'),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        const SizedBox(height: 40),
       ],
     );
   }
