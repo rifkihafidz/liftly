@@ -145,9 +145,6 @@
           if (window._flutter && window._flutter.loader) {
             clearInterval(checkFlutter);
             _flutter.loader.load({
-              serviceWorkerSettings: {
-                serviceWorkerVersion: serviceWorkerVersion,
-              },
               onEntrypointLoaded: function (engineInitializer) {
                 engineInitializer.initializeEngine().then(function (appRunner) {
                   appRunner.runApp().then(function () {

@@ -33306,7 +33306,7 @@ if(l.b===200){g=l
 k=B.dA.dU(0,A.b9T(A.b9l(g.e)).dU(0,g.w))
 j=A.an(J.b8(k,"version"))
 if(j!=null){i=j.split("+")[0]
-h="1.2.2".split("+")[0]
+h="1.2.4".split("+")[0]
 if(!J.d(i,h)){g=$.bgd
 if(g!=null)g.aU(0)
 v.G.window.location.reload()}}}n.push(6)
@@ -118507,7 +118507,7 @@ q=t.p
 r=A.ao(A.b([n,B.aB,o,B.aB,A.e_(A.R(s,p,p,p,p,r==null?p:r.iQ(B.u,16),p,p,p),2),B.cS,A.e_(new A.a8g("Start Workout","Log a new session manually",B.wv,new A.aQg(a),p),3),B.b_],q),B.D,p,B.i,B.h,0,B.p)
 s=A.b8b(new A.aQh())
 o=A.x(a).ok.Q
-return A.jc(p,B.a1,A.v1(p,A.j3(0,p,p,B.N,p,B.S,p,p,B.cX,p,p,!1,B.a2,!1,A.b([new A.eF(B.VP,new A.ff(r,p),p),new A.eF(B.fu,s,p),new A.ff(new A.ap(B.vB,A.d2(A.R("1.2.2",p,p,p,p,o==null?p:o.Qp(B.u.ah(0.5),12,1),p,p,p),p,p),p),p)],q)),p,new A.aQi(),t.Q,t.CK),p,p)}}
+return A.jc(p,B.a1,A.v1(p,A.j3(0,p,p,B.N,p,B.S,p,p,B.cX,p,p,!1,B.a2,!1,A.b([new A.eF(B.VP,new A.ff(r,p),p),new A.eF(B.fu,s,p),new A.ff(new A.ap(B.vB,A.d2(A.R("1.2.4",p,p,p,p,o==null?p:o.Qp(B.u.ah(0.5),12,1),p,p,p),p,p),p),p)],q)),p,new A.aQi(),t.Q,t.CK),p,p)}}
 A.aQi.prototype={
 $2(a,b){return this.abr(a,b)},
 abr(a,b){var s=0,r=A.u(t.H),q,p,o,n
@@ -121128,15 +121128,16 @@ case 5:p=4
 h=o.pop()
 k=A.a3(h)
 j=m.c
-if(j!=null)A.f8(j,J.bH(k),"Backup Failed")
-n.push(7)
+if(j!=null){A.b9(j,!0).eb()
+j=m.c
+j.toString
+A.f8(j,J.bH(k),"Backup Failed")}n.push(7)
 s=6
 break
 case 4:n=[2]
 case 6:p=2
-j=m.c
-if(j!=null){A.b9(j,!0).eb()
-m.K(new A.aWx(m))}s=n.pop()
+if(m.c!=null)m.K(new A.aWx(m))
+s=n.pop()
 break
 case 7:case 1:return A.r(q,r)
 case 2:return A.q(o.at(-1),r)}})
@@ -121350,14 +121351,16 @@ j=o.pop()
 l=A.a3(j)
 s=a.e!=null?9:10
 break
-case 9:s=11
+case 9:A.b9(a,!0).eb()
+s=11
 return A.n(A.f8(a,"Failed to clear data: "+J.bH(l),"Error"),$async$v9)
 case 11:case 10:n.push(7)
 s=6
 break
 case 4:n=[2]
 case 6:p=2
-if(m.c!=null){if(a.e!=null)try{A.b9(a,!0).eb()}catch(i){}m.K(new A.aWz(m))}s=n.pop()
+if(m.c!=null)m.K(new A.aWz(m))
+s=n.pop()
 break
 case 7:case 1:return A.r(q,r)
 case 2:return A.q(o.at(-1),r)}})
