@@ -123,6 +123,10 @@
         color: white;
         text-transform: uppercase;
       }
+      .loading-container.main-app-ready {
+        opacity: 0;
+        pointer-events: none;
+      }
     </style>
   </head>
   <body>
@@ -132,8 +136,38 @@
       </div>
       <div class="loading-text">LIFTLY</div>
     </div>
-
     <script src="flutter_bootstrap.js" async></script>
+    <script>
+      window.addEventListener("load", function (ev) {
+        // Use non-deprecated load() instead of loadEntrypoint()
+        // Wait for _flutter to be defined by flutter_bootstrap.js
+        const checkFlutter = setInterval(() => {
+          if (window._flutter && window._flutter.loader) {
+            clearInterval(checkFlutter);
+            _flutter.loader.load({
+              serviceWorkerSettings: {
+                serviceWorkerVersion: serviceWorkerVersion,
+              },
+              onEntrypointLoaded: function (engineInitializer) {
+                engineInitializer.initializeEngine().then(function (appRunner) {
+                  appRunner.runApp().then(function () {
+                    // Hide the loading screen when the app is ready
+                    const loadingScreen =
+                      document.getElementById("loading_screen");
+                    if (loadingScreen) {
+                      loadingScreen.classList.add("main-app-ready");
+                      setTimeout(() => {
+                        loadingScreen.remove();
+                      }, 400); // Match CSS transition
+                    }
+                  });
+                });
+              },
+            });
+          }
+        }, 100);
+      });
+    </script>
     <script>
       let refreshing = false;
 

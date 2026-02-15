@@ -1,6 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/constants/colors.dart';
-import 'home_page.dart';
+import 'main_navigation_wrapper.dart';
 import '../../../../core/utils/page_transitions.dart';
 import '../../../../core/services/hive_service.dart';
 
@@ -50,7 +51,9 @@ class _SplashPageState extends State<SplashPage>
 
   Future<void> _initializeApp() async {
     // Wait for both animation (min duration) and Hive init (critical data)
-    const minDuration = Duration(milliseconds: 1800);
+    // No artificial delay on web since it has a native splash
+    final minDuration =
+        kIsWeb ? Duration.zero : const Duration(milliseconds: 1800);
 
     await Future.wait([
       Future.delayed(minDuration),
@@ -59,7 +62,7 @@ class _SplashPageState extends State<SplashPage>
 
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        SimpleFadePageRoute(page: const HomePage()),
+        SimpleFadePageRoute(page: const MainNavigationWrapper()),
       );
     }
   }

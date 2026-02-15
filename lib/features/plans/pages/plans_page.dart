@@ -106,6 +106,7 @@ class _PlansPageState extends State<PlansPage> {
                       SliverAppBar(
                         pinned: true,
                         centerTitle: false,
+                        automaticallyImplyLeading: false,
                         backgroundColor: AppColors.darkBg,
                         surfaceTintColor: AppColors.darkBg,
                         title: const Text(
@@ -116,13 +117,15 @@ class _PlansPageState extends State<PlansPage> {
                             letterSpacing: -0.5,
                           ),
                         ),
-                        leading: IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: AppColors.textPrimary,
-                          ),
-                          onPressed: () => Navigator.pop(context),
-                        ),
+                        leading: Navigator.canPop(context)
+                            ? IconButton(
+                                icon: const Icon(
+                                  Icons.arrow_back,
+                                  color: AppColors.textPrimary,
+                                ),
+                                onPressed: () => Navigator.pop(context),
+                              )
+                            : null,
                         actions: [
                           PopupMenuButton<PlanSortOption>(
                             icon: const Icon(
@@ -141,34 +144,34 @@ class _PlansPageState extends State<PlansPage> {
                             },
                             itemBuilder: (context) =>
                                 PlanSortOption.values.map((option) {
-                                  return PopupMenuItem(
-                                    value: option,
-                                    child: Row(
-                                      children: [
-                                        if (_sortOption == option)
-                                          const Icon(
-                                            Icons.check,
-                                            size: 16,
-                                            color: AppColors.accent,
-                                          )
-                                        else
-                                          const SizedBox(width: 16),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          _getSortLabel(option),
-                                          style: TextStyle(
-                                            color: _sortOption == option
-                                                ? AppColors.accent
-                                                : AppColors.textPrimary,
-                                            fontWeight: _sortOption == option
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
-                                          ),
-                                        ),
-                                      ],
+                              return PopupMenuItem(
+                                value: option,
+                                child: Row(
+                                  children: [
+                                    if (_sortOption == option)
+                                      const Icon(
+                                        Icons.check,
+                                        size: 16,
+                                        color: AppColors.accent,
+                                      )
+                                    else
+                                      const SizedBox(width: 16),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _getSortLabel(option),
+                                      style: TextStyle(
+                                        color: _sortOption == option
+                                            ? AppColors.accent
+                                            : AppColors.textPrimary,
+                                        fontWeight: _sortOption == option
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
                                     ),
-                                  );
-                                }).toList(),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
                           ),
                           IconButton(
                             onPressed: () {
@@ -221,7 +224,9 @@ class _PlansPageState extends State<PlansPage> {
                                 const SizedBox(height: 8),
                                 Text(
                                   'Create your first workout plan to get started.',
-                                  style: Theme.of(context).textTheme.bodyMedium
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
                                       ?.copyWith(
                                         color: AppColors.textSecondary,
                                       ),
@@ -258,11 +263,11 @@ class _PlansPageState extends State<PlansPage> {
                                 return SliverGrid(
                                   gridDelegate:
                                       const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        mainAxisSpacing: 16,
-                                        crossAxisSpacing: 16,
-                                        mainAxisExtent: 260,
-                                      ),
+                                    crossAxisCount: 2,
+                                    mainAxisSpacing: 16,
+                                    crossAxisSpacing: 16,
+                                    mainAxisExtent: 260,
+                                  ),
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) => FadeInSlide(
                                       index: index,
@@ -278,9 +283,9 @@ class _PlansPageState extends State<PlansPage> {
                                         ),
                                         onDelete: () =>
                                             _showDeleteConfirmDialog(
-                                              context,
-                                              sortedPlans[index],
-                                            ),
+                                          context,
+                                          sortedPlans[index],
+                                        ),
                                       ),
                                     ),
                                     childCount: sortedPlans.length,
@@ -307,9 +312,9 @@ class _PlansPageState extends State<PlansPage> {
                                         ),
                                         onDelete: () =>
                                             _showDeleteConfirmDialog(
-                                              context,
-                                              sortedPlans[index],
-                                            ),
+                                          context,
+                                          sortedPlans[index],
+                                        ),
                                       ),
                                     ),
                                   ),

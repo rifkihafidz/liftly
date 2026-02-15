@@ -13,12 +13,16 @@ import 'features/workout_log/repositories/workout_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'shared/widgets/error_view.dart';
 import 'core/services/update_service.dart';
+import 'core/services/hive_service.dart';
+import 'features/home/pages/main_navigation_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   if (kIsWeb) {
     UpdateService.startPolling();
+    // Initialize Hive before runApp on Web for a seamless 1x loading experience
+    await HiveService.init();
   }
 
   if (!kIsWeb) {
@@ -95,7 +99,8 @@ class _LiftlyState extends State<Liftly> with WidgetsBindingObserver {
       child: MaterialApp(
         title: 'Liftly',
         theme: AppTheme.darkTheme,
-        home: const SplashPage(),
+        // Skip SplashPage on Web as it already has a native HTML splash
+        home: kIsWeb ? const MainNavigationWrapper() : const SplashPage(),
         debugShowCheckedModeBanner: false,
       ),
     );

@@ -553,6 +553,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                   SliverAppBar(
                     pinned: true,
                     centerTitle: false,
+                    automaticallyImplyLeading: false,
                     backgroundColor: AppColors.darkBg,
                     surfaceTintColor: AppColors.darkBg,
                     title: Text(
@@ -563,6 +564,15 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                         letterSpacing: -0.5,
                       ),
                     ),
+                    leading: Navigator.canPop(context)
+                        ? IconButton(
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: AppColors.textPrimary,
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                          )
+                        : null,
                     actions: [
                       IconButton(
                         icon: Icon(

@@ -542,6 +542,7 @@ class _SettingsPageState extends State<SettingsPage> {
               SliverAppBar(
                 pinned: true,
                 centerTitle: false,
+                automaticallyImplyLeading: false,
                 backgroundColor: AppColors.darkBg,
                 surfaceTintColor: AppColors.darkBg,
                 title: Text(
@@ -552,13 +553,15 @@ class _SettingsPageState extends State<SettingsPage> {
                     letterSpacing: -0.5,
                   ),
                 ),
-                leading: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back,
-                    color: AppColors.textPrimary,
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                ),
+                leading: Navigator.canPop(context)
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: AppColors.textPrimary,
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      )
+                    : null,
               ),
               SliverPadding(
                 padding: const EdgeInsets.all(AppConstants.defaultPadding),

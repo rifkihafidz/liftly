@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:liftly/core/constants/app_constants.dart';
+import 'main_navigation_wrapper.dart';
 import '../../../core/constants/colors.dart';
 import '../../session/bloc/session_bloc.dart';
 import '../../session/bloc/session_event.dart';
@@ -106,168 +107,195 @@ class _HomePageState extends State<HomePage> {
             );
           }
         },
-        child: SafeArea(
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
-                sliver: SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      FadeInSlide(
-                        index: 0,
-                        child: Text(
-                          DateFormat(
-                            'EEEE, dd MMMM yyyy',
-                          ).format(DateTime.now()).toUpperCase(),
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AppColors.accent,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.5,
-                                  ),
-                        ),
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(24, 64, 24, 0),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FadeInSlide(
+                      index: 0,
+                      child: Text(
+                        DateFormat(
+                          'EEEE, dd MMMM yyyy',
+                        ).format(DateTime.now()).toUpperCase(),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.accent,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.5,
+                            ),
                       ),
-                      const SizedBox(height: 8),
-                      FadeInSlide(
-                        index: 1,
-                        child: Text(
-                          _getGreeting(),
-                          style: Theme.of(context)
-                              .textTheme
-                              .displaySmall
-                              ?.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w800,
-                                height: 1.1,
-                                fontSize: 32,
-                              ),
-                        ),
+                    ),
+                    const SizedBox(height: 8),
+                    FadeInSlide(
+                      index: 1,
+                      child: Text(
+                        _getGreeting(),
+                        style:
+                            Theme.of(context).textTheme.displaySmall?.copyWith(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.1,
+                                  fontSize: 32,
+                                ),
                       ),
-                      const SizedBox(height: 8),
-                      FadeInSlide(
-                        index: 2,
-                        child: Text(
-                          _quote,
-                          style:
-                              Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 16,
-                                  ),
-                        ),
+                    ),
+                    const SizedBox(height: 8),
+                    FadeInSlide(
+                      index: 2,
+                      child: Text(
+                        _quote,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: AppColors.textSecondary,
+                              fontSize: 16,
+                            ),
                       ),
-                      const SizedBox(height: 32),
-                      // Hero Section - Start Workout
+                    ),
+                    const SizedBox(height: 32),
+                    // Hero Section - Start Workout
+                    FadeInSlide(
+                      index: 3,
+                      child: _HeroCard(
+                        title: 'Start Workout',
+                        subtitle: 'Log a new session manually',
+                        icon: Icons.add_rounded,
+                        onTap: () {
+                          context.read<SessionBloc>().add(
+                                const SessionCheckDraftRequested(userId: '1'),
+                              );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              sliver: SliverLayoutBuilder(
+                builder: (context, constraints) {
+                  final crossAxisCount =
+                      constraints.crossAxisExtent > 600 ? 3 : 2;
+                  return SliverGrid(
+                    delegate: SliverChildListDelegate([
                       FadeInSlide(
-                        index: 3,
-                        child: _HeroCard(
-                          title: 'Start Workout',
-                          subtitle: 'Log a new session manually',
-                          icon: Icons.add_rounded,
+                        index: 4,
+                        child: MenuGridItem(
+                          title: 'History',
+                          subtitle: 'Past sessions',
+                          icon: Icons.history_rounded,
+                          color: const Color(0xFF6366F1), // Indigo
                           onTap: () {
-                            context.read<SessionBloc>().add(
-                                  const SessionCheckDraftRequested(userId: '1'),
-                                );
+                            final nav = context.findAncestorStateOfType<
+                                MainNavigationWrapperState>();
+                            if (nav != null) {
+                              nav.setIndex(1);
+                            } else {
+                              Navigator.push(
+                                context,
+                                SmoothPageRoute(
+                                    page: const WorkoutHistoryPage()),
+                              );
+                            }
                           },
                         ),
                       ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                sliver: SliverLayoutBuilder(
-                  builder: (context, constraints) {
-                    final crossAxisCount =
-                        constraints.crossAxisExtent > 600 ? 3 : 2;
-                    return SliverGrid(
-                      delegate: SliverChildListDelegate([
-                        FadeInSlide(
-                          index: 4,
-                          child: MenuGridItem(
-                            title: 'History',
-                            subtitle: 'Past sessions',
-                            icon: Icons.history_rounded,
-                            color: const Color(0xFF6366F1), // Indigo
-                            onTap: () => Navigator.push(
-                              context,
-                              SmoothPageRoute(page: const WorkoutHistoryPage()),
-                            ),
-                          ),
+                      FadeInSlide(
+                        index: 5,
+                        child: MenuGridItem(
+                          title: 'Statistics',
+                          subtitle: 'Your progress',
+                          icon: Icons.bar_chart_rounded,
+                          color: const Color(0xFF10B981), // Emerald
+                          onTap: () {
+                            final nav = context.findAncestorStateOfType<
+                                MainNavigationWrapperState>();
+                            if (nav != null) {
+                              nav.setIndex(2);
+                            } else {
+                              Navigator.push(
+                                context,
+                                SmoothPageRoute(page: const StatsPage()),
+                              );
+                            }
+                          },
                         ),
-                        FadeInSlide(
-                          index: 5,
-                          child: MenuGridItem(
-                            title: 'Statistics',
-                            subtitle: 'Your progress',
-                            icon: Icons.bar_chart_rounded,
-                            color: const Color(0xFF10B981), // Emerald
-                            onTap: () => Navigator.push(
-                              context,
-                              SmoothPageRoute(page: const StatsPage()),
-                            ),
-                          ),
-                        ),
-                        FadeInSlide(
-                          index: 6,
-                          child: MenuGridItem(
-                            title: 'Plans',
-                            subtitle: 'Routines',
-                            icon: Icons.bookmarks_rounded,
-                            color: const Color(0xFFF59E0B), // Amber
-                            onTap: () => Navigator.push(
-                              context,
-                              SmoothPageRoute(page: const PlansPage()),
-                            ),
-                          ),
-                        ),
-                        FadeInSlide(
-                          index: 7,
-                          child: MenuGridItem(
-                            title: 'Settings',
-                            subtitle: 'Preferences',
-                            icon: Icons.settings_rounded,
-                            color: const Color(0xFF64748B), // Slate
-                            onTap: () => Navigator.push(
-                              context,
-                              SmoothPageRoute(page: const SettingsPage()),
-                            ),
-                          ),
-                        ),
-                      ]),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childAspectRatio: 1.1,
                       ),
-                    );
-                  },
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 32),
-                  child: Center(
-                    child: Text(
-                      AppConstants.appVersion,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary.withValues(
-                              alpha: 0.5,
-                            ),
-                            fontSize: 12,
-                            letterSpacing: 1.0,
-                          ),
+                      FadeInSlide(
+                        index: 6,
+                        child: MenuGridItem(
+                          title: 'Plans',
+                          subtitle: 'Routines',
+                          icon: Icons.bookmarks_rounded,
+                          color: const Color(0xFFF59E0B), // Amber
+                          onTap: () {
+                            final nav = context.findAncestorStateOfType<
+                                MainNavigationWrapperState>();
+                            if (nav != null) {
+                              nav.setIndex(3);
+                            } else {
+                              Navigator.push(
+                                context,
+                                SmoothPageRoute(page: const PlansPage()),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                      FadeInSlide(
+                        index: 7,
+                        child: MenuGridItem(
+                          title: 'Settings',
+                          subtitle: 'Preferences',
+                          icon: Icons.settings_rounded,
+                          color: const Color(0xFF64748B), // Slate
+                          onTap: () {
+                            final nav = context.findAncestorStateOfType<
+                                MainNavigationWrapperState>();
+                            if (nav != null) {
+                              nav.setIndex(4);
+                            } else {
+                              Navigator.push(
+                                context,
+                                SmoothPageRoute(page: const SettingsPage()),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    ]),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 1.1,
                     ),
+                  );
+                },
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: Center(
+                  child: Text(
+                    AppConstants.appVersion,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary.withValues(
+                            alpha: 0.5,
+                          ),
+                          fontSize: 12,
+                          letterSpacing: 1.0,
+                        ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

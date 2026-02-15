@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
+import '../../features/home/pages/splash_page.dart';
 
 class GlobalErrorView extends StatelessWidget {
   final FlutterErrorDetails? details;
@@ -36,9 +37,9 @@ class GlobalErrorView extends StatelessWidget {
                 'Oops! Something went wrong',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 16),
               Text(
@@ -47,8 +48,8 @@ class GlobalErrorView extends StatelessWidget {
                     : 'An unexpected error occurred. Our team has been notified.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+                      color: AppColors.textSecondary,
+                    ),
               ),
               if (isDev && details?.stack != null) ...[
                 const SizedBox(height: 24),
@@ -79,8 +80,12 @@ class GlobalErrorView extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () {
-                    // Navigate back or restart app logic
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    // Force restart by clearing the stack and pushing a fresh SplashPage
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                          builder: (context) => const SplashPage()),
+                      (route) => false,
+                    );
                   },
                   icon: const Icon(Icons.home_rounded),
                   label: const Text(
