@@ -15,12 +15,14 @@ class UpdateService {
   static void startPolling() {
     if (!kIsWeb) return;
 
-    // Initial check
-    checkVersion();
-
-    // Poll every 1 minute
-    _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
+    // Wait 30 seconds before first check to let app stabilize
+    Timer(const Duration(seconds: 30), () {
       checkVersion();
+
+      // Poll every 10 minutes instead of 1 minute
+      _timer = Timer.periodic(const Duration(minutes: 10), (timer) {
+        checkVersion();
+      });
     });
   }
 

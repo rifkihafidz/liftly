@@ -424,10 +424,16 @@ class _SessionPageState extends State<SessionPage> {
                               }, childCount: exercises.length),
                             ),
                           ),
-
                         // Footer Actions
                         SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            8,
+                            16,
+                            MediaQuery.of(context).viewInsets.bottom > 0
+                                ? 400
+                                : 80,
+                          ),
                           sliver: SliverToBoxAdapter(
                             child: Column(
                               children: [

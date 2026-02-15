@@ -138,35 +138,27 @@
     </div>
     <script src="flutter_bootstrap.js" async></script>
     <script>
-      window.addEventListener("load", function (ev) {
-        // Use non-deprecated load() instead of loadEntrypoint()
-        // Wait for _flutter to be defined by flutter_bootstrap.js
-        const checkFlutter = setInterval(() => {
-          if (window._flutter && window._flutter.loader) {
-            clearInterval(checkFlutter);
-            _flutter.loader.load({
-              onEntrypointLoaded: function (engineInitializer) {
-                engineInitializer.initializeEngine().then(function (appRunner) {
-                  appRunner.runApp().then(function () {
-                    // Hide the loading screen when the app is ready
-                    const loadingScreen =
-                      document.getElementById("loading_screen");
-                    if (loadingScreen) {
-                      loadingScreen.classList.add("main-app-ready");
-                      setTimeout(() => {
-                        loadingScreen.remove();
-                      }, 400); // Match CSS transition
-                    }
-                  });
-                });
-              },
-            });
-          }
-        }, 100);
+      // Simplified listener to hide loading screen once the app is ready.
+      // We rely on Flutter's default bootstrap (v3.22+) to avoid DDC collisions and fix Hot Reload.
+      window.addEventListener("flutter-first-frame", function () {
+        const loadingScreen = document.getElementById("loading_screen");
+        if (loadingScreen) {
+          loadingScreen.classList.add("main-app-ready");
+          setTimeout(() => {
+            loadingScreen.remove();
+          }, 400);
+        }
       });
 
       // Global function to be called from Dart/UpdateService
       window.triggerAppUpdate = function () {
+        const lastReload = sessionStorage.getItem("last_update_reload");
+        const now = Date.now();
+        if (lastReload && now - parseInt(lastReload) < 15000) {
+          console.log("Update requested too soon after reload, skipping...");
+          return;
+        }
+
         console.log("Update check triggered from App...");
         if ("serviceWorker" in navigator) {
           navigator.serviceWorker.getRegistrations().then(function (regs) {
@@ -179,6 +171,7 @@
             }
           });
         } else {
+          sessionStorage.setItem("last_update_reload", Date.now().toString());
           window.location.reload();
         }
       };
@@ -190,7 +183,18 @@
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.addEventListener("controllerchange", () => {
           if (refreshing) return;
+
+          const lastReload = sessionStorage.getItem("last_update_reload");
+          const now = Date.now();
+          if (lastReload && now - parseInt(lastReload) < 15000) {
+            console.log(
+              "Controller changed, but anti-loop active. Skipping reload.",
+            );
+            return;
+          }
+
           refreshing = true;
+          sessionStorage.setItem("last_update_reload", Date.now().toString());
           console.log("Service Worker controller changed. Reloading...");
           // Small delay to ensure smooth transition
           setTimeout(() => {
@@ -206,8 +210,8 @@
                 // Check for updates on every load
                 registration.update();
 
-                // Keep checking periodically during the session
-                setInterval(() => registration.update(), 5000);
+                // Keep checking periodically during the session (every 15 minutes)
+                setInterval(() => registration.update(), 15 * 60 * 1000);
 
                 // If there's a waiting service worker already, skip waiting and notify
                 if (registration.waiting) {

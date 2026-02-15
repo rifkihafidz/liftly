@@ -306,7 +306,7 @@ class WeightField extends StatefulWidget {
     super.key,
     required this.initialValue,
     required this.onChanged,
-    this.scrollPadding = const EdgeInsets.all(20.0),
+    this.scrollPadding = const EdgeInsets.only(bottom: 250),
   });
 
   @override
@@ -412,7 +412,7 @@ class WeightFieldState extends State<WeightField> {
         TextField(
           controller: controller,
           focusNode: _focusNode,
-          scrollPadding: const EdgeInsets.only(bottom: 350),
+          scrollPadding: widget.scrollPadding,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
@@ -452,7 +452,7 @@ class NumberField extends StatefulWidget {
     required this.initialValue,
     required this.onChanged,
     this.hasError = false,
-    this.scrollPadding = const EdgeInsets.all(20.0),
+    this.scrollPadding = const EdgeInsets.only(bottom: 250),
   });
 
   @override
@@ -543,7 +543,7 @@ class _NumberFieldState extends State<NumberField> {
         TextField(
           controller: controller,
           focusNode: _focusNode,
-          scrollPadding: const EdgeInsets.only(bottom: 350),
+          scrollPadding: widget.scrollPadding,
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
@@ -576,7 +576,7 @@ class ToField extends StatefulWidget {
     required this.onChanged,
     this.onDeleteTap,
     this.hasError = false,
-    this.scrollPadding = const EdgeInsets.all(20.0),
+    this.scrollPadding = const EdgeInsets.only(bottom: 250),
   });
 
   @override
@@ -680,7 +680,7 @@ class _ToFieldState extends State<ToField> {
         TextField(
           controller: controller,
           focusNode: focusNode,
-          scrollPadding: const EdgeInsets.only(bottom: 350),
+          scrollPadding: widget.scrollPadding,
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
@@ -709,7 +709,7 @@ class NotesField extends StatefulWidget {
     super.key,
     required this.initialValue,
     required this.onChanged,
-    this.scrollPadding = const EdgeInsets.all(20.0),
+    this.scrollPadding = const EdgeInsets.only(bottom: 250),
   });
 
   @override
@@ -770,7 +770,7 @@ class _NotesFieldState extends State<NotesField> {
         TextField(
           controller: controller,
           focusNode: focusNode,
-          scrollPadding: const EdgeInsets.only(bottom: 350),
+          scrollPadding: widget.scrollPadding,
           maxLines: 2,
           onChanged: (v) {
             if (_debounce?.isActive ?? false) _debounce!.cancel();

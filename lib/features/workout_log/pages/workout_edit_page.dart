@@ -268,7 +268,12 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                   ),
                 ),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    8,
+                    16,
+                    MediaQuery.of(context).viewInsets.bottom > 0 ? 400 : 80,
+                  ),
                   sliver: SliverToBoxAdapter(
                     child: Column(
                       children: [
@@ -809,11 +814,11 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
     return ListView(
       controller: _scrollController,
       physics: const ClampingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         16,
         0,
         16,
-        100,
+        MediaQuery.of(context).viewInsets.bottom > 0 ? 300 : 100,
       ), // Extra padding for FAB
       children: [
         ExerciseViewHeader(
@@ -1016,9 +1021,9 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
           // Save Button
           Padding(
             key: _saveButtonKey,
-            padding: const EdgeInsets.only(
+            padding: EdgeInsets.only(
               top: 24,
-              bottom: 40,
+              bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 300 : 40,
             ),
             child: SizedBox(
               width: double.infinity,
