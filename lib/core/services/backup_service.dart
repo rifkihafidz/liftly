@@ -37,8 +37,21 @@ class BackupService {
   }
 
   // Error stream for UI feedback
+  // Error stream for UI feedback
   final _errorController = StreamController<String>.broadcast();
-  Stream<String> get onError => _errorController.stream;
+  String? _lastError;
+
+  Stream<String> get onError {
+    if (_lastError != null) {
+      // Emit last error immediately to new listeners if present
+      Future.delayed(Duration.zero, () {
+        _errorController.add(_lastError!);
+      });
+    }
+    return _errorController.stream;
+  }
+
+  String? get lastError => _lastError;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: kIsWeb ? AppConstants.googleClientId : null,
@@ -102,7 +115,8 @@ class BackupService {
       }
     } catch (e) {
       debugPrint('BackupService: Silent sign in error: $e');
-      _errorController.add('Auto-signin error: $e');
+      _lastError = 'Auto-signin error: $e';
+      _errorController.add(_lastError!);
       // Check if currentUser is populated despite error
       if (_googleSignIn.currentUser != null) {
         _currentUser = _googleSignIn.currentUser;

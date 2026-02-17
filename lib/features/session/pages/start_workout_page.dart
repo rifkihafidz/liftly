@@ -20,7 +20,12 @@ enum PlanSortOption {
 }
 
 class StartWorkoutPage extends StatefulWidget {
-  const StartWorkoutPage({super.key});
+  final VoidCallback? onClose;
+
+  const StartWorkoutPage({
+    super.key,
+    this.onClose,
+  });
 
   @override
   State<StartWorkoutPage> createState() => _StartWorkoutPageState();
@@ -35,9 +40,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
 
   List<WorkoutPlan> _sortedPlans = [];
 
-  // Pagination state
-  int _planPageIndex = 0;
-  static const int _planPerPage = 5;
+  // Pagination state removed
 
   @override
   void initState() {
@@ -97,8 +100,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
       }
       setState(() {
         _sortedPlans = plans;
-        // Reset page index when sorting changes
-        _planPageIndex = 0;
+        _sortedPlans = plans;
       });
     }
   }
@@ -207,7 +209,13 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close_rounded, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (widget.onClose != null) {
+              widget.onClose!();
+            } else {
+              Navigator.pop(context);
+            }
+          },
         ),
         title: const Text(
           'Start Workout',
@@ -326,169 +334,73 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                             ),
                           ),
                         )
-                      else ...[
+                      else
                         ListView.separated(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          itemCount: (_sortedPlans.length -
-                                      (_planPageIndex * _planPerPage)) >
-                                  _planPerPage
-                              ? _planPerPage
-                              : (_sortedPlans.length -
-                                  (_planPageIndex * _planPerPage)),
+                          itemCount: _sortedPlans.length,
                           separatorBuilder: (context, index) =>
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 8),
                           itemBuilder: (context, index) {
-                            final actualIndex =
-                                (_planPageIndex * _planPerPage) + index;
-                            final plan = _sortedPlans[actualIndex];
+                            final plan = _sortedPlans[index];
                             final isSelected = _selectedPlan?.id == plan.id;
 
                             return FadeInSlide(
                               index: index,
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    if (isSelected) {
-                                      _selectedPlan = null;
-                                    } else {
-                                      _selectedPlan = plan;
-                                    }
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.accent.withValues(alpha: 0.1)
+                                      : AppColors.cardBg,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
                                     color: isSelected
-                                        ? AppColors.accent.withValues(
-                                            alpha: 0.1,
-                                          )
-                                        : AppColors.cardBg,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
+                                        ? AppColors.accent
+                                        : Colors.transparent,
+                                  ),
+                                ),
+                                child: ListTile(
+                                  onTap: () {
+                                    setState(() {
+                                      if (isSelected) {
+                                        _selectedPlan = null;
+                                      } else {
+                                        _selectedPlan = plan;
+                                      }
+                                    });
+                                  },
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  title: Text(
+                                    plan.name,
+                                    style: TextStyle(
                                       color: isSelected
                                           ? AppColors.accent
-                                          : Colors.white.withValues(
-                                              alpha: 0.05,
-                                            ),
-                                      width: isSelected ? 2 : 1,
+                                          : AppColors.textPrimary,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              plan.name,
-                                              style: TextStyle(
-                                                color: isSelected
-                                                    ? AppColors.accent
-                                                    : AppColors.textPrimary,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                              ),
-                                            ),
-                                            if (plan.description != null &&
-                                                plan.description!
-                                                    .isNotEmpty) ...[
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                plan.description!,
-                                                style: TextStyle(
-                                                  color: isSelected
-                                                      ? AppColors.accent
-                                                          .withValues(
-                                                          alpha: 0.8,
-                                                        )
-                                                      : AppColors.textSecondary,
-                                                  fontSize: 14,
-                                                ),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              '${plan.exercises.length} Exercises',
-                                              style: TextStyle(
-                                                color: isSelected
-                                                    ? AppColors.accent
-                                                        .withValues(
-                                                        alpha: 0.6,
-                                                      )
-                                                    : AppColors.textSecondary
-                                                        .withValues(
-                                                        alpha: 0.5,
-                                                      ),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                  subtitle: Text(
+                                    '${plan.exercises.length} Exercises',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary.withValues(
+                                        alpha: 0.7,
                                       ),
-                                      if (isSelected)
-                                        const Icon(
+                                    ),
+                                  ),
+                                  trailing: isSelected
+                                      ? const Icon(
                                           Icons.check_circle_rounded,
                                           color: AppColors.accent,
-                                          size: 24,
-                                        ),
-                                    ],
-                                  ),
+                                        )
+                                      : null,
                                 ),
                               ),
                             );
                           },
                         ),
-                        // Plan Pagination Controls
-                        if (_sortedPlans.length > _planPerPage)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                IconButton(
-                                  onPressed: _planPageIndex > 0
-                                      ? () => setState(
-                                            () => _planPageIndex--,
-                                          )
-                                      : null,
-                                  icon: const Icon(
-                                    Icons.chevron_left_rounded,
-                                  ),
-                                  color: AppColors.accent,
-                                  disabledColor: AppColors.textSecondary
-                                      .withValues(alpha: 0.3),
-                                ),
-                                Text(
-                                  '${_planPageIndex + 1} / ${(_sortedPlans.length / _planPerPage).ceil()}',
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed:
-                                      (_planPageIndex + 1) * _planPerPage <
-                                              _sortedPlans.length
-                                          ? () => setState(
-                                                () => _planPageIndex++,
-                                              )
-                                          : null,
-                                  icon: const Icon(
-                                    Icons.chevron_right_rounded,
-                                  ),
-                                  color: AppColors.accent,
-                                  disabledColor: AppColors.textSecondary
-                                      .withValues(alpha: 0.3),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
 
                       if (_customExercises.isNotEmpty) ...[
                         const SizedBox(height: 24),

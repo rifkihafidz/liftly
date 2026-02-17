@@ -24,25 +24,38 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
   void initState() {
     super.initState();
     // Listen for auto-signin errors
-    _errorSubscription = BackupService().onError.listen((message) {
+    final backupService = BackupService();
+
+    // Check for any existing error first
+    if (backupService.lastError != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showErrorSnackBar(backupService.lastError!);
+      });
+    }
+
+    _errorSubscription = backupService.onError.listen((message) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 10),
-            action: SnackBarAction(
-              label: 'Copy',
-              textColor: Colors.white,
-              onPressed: () {
-                // TODO: Copy to clipboard if needed, for now just dismiss
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              },
-            ),
-          ),
-        );
+        _showErrorSnackBar(message);
       }
     });
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+        duration: const Duration(seconds: 10),
+        action: SnackBarAction(
+          label: 'Copy',
+          textColor: Colors.white,
+          onPressed: () {
+            // TODO: Copy to clipboard if needed, for now just dismiss
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
   }
 
   @override
