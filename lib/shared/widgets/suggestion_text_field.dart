@@ -113,8 +113,9 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
           focusNode: _effectiveFocusNode,
           autofocus: true,
           textInputAction: TextInputAction.done,
-          // Reduced scrollPadding to prevent excessive sinking
-          scrollPadding: const EdgeInsets.only(bottom: 120),
+          // Set to zero because we handle bottom padding manually in the page layout
+          // This prevents the "double jump" or overshoot on first focus
+          scrollPadding: EdgeInsets.zero,
           style: Theme.of(context)
               .textTheme
               .bodyMedium
@@ -126,8 +127,6 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
                 .bodyMedium
                 ?.copyWith(color: AppColors.textSecondary),
             border: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-            isDense: true,
           ),
           onSubmitted: (value) {
             setState(() {
@@ -137,13 +136,20 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
           },
         ),
         if (_filteredSuggestions.isNotEmpty) ...[
-          const SizedBox(height: 8),
           Container(
+            margin: const EdgeInsets.only(top: 4),
             constraints: const BoxConstraints(maxHeight: 200),
             decoration: BoxDecoration(
               color: AppColors.inputBg,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: AppColors.borderLight),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: ListView.separated(
               padding: EdgeInsets.zero,

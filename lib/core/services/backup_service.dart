@@ -73,20 +73,25 @@ class BackupService {
         await Future.delayed(const Duration(milliseconds: 500));
       }
 
-      // Add a timeout to prevent hanging on web
+      // Add a timeout to prevent hanging on web, but slightly longer
+      // Also catching more specific errors if needed
       _currentUser = await _googleSignIn
           .signInSilently()
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
 
-      if (kDebugMode) {
+      if (_currentUser != null) {
         debugPrint(
             'BackupService: Silent sign in successful: ${_currentUser?.email}');
+        _initState = InitializationState.success;
+      } else {
+        debugPrint('BackupService: Silent sign in returned null (no session)');
+        // Ensure we mark as success (completed) even if no user, so UI doesn't hang on "Checking"
+        _initState = InitializationState.success;
       }
-
-      _initState = InitializationState.success;
     } catch (e) {
-      debugPrint('BackupService: Silent sign in skipped or timed out: $e');
-      _initState = InitializationState.failed;
+      debugPrint('BackupService: Silent sign in error: $e');
+      // If error occurs, we still want to allow manual sign in, so set to success (idle) but with no user
+      _initState = InitializationState.success;
     } finally {
       _initFuture = null;
     }

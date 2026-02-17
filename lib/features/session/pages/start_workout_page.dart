@@ -216,7 +216,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
       }).toList(),
     );
 
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
       SmoothPageRoute(
         page: SessionPage(
