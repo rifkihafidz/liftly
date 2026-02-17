@@ -11,7 +11,6 @@ import '../../../core/services/hive_service.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
 import '../../../shared/widgets/cards/menu_list_item.dart';
-import '../../../shared/widgets/buttons/google_sign_in_button.dart';
 import '../../../shared/widgets/text/section_header.dart';
 import '../../plans/bloc/plan_bloc.dart';
 import '../../plans/bloc/plan_event.dart';
@@ -584,10 +583,12 @@ class _SettingsPageState extends State<SettingsPage> {
                     else if (_currentUser == null)
                       FadeInSlide(
                         index: 1,
-                        child: GoogleSignInButton(
-                          text: 'Sign in with Google',
-                          onPressed: _handleGoogleConnect,
-                          isLoading: _isLoading,
+                        child: MenuListItem(
+                          title: 'Connect Google Drive',
+                          subtitle: 'Enable sync across your devices',
+                          icon: Icons.cloud_outlined,
+                          color: AppColors.accent,
+                          onTap: _handleGoogleConnect,
                         ),
                       )
                     else ...[

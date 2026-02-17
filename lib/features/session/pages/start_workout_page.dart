@@ -147,6 +147,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
         const SnackBar(
           content: Text('Please select a plan or add exercises'),
           backgroundColor: AppColors.error,
+          duration: Duration(seconds: 3),
         ),
       );
       return;

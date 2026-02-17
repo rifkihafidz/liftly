@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../session/pages/workout_history_page.dart';
@@ -40,17 +39,6 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
         _showErrorSnackBar(message);
       }
     });
-
-    // Defer initialization further to ensure browser identity services are stable
-    if (kIsWeb) {
-      Future.delayed(const Duration(milliseconds: 3500), () {
-        if (mounted) {
-          BackupService().init();
-        }
-      });
-    } else {
-      BackupService().init();
-    }
   }
 
   void _showErrorSnackBar(String message) {
@@ -58,7 +46,7 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
       SnackBar(
         content: Text(message),
         backgroundColor: AppColors.error,
-        duration: const Duration(seconds: 10),
+        duration: const Duration(seconds: 3),
         action: SnackBarAction(
           label: 'Copy',
           textColor: Colors.white,
@@ -68,7 +56,7 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Copied to clipboard'),
-                duration: Duration(seconds: 2),
+                duration: Duration(seconds: 3),
               ),
             );
           },
