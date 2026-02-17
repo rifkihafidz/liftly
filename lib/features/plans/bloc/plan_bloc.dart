@@ -22,7 +22,9 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
     PlansFetchRequested event,
     Emitter<PlanState> emit,
   ) async {
-    emit(const PlanLoading());
+    if (state is PlanInitial) {
+      emit(const PlanLoading());
+    }
     try {
       final plans = await _planRepository.getPlans(userId: event.userId);
       _plans.clear();
@@ -37,7 +39,9 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
     PlanCreated event,
     Emitter<PlanState> emit,
   ) async {
-    emit(const PlanLoading());
+    if (state is! PlansLoaded) {
+      emit(const PlanLoading());
+    }
     try {
       final newPlan = await _planRepository.createPlan(
         userId: event.userId,
@@ -58,7 +62,9 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
     PlanUpdated event,
     Emitter<PlanState> emit,
   ) async {
-    emit(const PlanLoading());
+    if (state is! PlansLoaded) {
+      emit(const PlanLoading());
+    }
     try {
       final updatedPlan = await _planRepository.updatePlan(
         userId: event.userId,
@@ -84,7 +90,9 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
     PlanDeleted event,
     Emitter<PlanState> emit,
   ) async {
-    emit(const PlanLoading());
+    if (state is! PlansLoaded) {
+      emit(const PlanLoading());
+    }
     try {
       await _planRepository.deletePlan(
         userId: event.userId,

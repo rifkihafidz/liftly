@@ -47,16 +47,33 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
     WorkoutUpdated event,
     Emitter<WorkoutState> emit,
   ) async {
-    emit(const WorkoutLoading());
+    final currentState = state;
+    // Don't emit loading if we already have workouts, to preserve UI state
+    if (currentState is! WorkoutsLoaded) {
+      emit(const WorkoutLoading());
+    }
+
     try {
-      // Convert Map to WorkoutSession
-      final workout = _mapToWorkoutSession(event.workoutData, event.userId);
+      final workoutToUpdate =
+          _mapToWorkoutSession(event.workoutData, event.userId);
 
       final result = await _workoutRepository.updateWorkout(
         userId: event.userId,
         workoutId: event.workoutId,
-        workout: workout,
+        workout: workoutToUpdate,
       );
+
+      // If we were in WorkoutsLoaded, update the list in-place
+      if (currentState is WorkoutsLoaded) {
+        final updatedWorkouts = currentState.workouts.map((w) {
+          return w.id == event.workoutId ? result : w;
+        }).toList();
+
+        emit(WorkoutsLoaded(
+          workouts: updatedWorkouts,
+          hasReachedMax: currentState.hasReachedMax,
+        ));
+      }
 
       emit(
         WorkoutUpdatedSuccess(
@@ -73,19 +90,34 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
     WorkoutDeleted event,
     Emitter<WorkoutState> emit,
   ) async {
-    emit(const WorkoutLoading());
+    final currentState = state;
+    // Don't emit loading if we already have workouts
+    if (currentState is! WorkoutsLoaded) {
+      emit(const WorkoutLoading());
+    }
+
     try {
       await _workoutRepository.deleteWorkout(
         userId: event.userId,
         workoutId: event.workoutId,
       );
 
-      // Fetch updated list after delete
-      final workouts = await _workoutRepository.getWorkouts(
-        userId: event.userId,
-      );
+      if (currentState is WorkoutsLoaded) {
+        final updatedWorkouts = currentState.workouts
+            .where((w) => w.id != event.workoutId)
+            .toList();
 
-      emit(WorkoutsLoaded(workouts: workouts));
+        emit(WorkoutsLoaded(
+          workouts: updatedWorkouts,
+          hasReachedMax: currentState.hasReachedMax,
+        ));
+      } else {
+        // Fallback for non-loaded state: fetch list
+        final workouts = await _workoutRepository.getWorkouts(
+          userId: event.userId,
+        );
+        emit(WorkoutsLoaded(workouts: workouts));
+      }
     } catch (e) {
       emit(WorkoutError(message: e.toString()));
     }
@@ -96,13 +128,16 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
     Emitter<WorkoutState> emit,
   ) async {
     if (state is WorkoutsLoaded && (state as WorkoutsLoaded).hasReachedMax) {
-      // Allow refresh (offset 0) even if reached max
       if (event.offset != 0) return;
     }
 
     try {
       if (state is WorkoutInitial || event.offset == 0) {
-        emit(const WorkoutLoading());
+        // Silent refresh: Only show loading if we haven't loaded anything yet
+        if (state is! WorkoutsLoaded) {
+          emit(const WorkoutLoading());
+        }
+
         final workouts = await _workoutRepository.getWorkouts(
           userId: event.userId,
           limit: event.limit,

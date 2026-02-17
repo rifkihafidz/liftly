@@ -43,6 +43,8 @@ class _PlansPageState extends State<PlansPage> {
     }
   }
 
+  List<WorkoutPlan>? _lastInputPlans;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -66,12 +68,18 @@ class _PlansPageState extends State<PlansPage> {
         },
         child: BlocBuilder<PlanBloc, PlanState>(
           builder: (context, state) {
-            if (state is PlanLoading) {
+            if (state is PlansLoaded) {
+              _lastInputPlans = state.plans;
+            }
+
+            if (state is PlanLoading && _lastInputPlans == null) {
               return const PlanListShimmer();
             }
 
-            if (state is PlansLoaded) {
-              final sortedPlans = List<WorkoutPlan>.from(state.plans);
+            if (state is PlansLoaded || _lastInputPlans != null) {
+              final plansToUse =
+                  state is PlansLoaded ? state.plans : _lastInputPlans!;
+              final sortedPlans = List<WorkoutPlan>.from(plansToUse);
               switch (_sortOption) {
                 case PlanSortOption.newest:
                   sortedPlans.sort(

@@ -435,11 +435,13 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
         },
         child: BlocBuilder<WorkoutBloc, WorkoutState>(
           builder: (context, state) {
-            if (state is WorkoutLoading || _isOpening) {
+            // Only show shimmer on initial load or transition
+            if ((state is WorkoutInitial && _isOpening) ||
+                (state is WorkoutLoading && _lastInputWorkouts == null)) {
               return const WorkoutListShimmer();
             }
 
-            if (state is WorkoutError) {
+            if (state is WorkoutError && _lastInputWorkouts == null) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -487,19 +489,25 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
               );
             }
 
-            if (state is WorkoutsLoaded) {
+            if (state is WorkoutsLoaded || _lastInputWorkouts != null) {
+              final workoutsToUse = state is WorkoutsLoaded
+                  ? state.workouts
+                  : _lastInputWorkouts!;
+              final hasReachedMax =
+                  state is WorkoutsLoaded ? state.hasReachedMax : false;
+
               // Memoization: Only recompute if inputs change
-              if (_lastInputWorkouts != state.workouts ||
+              if (_lastInputWorkouts != workoutsToUse ||
                   _lastFilterPlan != _selectedPlanName ||
                   _lastFilterDate != _selectedDateRange ||
                   _lastSortDescending != _sortDescending) {
-                _lastInputWorkouts = state.workouts;
+                _lastInputWorkouts = workoutsToUse;
                 _lastFilterPlan = _selectedPlanName;
                 _lastFilterDate = _selectedDateRange;
                 _lastSortDescending = _sortDescending;
 
                 // 1. Filter
-                var filtered = List<WorkoutSession>.from(state.workouts);
+                var filtered = List<WorkoutSession>.from(workoutsToUse);
                 if (_selectedPlanName != null) {
                   if (_selectedPlanName!.isEmpty) {
                     filtered = filtered
@@ -581,7 +589,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                               : AppColors.textPrimary,
                         ),
                         tooltip: 'Filter by Plan',
-                        onPressed: () => _showFilterDialog(state.workouts),
+                        onPressed: () => _showFilterDialog(workoutsToUse),
                       ),
                       const SizedBox(width: 8),
                     ],
@@ -594,7 +602,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                   else ...[
                     _buildWorkoutList(
                         _cachedGroupedWorkouts, _cachedSortedKeys),
-                    if (!state.hasReachedMax && _isLoadingMore)
+                    if (!hasReachedMax && _isLoadingMore)
                       const SliverToBoxAdapter(
                         child: Padding(
                           padding: EdgeInsets.all(24.0),
@@ -646,7 +654,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                               fromSession: false,
                             ),
                           ),
-                        ).then((_) => _loadWorkouts());
+                        );
                       },
                     ),
                   ),

@@ -24,7 +24,9 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
     StatsFetched event,
     Emitter<StatsState> emit,
   ) async {
-    emit(StatsLoading());
+    if (state is StatsInitial) {
+      emit(StatsLoading());
+    }
     try {
       // 1. Fetch ALL sessions for Volume/Frequency/Consistency charts
       //    We still need full objects for these complex local calculations for now (tuning phase).

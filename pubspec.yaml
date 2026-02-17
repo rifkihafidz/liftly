@@ -2,7 +2,7 @@ name: liftly
 description: "Gym workout tracker that logs workouts exactly as performed."
 publish_to: "none"
 
-version: 1.4.0
+version: 1.4.1
 environment:
   sdk: ^3.5.0
 

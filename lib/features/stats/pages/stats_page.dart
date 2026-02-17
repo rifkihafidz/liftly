@@ -195,15 +195,21 @@ class _StatsPageState extends State<StatsPage> {
     return imageData;
   }
 
+  StatsLoaded? _lastLoadedState;
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<StatsBloc, StatsState>(
       builder: (context, state) {
-        if (state is StatsLoading) {
+        if (state is StatsLoaded) {
+          _lastLoadedState = state;
+        }
+
+        if (state is StatsLoading && _lastLoadedState == null) {
           return const StatsPageShimmer();
         }
 
-        if (state is StatsError) {
+        if (state is StatsError && _lastLoadedState == null) {
           return Scaffold(
             appBar: AppBar(title: const Text('Statistics')),
             body: Center(
@@ -244,8 +250,9 @@ class _StatsPageState extends State<StatsPage> {
           );
         }
 
-        if (state is StatsLoaded) {
-          final filteredSessions = state.filteredSessions;
+        if (state is StatsLoaded || _lastLoadedState != null) {
+          final activeState = state is StatsLoaded ? state : _lastLoadedState!;
+          final filteredSessions = activeState.filteredSessions;
 
           return Scaffold(
             body: Stack(
@@ -261,7 +268,8 @@ class _StatsPageState extends State<StatsPage> {
                       title: const Text('Statistics'),
                       actions: [
                         IconButton(
-                          onPressed: () => _shareAsStoryImage(context, state),
+                          onPressed: () =>
+                              _shareAsStoryImage(context, activeState),
                           icon: const Icon(Icons.share),
                           tooltip: 'Share as story',
                         ),
@@ -278,8 +286,8 @@ class _StatsPageState extends State<StatsPage> {
                             vertical: 8,
                           ),
                           child: _TimePeriodSelector(
-                            selectedPeriod: state.timePeriod,
-                            referenceDate: state.referenceDate,
+                            selectedPeriod: activeState.timePeriod,
+                            referenceDate: activeState.referenceDate,
                             onPeriodChanged: (period) {
                               context.read<StatsBloc>().add(
                                     StatsPeriodChanged(timePeriod: period),
@@ -301,7 +309,7 @@ class _StatsPageState extends State<StatsPage> {
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
                           _buildOverview(context, filteredSessions),
-                          _buildDynamicContent(context, state),
+                          _buildDynamicContent(context, activeState),
                           const SizedBox(
                             height: 100,
                           ), // Padding to avoid footer overlap
@@ -321,9 +329,9 @@ class _StatsPageState extends State<StatsPage> {
                     child: Screenshot(
                       controller: _sharePreviewController,
                       child: _StatsSharePreview(
-                        selectedPeriod: state.timePeriod,
+                        selectedPeriod: activeState.timePeriod,
                         sessions: filteredSessions,
-                        referenceDate: state.referenceDate,
+                        referenceDate: activeState.referenceDate,
                       ),
                     ),
                   ),

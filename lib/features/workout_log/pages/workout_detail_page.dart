@@ -176,17 +176,12 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                           color: AppColors.textPrimary,
                         ),
                         onPressed: () async {
-                          final updated = await Navigator.push<bool>(
+                          await Navigator.push<bool>(
                             context,
                             SmoothPageRoute(
                               page: WorkoutEditPage(workout: _currentWorkout),
                             ),
                           );
-                          if (updated == true && context.mounted) {
-                            context.read<WorkoutBloc>().add(
-                                  const WorkoutsFetched(userId: '1'),
-                                );
-                          }
                         },
                       ),
                       IconButton(
