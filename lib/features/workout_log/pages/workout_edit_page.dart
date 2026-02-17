@@ -53,13 +53,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
 
   void _saveChanges() {
     final allSkipped = _editedWorkout.exercises.every((e) => e.skipped);
-    if (allSkipped) {
-      AppDialogs.showErrorDialog(
-        context: context,
-        title: 'Cannot Save Workout',
-        message:
-            'All exercises are skipped. You must perform at least one exercise to save the workout.',
-      );
+    if (allSkipped || _editedWorkout.exercises.isEmpty) {
+      _showEmptyWorkoutConfirmation();
       return;
     }
 
@@ -155,6 +150,14 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                           color: AppColors.textPrimary,
                         ),
                         tooltip: 'Reorder Exercises',
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_rounded,
+                          color: AppColors.error,
+                        ),
+                        tooltip: 'Delete Workout',
+                        onPressed: () => _confirmDeleteWorkout(context),
                       ),
                     ],
                   ),
@@ -433,6 +436,49 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
         _updateExerciseName(index, newName);
       },
     );
+  }
+
+  void _showEmptyWorkoutConfirmation() {
+    AppDialogs.showConfirmationDialog(
+      context: context,
+      title: 'Empty Workout',
+      message:
+          'This workout has no completed exercises. Do you want to remove this session from history instead of saving it?',
+      confirmText: 'Remove Session',
+      isDangerous: true,
+    ).then((confirm) {
+      if (confirm == true && mounted) {
+        _deleteWorkout();
+      }
+    });
+  }
+
+  Future<void> _confirmDeleteWorkout(BuildContext context) async {
+    final confirm = await AppDialogs.showConfirmationDialog(
+      context: context,
+      title: 'Delete Workout',
+      message:
+          'Are you sure you want to delete this workout session? This action cannot be undone.',
+      confirmText: 'Delete',
+      isDangerous: true,
+    );
+
+    if (confirm == true && mounted) {
+      _deleteWorkout();
+    }
+  }
+
+  void _deleteWorkout() {
+    setState(() {
+      _allowPop = true;
+    });
+    context.read<WorkoutBloc>().add(
+          WorkoutDeleted(
+            userId: '1',
+            workoutId: _editedWorkout.id,
+          ),
+        );
+    Navigator.pop(context, true);
   }
 
   void _updateExerciseName(int index, String newName) {
