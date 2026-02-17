@@ -5,6 +5,8 @@ import '../../settings/pages/settings_page.dart';
 import 'home_page.dart';
 import '../../../core/constants/colors.dart';
 
+import 'dart:async';
+import '../../../core/services/backup_service.dart';
 import '../../stats/pages/stats_page.dart';
 
 class MainNavigationWrapper extends StatefulWidget {
@@ -16,6 +18,38 @@ class MainNavigationWrapper extends StatefulWidget {
 
 class MainNavigationWrapperState extends State<MainNavigationWrapper> {
   int _selectedIndex = 0;
+  StreamSubscription<String>? _errorSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for auto-signin errors
+    _errorSubscription = BackupService().onError.listen((message) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 10),
+            action: SnackBarAction(
+              label: 'Copy',
+              textColor: Colors.white,
+              onPressed: () {
+                // TODO: Copy to clipboard if needed, for now just dismiss
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _errorSubscription?.cancel();
+    super.dispose();
+  }
 
   void setIndex(int index) {
     setState(() {

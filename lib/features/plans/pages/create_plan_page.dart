@@ -8,7 +8,6 @@ import '../bloc/plan_bloc.dart';
 import '../bloc/plan_event.dart';
 import '../bloc/plan_state.dart';
 
-import '../../../shared/widgets/suggestion_text_field.dart';
 import '../../workout_log/repositories/workout_repository.dart';
 
 class _QueueItem {
@@ -29,15 +28,10 @@ class CreatePlanPage extends StatefulWidget {
 class _CreatePlanPageState extends State<CreatePlanPage> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
-  late TextEditingController _newExerciseController;
   final _focusNode = FocusNode();
-  final _nameFocusNode = FocusNode();
-  final _descFocusNode = FocusNode();
   final List<_QueueItem> _exercises = [];
-  bool _isAddingExercise = false;
   final List<String> _availableExercises = [];
   final _workoutRepository = WorkoutRepository();
-  int? _editingIndex;
 
   @override
   void initState() {
@@ -46,7 +40,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
     _descriptionController = TextEditingController(
       text: widget.plan?.description ?? '',
     );
-    _newExerciseController = TextEditingController();
 
     if (widget.plan != null) {
       _exercises.addAll(widget.plan!.exercises.map((e) => _QueueItem(e.name)));
@@ -94,64 +87,50 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
-    _newExerciseController.dispose();
-    _newExerciseController.dispose();
     _focusNode.dispose();
-    _nameFocusNode.dispose();
-    _descFocusNode.dispose();
     super.dispose();
   }
 
-  void _submitExercise() {
-    final text = _newExerciseController.text.trim();
-    if (text.isNotEmpty) {
+  void _addExercise(String name) {
+    if (name.isNotEmpty) {
       setState(() {
-        if (_editingIndex != null) {
-          // Update existing item in-place
-          final newItem = _QueueItem(text);
-          // We replace the item in the list at the same index
-          // Note: using a new ID is generally safer for key uniqueness if content changes substantially,
-          // but if we want to preserve identity we could pass the ID.
-          // For now, let's treat it as a new item content-wise but kept in same slot.
-          _exercises[_editingIndex!] = newItem;
-          _editingIndex = null;
-        } else {
-          // Add new item at end
-          _exercises.add(_QueueItem(text));
-        }
-        _newExerciseController.clear();
-        _isAddingExercise = false;
-        FocusManager.instance.primaryFocus?.unfocus();
+        _exercises.add(_QueueItem(name));
       });
     }
   }
 
-  void _cancelAddingExercise() {
-    setState(() {
-      // Just clear edit state, no need to re-insert as we never removed it
-      _editingIndex = null;
-      _isAddingExercise = false;
-      _newExerciseController.clear();
-      FocusManager.instance.primaryFocus?.unfocus();
-    });
+  void _editExercise(int index, String newName) {
+    if (newName.isNotEmpty) {
+      setState(() {
+        // Replace item but keep ID if possible, or new ID is fine
+        // Using distinct ID for new content is generally safer for keys
+        _exercises[index] = _QueueItem(newName);
+      });
+    }
   }
 
-  void _editExercise(int index) {
-    setState(() {
-      _editingIndex = index;
-      // Do NOT remove the item. We render the edit form AT this index.
-      // _exercises.removeAt(index);
+  Future<void> _showExerciseDialog({int? index, String? initialValue}) async {
+    // Ensure suggestions are loaded
+    if (_availableExercises.isEmpty) {
+      await _loadAvailableExercises();
+    }
 
-      _newExerciseController.text = _exercises[index].name;
-      // We are NOT "adding" a new exercise at the bottom, so set this false
-      _isAddingExercise = false;
+    if (!mounted) return;
 
-      // Use a post-frame callback or slight delay to ensure the UI has updated
-      // before requesting focus.
-      Future.delayed(const Duration(milliseconds: 50), () {
-        _focusNode.requestFocus();
-      });
-    });
+    AppDialogs.showExerciseEntryDialog(
+      context: context,
+      title: index != null ? 'Edit Exercise' : 'Add Exercise',
+      initialValue: initialValue,
+      hintText: 'Exercise Name (e.g. Bench Press)',
+      suggestions: _availableExercises,
+      onConfirm: (name) {
+        if (index != null) {
+          _editExercise(index, name);
+        } else {
+          _addExercise(name);
+        }
+      },
+    );
   }
 
   @override
@@ -204,7 +183,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                     ),
                   ),
                   leading: IconButton(
-                    // Explicit leading to match StartWorkoutPage style if desired, or default back
                     icon: const Icon(
                       Icons.arrow_back,
                       color: AppColors.textPrimary,
@@ -222,7 +200,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                         const SizedBox(height: 8),
                         _buildTextField(
                           controller: _nameController,
-                          focusNode: _nameFocusNode,
                           hint: 'e.g., Push/Pull/Legs',
                         ),
                         const SizedBox(height: 24),
@@ -230,7 +207,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                         const SizedBox(height: 8),
                         _buildTextField(
                           controller: _descriptionController,
-                          focusNode: _descFocusNode,
                           hint: 'e.g., 3-day strength program',
                           maxLines: 3,
                         ),
@@ -253,7 +229,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                           ],
                         ),
                         const SizedBox(height: 12),
-
                         if (_exercises.isNotEmpty)
                           ReorderableListView.builder(
                             shrinkWrap: true,
@@ -268,51 +243,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                             },
                             itemBuilder: (context, index) {
                               final exercise = _exercises[index];
-                              // Check if this item is being edited
-                              if (_editingIndex == index) {
-                                return Container(
-                                  key: ValueKey('editing_${exercise.id}'),
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.cardBg,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: AppColors.accent),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 4,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: SuggestionTextField(
-                                          controller: _newExerciseController,
-                                          focusNode: _focusNode,
-                                          hintText: 'Exercise name...',
-                                          suggestions: _availableExercises,
-                                          onSubmitted: (_) => _submitExercise(),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      IconButton.filled(
-                                        onPressed: _submitExercise,
-                                        icon: const Icon(Icons.check_rounded),
-                                        style: IconButton.styleFrom(
-                                          backgroundColor: AppColors.success,
-                                        ),
-                                      ),
-                                      IconButton(
-                                        onPressed: _cancelAddingExercise,
-                                        icon: const Icon(
-                                          Icons.close_rounded,
-                                          color: AppColors.error,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
-
                               return Container(
                                 key: ValueKey(exercise.id),
                                 margin: const EdgeInsets.only(bottom: 8),
@@ -356,7 +286,10 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         InkWell(
-                                          onTap: () => _editExercise(index),
+                                          onTap: () => _showExerciseDialog(
+                                            index: index,
+                                            initialValue: exercise.name,
+                                          ),
                                           child: const Padding(
                                             padding: EdgeInsets.symmetric(
                                               horizontal: 8,
@@ -388,74 +321,11 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                               );
                             },
                           ),
-
-                        // Make sure we only show the "Add New" input if we are NOT editing an item
-                        if (_editingIndex == null && _isAddingExercise) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.cardBg,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.accent),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 4,
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: SuggestionTextField(
-                                    controller: _newExerciseController,
-                                    focusNode: _focusNode,
-                                    hintText: 'Exercise name...',
-                                    suggestions: _availableExercises,
-                                    onSubmitted: (_) => _submitExercise(),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                IconButton.filled(
-                                  onPressed: _submitExercise,
-                                  icon: const Icon(Icons.check_rounded),
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: AppColors.success,
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: _cancelAddingExercise,
-                                  icon: const Icon(
-                                    Icons.close_rounded,
-                                    color: AppColors.error,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-
                         const SizedBox(height: 16),
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
-                            onPressed:
-                                (_isAddingExercise || _editingIndex != null)
-                                    ? null
-                                    : () {
-                                        setState(() {
-                                          _isAddingExercise = true;
-                                          // Delay to ensure widget is built
-                                          Future.delayed(
-                                            const Duration(milliseconds: 100),
-                                            () {
-                                              // Unfocus other fields to prevent double cursor
-                                              _nameFocusNode.unfocus();
-                                              _descFocusNode.unfocus();
-                                              _focusNode.requestFocus();
-                                            },
-                                          );
-                                        });
-                                      },
+                            onPressed: () => _showExerciseDialog(),
                             icon: const Icon(Icons.add_rounded),
                             label: const Text('Add Exercise'),
                           ),
@@ -495,9 +365,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                     ),
                   ),
                 ),
-                // Add extra conditional padding at bottom when keyboard is likely to be up
-                if (_isAddingExercise || _editingIndex != null)
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
             ),
           ),
@@ -519,13 +387,11 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
 
   Widget _buildTextField({
     required TextEditingController controller,
-    FocusNode? focusNode,
     required String hint,
     int maxLines = 1,
   }) {
     return TextField(
       controller: controller,
-      focusNode: focusNode,
       maxLines: maxLines,
       style: const TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(

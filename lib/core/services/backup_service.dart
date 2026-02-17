@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
@@ -34,6 +35,10 @@ class BackupService {
       _currentUser = user;
     });
   }
+
+  // Error stream for UI feedback
+  final _errorController = StreamController<String>.broadcast();
+  Stream<String> get onError => _errorController.stream;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: kIsWeb ? AppConstants.googleClientId : null,
@@ -79,6 +84,13 @@ class BackupService {
           .signInSilently()
           .timeout(const Duration(seconds: 15));
 
+      // Fallback: Check if currentUser is already populated in the plugin
+      if (_currentUser == null && _googleSignIn.currentUser != null) {
+        _currentUser = _googleSignIn.currentUser;
+        debugPrint(
+            'BackupService: signInSilently null, but currentUser found: ${_currentUser?.email}');
+      }
+
       if (_currentUser != null) {
         debugPrint(
             'BackupService: Silent sign in successful: ${_currentUser?.email}');
@@ -90,6 +102,16 @@ class BackupService {
       }
     } catch (e) {
       debugPrint('BackupService: Silent sign in error: $e');
+      _errorController.add('Auto-signin error: $e');
+      // Check if currentUser is populated despite error
+      if (_googleSignIn.currentUser != null) {
+        _currentUser = _googleSignIn.currentUser;
+        _initState = InitializationState.success;
+        debugPrint(
+            'BackupService: Recovered user from error: ${_currentUser?.email}');
+        return;
+      }
+
       // If error occurs, we still want to allow manual sign in, so set to success (idle) but with no user
       _initState = InitializationState.success;
     } finally {
