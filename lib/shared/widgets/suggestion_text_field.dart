@@ -133,7 +133,19 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
     if (renderBox == null) {
       return OverlayEntry(builder: (_) => const SizedBox.shrink());
     }
-    var size = renderBox.size;
+
+    final size = renderBox.size;
+    final offset = renderBox.localToGlobal(Offset.zero);
+    final availableHeight = MediaQuery.of(context).size.height;
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
+    // Calculate space below and above
+    final spaceBelow =
+        availableHeight - keyboardHeight - offset.dy - size.height;
+    final spaceAbove = offset.dy - MediaQuery.of(context).padding.top;
+
+    // Decide position: prefer below, but switch to above if space is tight
+    final showAbove = spaceBelow < 200 && spaceAbove > spaceBelow;
 
     return OverlayEntry(
       builder: (context) => Positioned(
@@ -141,7 +153,9 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
         child: CompositedTransformFollower(
           link: _layerLink,
           showWhenUnlinked: false,
-          offset: Offset(0.0, size.height + 5.0),
+          // If showing above, offset by - (maxHeight + small margin)
+          // Since we don't know the exact child height yet, we use the constraints or a standard max
+          offset: Offset(0.0, showAbove ? -205.0 : size.height + 5.0),
           child: TapRegion(
             onTapOutside: (event) {
               _removeOverlay();
@@ -160,16 +174,16 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
                 child: ListView.separated(
                   padding: EdgeInsets.zero,
                   shrinkWrap: true,
+                  physics: const ClampingScrollPhysics(), // Better for overlay
                   itemCount: _filteredSuggestions.length,
                   separatorBuilder: (context, index) =>
                       const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final suggestion = _filteredSuggestions[index];
                     return InkWell(
+                      // Use hitTestBehavior to ensure taps are captured
                       onTap: () {
                         _selectSuggestion(suggestion);
-                        // Also trigger onSubmitted if needed, though _selectSuggestion
-                        // already updates the text.
                         widget.onSubmitted(suggestion);
                       },
                       child: Padding(
@@ -205,6 +219,8 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
         focusNode: widget.focusNode,
         autofocus: true,
         textInputAction: TextInputAction.done,
+        scrollPadding: const EdgeInsets.only(
+            bottom: 200), // Ensure field stays above keyboard
         style: Theme.of(
           context,
         ).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),

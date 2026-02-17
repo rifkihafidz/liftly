@@ -109,8 +109,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
           // but if we want to preserve identity we could pass the ID.
           // For now, let's treat it as a new item content-wise but kept in same slot.
           _exercises[_editingIndex!] = newItem;
-
-          _editingIndex = null;
           _editingIndex = null;
         } else {
           // Add new item at end
@@ -127,7 +125,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
     setState(() {
       // Just clear edit state, no need to re-insert as we never removed it
       _editingIndex = null;
-      _editingIndex = null;
       _isAddingExercise = false;
       _newExerciseController.clear();
       FocusManager.instance.primaryFocus?.unfocus();
@@ -136,7 +133,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
 
   void _editExercise(int index) {
     setState(() {
-      _editingIndex = index;
       _editingIndex = index;
       // Do NOT remove the item. We render the edit form AT this index.
       // _exercises.removeAt(index);
@@ -489,6 +485,9 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                     ),
                   ),
                 ),
+                // Add extra conditional padding at bottom when keyboard is likely to be up
+                if (_isAddingExercise || _editingIndex != null)
+                  const SliverToBoxAdapter(child: SizedBox(height: 250)),
               ],
             ),
           ),

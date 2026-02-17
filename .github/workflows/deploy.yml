@@ -51,6 +51,10 @@ jobs:
       - name: Build Web
         run: flutter build web --release --base-href /liftly/
 
+      - name: Generate Version JSON
+        run: |
+          echo "{\"version\": \"${{ env.VERSION }}\"}" > build/web/version.json
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
