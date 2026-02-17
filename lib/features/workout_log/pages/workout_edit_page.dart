@@ -116,165 +116,190 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
             );
           }
         },
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverAppBar(
-                  expandedHeight: 0,
-                  pinned: true,
-                  floating: true,
-                  title: const Text('Edit Workout'),
-                  actions: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.save_rounded,
-                        color: AppColors.textPrimary,
+        child: PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) return;
+            _handleBack();
+          },
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverAppBar(
+                    expandedHeight: 0,
+                    pinned: true,
+                    floating: true,
+                    title: const Text('Edit Workout'),
+                    actions: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.save_rounded,
+                          color: AppColors.textPrimary,
+                        ),
+                        tooltip: 'Save Changes',
+                        onPressed: _saveChanges,
                       ),
-                      tooltip: 'Save Changes',
-                      onPressed: _saveChanges,
-                    ),
-                    IconButton(
-                      onPressed: _showReorderExercisesSheet,
-                      icon: const Icon(
-                        Icons.reorder_rounded,
-                        color: AppColors.textPrimary,
+                      IconButton(
+                        onPressed: _showReorderExercisesSheet,
+                        icon: const Icon(
+                          Icons.reorder_rounded,
+                          color: AppColors.textPrimary,
+                        ),
+                        tooltip: 'Reorder Exercises',
                       ),
-                      tooltip: 'Reorder Exercises',
-                    ),
-                  ],
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 24,
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardBg,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.05),
+                    ],
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 24,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBg,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.05),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            WorkoutDateTimeCard(
+                              workoutDate: workoutDate,
+                              startedAt: _editedWorkout.startedAt,
+                              endedAt: _editedWorkout.endedAt,
+                              onTap: () async {
+                                final result =
+                                    await showDialog<Map<String, DateTime?>>(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (context) => WorkoutDateTimeDialog(
+                                    initialWorkoutDate: workoutDate,
+                                    initialStartedAt: _editedWorkout.startedAt,
+                                    initialEndedAt: _editedWorkout.endedAt,
+                                  ),
+                                );
+                                if (result != null) {
+                                  setState(() {
+                                    _editedWorkout = _editedWorkout.copyWith(
+                                      workoutDate: result['workoutDate'] ??
+                                          _editedWorkout.workoutDate,
+                                      startedAt: result['startedAt'],
+                                      endedAt: result['endedAt'],
+                                    );
+                                  });
+                                }
+                              },
+                            ),
+                          ],
                         ),
                       ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Text(
+                          'EXERCISES (${exercises.length})',
+                          style: const TextStyle(
+                            color: AppColors.accent,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final exIndex = index;
+                        final exercise = exercises[exIndex];
+
+                        return Padding(
+                          key: ValueKey('edit_ex_${exercise.id}'),
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: ExerciseListSummaryCard(
+                            exercise: exercise,
+                            index: exIndex,
+                            onTap: () =>
+                                _showExerciseEditSheet(context, exIndex),
+                          ),
+                        );
+                      }, childCount: exercises.length),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      8,
+                      16,
+                      MediaQuery.of(context).viewInsets.bottom > 0 ? 400 : 80,
+                    ),
+                    sliver: SliverToBoxAdapter(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          WorkoutDateTimeCard(
-                            workoutDate: workoutDate,
-                            startedAt: _editedWorkout.startedAt,
-                            endedAt: _editedWorkout.endedAt,
-                            onTap: () async {
-                              final result =
-                                  await showDialog<Map<String, DateTime?>>(
-                                context: context,
-                                barrierDismissible: false,
-                                builder: (context) => WorkoutDateTimeDialog(
-                                  initialWorkoutDate: workoutDate,
-                                  initialStartedAt: _editedWorkout.startedAt,
-                                  initialEndedAt: _editedWorkout.endedAt,
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showAddExerciseDialog(context),
+                              icon: const Icon(Icons.add_rounded),
+                              label: const Text('Add Exercise'),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton(
+                              onPressed: _saveChanges,
+                              child: const Text(
+                                'Save Changes',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
                                 ),
-                              );
-                              if (result != null) {
-                                setState(() {
-                                  _editedWorkout = _editedWorkout.copyWith(
-                                    workoutDate: result['workoutDate'] ??
-                                        _editedWorkout.workoutDate,
-                                    startedAt: result['startedAt'],
-                                    endedAt: result['endedAt'],
-                                  );
-                                });
-                              }
-                            },
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  sliver: SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(
-                        'EXERCISES (${exercises.length})',
-                        style: const TextStyle(
-                          color: AppColors.accent,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final exIndex = index;
-                      final exercise = exercises[exIndex];
-
-                      return Padding(
-                        key: ValueKey('edit_ex_${exercise.id}'),
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: ExerciseListSummaryCard(
-                          exercise: exercise,
-                          index: exIndex,
-                          onTap: () => _showExerciseEditSheet(context, exIndex),
-                        ),
-                      );
-                    }, childCount: exercises.length),
-                  ),
-                ),
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    8,
-                    16,
-                    MediaQuery.of(context).viewInsets.bottom > 0 ? 400 : 80,
-                  ),
-                  sliver: SliverToBoxAdapter(
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () => _showAddExerciseDialog(context),
-                            icon: const Icon(Icons.add_rounded),
-                            label: const Text('Add Exercise'),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton(
-                            onPressed: _saveChanges,
-                            child: const Text(
-                              'Save Changes',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  void _handleBack() async {
+    final hasChanges = _editedWorkout != widget.workout;
+
+    if (!hasChanges) {
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+
+    final shouldDiscard = await AppDialogs.showUnsavedChangesDialog(
+      context: context,
+    );
+
+    if (shouldDiscard == true && mounted) {
+      Navigator.pop(context);
+    }
   }
 
   void _showExerciseEditSheet(BuildContext context, int exerciseIndex) {
