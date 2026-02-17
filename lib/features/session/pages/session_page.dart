@@ -431,7 +431,7 @@ class _SessionPageState extends State<SessionPage> {
                             8,
                             16,
                             MediaQuery.of(context).viewInsets.bottom > 0
-                                ? 200
+                                ? 120
                                 : 80,
                           ),
                           sliver: SliverToBoxAdapter(

@@ -24,43 +24,43 @@ class SuggestionTextField extends StatefulWidget {
 }
 
 class _SuggestionTextFieldState extends State<SuggestionTextField> {
-  final LayerLink _layerLink = LayerLink();
-  OverlayEntry? _overlayEntry;
   List<String> _filteredSuggestions = [];
-
-  // Used to distinguish between typing and selecting
-  // When selecting, we update the TextField without re-opening the overlay
   bool _isSelecting = false;
+  final FocusNode _internalFocusNode = FocusNode();
+
+  FocusNode get _effectiveFocusNode => widget.focusNode ?? _internalFocusNode;
 
   @override
   void initState() {
     super.initState();
     widget.controller.addListener(_onTextChanged);
-    if (widget.focusNode != null) {
-      widget.focusNode!.addListener(_onFocusChanged);
-    }
+    _effectiveFocusNode.addListener(_onFocusChanged);
   }
 
   @override
   void dispose() {
-    _removeOverlay();
     // Safety: try to remove listener but catch if controller is already disposed
     try {
       widget.controller.removeListener(_onTextChanged);
-    } catch (_) {
-      // Controller might already be disposed by parent
-    }
-    if (widget.focusNode != null) {
-      try {
-        widget.focusNode!.removeListener(_onFocusChanged);
-      } catch (_) {}
-    }
+    } catch (_) {}
+    try {
+      _effectiveFocusNode.removeListener(_onFocusChanged);
+    } catch (_) {}
+
+    _internalFocusNode.dispose();
     super.dispose();
   }
 
   void _onFocusChanged() {
-    if (widget.focusNode != null && !widget.focusNode!.hasFocus) {
-      _removeOverlay();
+    if (!_effectiveFocusNode.hasFocus) {
+      // Delay hiding to allow tap to register
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted && !_effectiveFocusNode.hasFocus) {
+          setState(() {
+            _filteredSuggestions = [];
+          });
+        }
+      });
     }
   }
 
@@ -68,44 +68,23 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
     if (_isSelecting) return;
 
     final query = widget.controller.text.trim().toLowerCase();
-
-    // Notify parent of changes
     widget.onChanged?.call(widget.controller.text);
 
     if (query.isEmpty) {
-      _removeOverlay();
+      if (mounted) {
+        setState(() {
+          _filteredSuggestions = [];
+        });
+      }
       return;
     }
 
     setState(() {
       _filteredSuggestions = widget.suggestions.where((s) {
         final sLower = s.toLowerCase();
-        // Show suggestion if it matches query BUT is not an exact match
-        // This solves the issue of the suggestion box persisting after selection
         return sLower.contains(query) && sLower != query;
       }).toList();
     });
-
-    if (_filteredSuggestions.isNotEmpty) {
-      _showOverlay();
-    } else {
-      _removeOverlay();
-    }
-  }
-
-  void _showOverlay() {
-    if (_overlayEntry != null) {
-      _overlayEntry!.markNeedsBuild();
-      return;
-    }
-
-    _overlayEntry = _createOverlayEntry();
-    Overlay.of(context).insert(_overlayEntry!);
-  }
-
-  void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
   }
 
   void _selectSuggestion(String suggestion) {
@@ -116,133 +95,91 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
     );
     _isSelecting = false;
 
-    // Explicitly hide overlay and clear suggestions after selection
-    _removeOverlay();
-    if (!mounted) return;
     setState(() {
       _filteredSuggestions = [];
     });
 
-    // Notify parent
     widget.onChanged?.call(suggestion);
-  }
-
-  OverlayEntry _createOverlayEntry() {
-    if (!mounted) return OverlayEntry(builder: (_) => const SizedBox.shrink());
-    RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) {
-      return OverlayEntry(builder: (_) => const SizedBox.shrink());
-    }
-
-    final size = renderBox.size;
-    final offset = renderBox.localToGlobal(Offset.zero);
-    final availableHeight = MediaQuery.of(context).size.height;
-    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-
-    // Calculate space below and above
-    final spaceBelow =
-        availableHeight - keyboardHeight - offset.dy - size.height;
-    final spaceAbove = offset.dy - MediaQuery.of(context).padding.top;
-
-    // Decide position: prefer below, but switch to above if space is tight
-    final showAbove = spaceBelow < 200 && spaceAbove > spaceBelow;
-
-    return OverlayEntry(
-      builder: (context) => Positioned(
-        width: size.width,
-        child: CompositedTransformFollower(
-          link: _layerLink,
-          showWhenUnlinked: false,
-          // If showing above, offset by - (maxHeight + small margin)
-          // Since we don't know the exact child height yet, we use the constraints or a standard max
-          offset: Offset(0.0, showAbove ? -205.0 : size.height + 5.0),
-          child: TapRegion(
-            onTapOutside: (event) {
-              _removeOverlay();
-            },
-            child: Material(
-              elevation: 8.0,
-              borderRadius: BorderRadius.circular(8),
-              color: AppColors.cardBg,
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 200),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: AppColors.cardBg,
-                  border: Border.all(color: AppColors.borderLight),
-                ),
-                child: ListView.separated(
-                  padding: EdgeInsets.zero,
-                  shrinkWrap: true,
-                  physics: const ClampingScrollPhysics(), // Better for overlay
-                  itemCount: _filteredSuggestions.length,
-                  separatorBuilder: (context, index) =>
-                      const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final suggestion = _filteredSuggestions[index];
-                    return GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTapDown: (_) {
-                        // On mobile web, we need to capture the hit before focus changes
-                        _selectSuggestion(suggestion);
-                        widget.onSubmitted(suggestion);
-                      },
-                      child: InkWell(
-                        onTap:
-                            () {}, // Handled by onTapDown for faster response
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Text(
-                            suggestion,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: TextField(
-        controller: widget.controller,
-        focusNode: widget.focusNode,
-        autofocus: true,
-        textInputAction: TextInputAction.done,
-        scrollPadding: const EdgeInsets.only(
-            bottom: 200), // Ensure field stays above keyboard
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
-        decoration: InputDecoration(
-          hintText: widget.hintText,
-          hintStyle: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-          border: InputBorder.none,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: widget.controller,
+          focusNode: _effectiveFocusNode,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          // Reduced scrollPadding to prevent excessive sinking
+          scrollPadding: const EdgeInsets.only(bottom: 120),
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            hintText: widget.hintText,
+            hintStyle: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: AppColors.textSecondary),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+            isDense: true,
+          ),
+          onSubmitted: (value) {
+            setState(() {
+              _filteredSuggestions = [];
+            });
+            widget.onSubmitted(value);
+          },
         ),
-        onSubmitted: (value) {
-          _removeOverlay();
-          widget.onSubmitted(value);
-        },
-      ),
+        if (_filteredSuggestions.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 200),
+            decoration: BoxDecoration(
+              color: AppColors.inputBg,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.borderLight),
+            ),
+            child: ListView.separated(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              physics: const ClampingScrollPhysics(),
+              itemCount: _filteredSuggestions.length,
+              separatorBuilder: (context, index) => Divider(
+                height: 1,
+                color: AppColors.borderLight.withValues(alpha: 0.5),
+              ),
+              itemBuilder: (context, index) {
+                final suggestion = _filteredSuggestions[index];
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (_) {
+                    _selectSuggestion(suggestion);
+                    widget.onSubmitted(suggestion);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Text(
+                      suggestion,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

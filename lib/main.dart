@@ -26,10 +26,8 @@ void main() async {
     UpdateService.startPolling();
     // Initialize Hive before runApp on Web for a seamless 1x loading experience
     await HiveService.init();
-    // Initialize BackupService earlier to handle Google Sign-In session persistence
-    try {
-      await BackupService().init();
-    } catch (_) {}
+    // Initialize BackupService early (non-blocking)
+    BackupService().init();
   }
 
   if (!kIsWeb) {

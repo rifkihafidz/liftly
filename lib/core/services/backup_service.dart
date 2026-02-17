@@ -15,6 +15,8 @@ class BackupException implements Exception {
   String toString() => message;
 }
 
+enum InitializationState { idle, pending, success, failed }
+
 class RestoreException implements Exception {
   final String message;
   RestoreException(this.message);
@@ -46,13 +48,17 @@ class BackupService {
   GoogleSignInAccount? get currentUser => _currentUser;
   Stream<GoogleSignInAccount?> get onCurrentUserChanged =>
       _googleSignIn.onCurrentUserChanged;
-  bool _initialized = false;
-  bool get isInitialized => _initialized;
+
+  InitializationState _initState = InitializationState.idle;
+  InitializationState get initState => _initState;
+  bool get isInitialized => _initState == InitializationState.success;
+  bool get isInitializing => _initState == InitializationState.pending;
+
   Future<void>? _initFuture;
 
   /// Check if user is already signed in silently
   Future<void> init() async {
-    if (_initialized) return;
+    if (isInitialized) return;
     if (_initFuture != null) return _initFuture;
 
     _initFuture = _initInternal();
@@ -60,6 +66,7 @@ class BackupService {
   }
 
   Future<void> _initInternal() async {
+    _initState = InitializationState.pending;
     try {
       // Small delay on Web to ensure GSI is ready
       if (kIsWeb) {
@@ -70,14 +77,16 @@ class BackupService {
       _currentUser = await _googleSignIn
           .signInSilently()
           .timeout(const Duration(seconds: 10));
-      debugPrint(
-          'BackupService: Silent sign in successful: ${_currentUser?.email}');
 
-      // Only mark initialized if successful (even if user is null)
-      _initialized = true;
+      if (kDebugMode) {
+        debugPrint(
+            'BackupService: Silent sign in successful: ${_currentUser?.email}');
+      }
+
+      _initState = InitializationState.success;
     } catch (e) {
       debugPrint('BackupService: Silent sign in skipped or timed out: $e');
-      // Do NOT mark initialized on error, allowing retry later
+      _initState = InitializationState.failed;
     } finally {
       _initFuture = null;
     }
@@ -86,7 +95,7 @@ class BackupService {
   /// Sign in with Google
   Future<GoogleSignInAccount?> signIn() async {
     // Ensure initialization is at least attempted
-    if (!_initialized && _initFuture != null) {
+    if (!isInitialized && _initFuture != null) {
       await _initFuture;
     }
 

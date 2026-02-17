@@ -31,6 +31,8 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
   late TextEditingController _descriptionController;
   late TextEditingController _newExerciseController;
   final _focusNode = FocusNode();
+  final _nameFocusNode = FocusNode();
+  final _descFocusNode = FocusNode();
   final List<_QueueItem> _exercises = [];
   bool _isAddingExercise = false;
   final List<String> _availableExercises = [];
@@ -93,7 +95,10 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
     _nameController.dispose();
     _descriptionController.dispose();
     _newExerciseController.dispose();
+    _newExerciseController.dispose();
     _focusNode.dispose();
+    _nameFocusNode.dispose();
+    _descFocusNode.dispose();
     super.dispose();
   }
 
@@ -217,6 +222,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                         const SizedBox(height: 8),
                         _buildTextField(
                           controller: _nameController,
+                          focusNode: _nameFocusNode,
                           hint: 'e.g., Push/Pull/Legs',
                         ),
                         const SizedBox(height: 24),
@@ -224,6 +230,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                         const SizedBox(height: 8),
                         _buildTextField(
                           controller: _descriptionController,
+                          focusNode: _descFocusNode,
                           hint: 'e.g., 3-day strength program',
                           maxLines: 3,
                         ),
@@ -441,6 +448,9 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                                           Future.delayed(
                                             const Duration(milliseconds: 100),
                                             () {
+                                              // Unfocus other fields to prevent double cursor
+                                              _nameFocusNode.unfocus();
+                                              _descFocusNode.unfocus();
                                               _focusNode.requestFocus();
                                             },
                                           );
@@ -487,7 +497,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                 ),
                 // Add extra conditional padding at bottom when keyboard is likely to be up
                 if (_isAddingExercise || _editingIndex != null)
-                  const SliverToBoxAdapter(child: SizedBox(height: 250)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
             ),
           ),
@@ -509,11 +519,13 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
 
   Widget _buildTextField({
     required TextEditingController controller,
+    FocusNode? focusNode,
     required String hint,
     int maxLines = 1,
   }) {
     return TextField(
       controller: controller,
+      focusNode: focusNode,
       maxLines: maxLines,
       style: const TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(

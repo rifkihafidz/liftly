@@ -30,13 +30,11 @@ class _SettingsPageState extends State<SettingsPage> {
   GoogleSignInAccount? _currentUser;
   bool _isAutoBackupEnabled = false;
   bool _isLoading = false;
-  late bool _isInitializing;
   StreamSubscription<GoogleSignInAccount?>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
-    _isInitializing = false; // No auto-init to prevent popup
     _loadBackupState();
     _setupAuthListener();
   }
@@ -57,14 +55,21 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
+  bool get _isCheckingStatus {
+    return BackupService().isInitializing;
+  }
+
   Future<void> _loadBackupState() async {
     try {
-      // Only check if already signed in, don't trigger sign-in
       final backupService = BackupService();
-      await backupService.init(); // Attempt silent sign-in
-      if (backupService.isInitialized) {
-        _currentUser = backupService.currentUser;
+
+      // If it's already initializing from main.dart, we should rebuild to show checking state
+      if (backupService.isInitializing) {
+        setState(() {});
       }
+
+      await backupService.init();
+      _currentUser = backupService.currentUser;
 
       final backupEnabled =
           await HiveService.getPreference('auto_backup_enabled');
@@ -580,7 +585,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           SectionHeader(title: AppConstants.headerCloudBackup),
                     ),
                     const SizedBox(height: 16),
-                    if (_isInitializing)
+                    if (_isCheckingStatus)
                       FadeInSlide(
                         index: 1,
                         child: MenuListItem(
