@@ -84,6 +84,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     });
   }
 
+  bool _allowPop = false;
+
   @override
   Widget build(BuildContext context) {
     final workoutDate = _editedWorkout.workoutDate;
@@ -100,6 +102,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
         },
         listener: (context, state) {
           if (state is WorkoutUpdatedSuccess) {
+            setState(() {
+              _allowPop = true;
+            });
             AppDialogs.showSuccessDialog(
               context: context,
               title: 'Success',
@@ -117,7 +122,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
           }
         },
         child: PopScope(
-          canPop: false,
+          canPop: _allowPop,
           onPopInvokedWithResult: (didPop, result) async {
             if (didPop) return;
             _handleBack();
@@ -289,6 +294,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     final hasChanges = _editedWorkout != widget.workout;
 
     if (!hasChanges) {
+      setState(() {
+        _allowPop = true;
+      });
       if (mounted) Navigator.pop(context);
       return;
     }
@@ -298,6 +306,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     );
 
     if (shouldDiscard == true && mounted) {
+      setState(() {
+        _allowPop = true;
+      });
       Navigator.pop(context);
     }
   }
