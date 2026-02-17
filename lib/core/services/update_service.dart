@@ -33,21 +33,31 @@ class UpdateService {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final response = await http.get(
         Uri.parse('version.json?v=$timestamp'),
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
       );
+
+      if (kDebugMode) {
+        print('Version check response: ${response.statusCode}');
+      }
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final serverVersion = data['version'] as String?;
 
         if (serverVersion != null) {
-          // Sync check: ignore build numbers (the part after +)
           final cleanServer = serverVersion.split('+')[0];
           final cleanApp = AppConstants.appVersion.split('+')[0];
 
+          if (kDebugMode) {
+            print('Comparing Versions - Server: $cleanServer, App: $cleanApp');
+          }
+
           if (cleanServer != cleanApp) {
-            if (kDebugMode) {
-              print('New version available: $cleanServer. Current: $cleanApp');
-            }
+            debugPrint('UPDATE REQUIRED: $cleanApp -> $cleanServer');
             _timer?.cancel();
             platform.reloadPage();
           }

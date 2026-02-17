@@ -255,10 +255,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverAppBar(
-                pinned: true,
-                centerTitle: false,
-                backgroundColor: AppColors.darkBg,
-                surfaceTintColor: AppColors.darkBg,
+                automaticallyImplyLeading: false,
                 title: Text(
                   'Start Workout',
                   style: TextStyle(
@@ -266,13 +263,6 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                     fontWeight: FontWeight.bold,
                     letterSpacing: -0.5,
                   ),
-                ),
-                leading: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back,
-                    color: AppColors.textPrimary,
-                  ),
-                  onPressed: () => Navigator.pop(context),
                 ),
                 actions: [
                   PopupMenuButton<PlanSortOption>(

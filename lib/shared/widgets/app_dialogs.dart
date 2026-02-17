@@ -390,6 +390,7 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
                   vertical: 14,
                 ),
               ),
+              scrollPadding: const EdgeInsets.only(bottom: 200),
               onSubmitted: (value) {
                 if (value.trim().isNotEmpty) {
                   widget.onConfirm(value.trim());
@@ -417,29 +418,35 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
                     ),
                     itemBuilder: (context, index) {
                       final suggestion = _filteredSuggestions[index];
-                      return InkWell(
-                        onTap: () => _selectSuggestion(suggestion),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(index == 0 ? 12 : 0),
-                          topRight: Radius.circular(index == 0 ? 12 : 0),
-                          bottomLeft: Radius.circular(
-                            index == _filteredSuggestions.length - 1 ? 12 : 0,
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapDown: (_) => _selectSuggestion(suggestion),
+                        child: InkWell(
+                          onTap: () {},
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(index == 0 ? 12 : 0),
+                            topRight: Radius.circular(index == 0 ? 12 : 0),
+                            bottomLeft: Radius.circular(
+                              index == _filteredSuggestions.length - 1 ? 12 : 0,
+                            ),
+                            bottomRight: Radius.circular(
+                              index == _filteredSuggestions.length - 1 ? 12 : 0,
+                            ),
                           ),
-                          bottomRight: Radius.circular(
-                            index == _filteredSuggestions.length - 1 ? 12 : 0,
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Text(
-                            suggestion,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(color: AppColors.textPrimary),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            child: Text(
+                              suggestion,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                            ),
                           ),
                         ),
                       );

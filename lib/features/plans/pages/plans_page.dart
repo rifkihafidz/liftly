@@ -117,15 +117,6 @@ class _PlansPageState extends State<PlansPage> {
                             letterSpacing: -0.5,
                           ),
                         ),
-                        leading: Navigator.canPop(context)
-                            ? IconButton(
-                                icon: const Icon(
-                                  Icons.arrow_back,
-                                  color: AppColors.textPrimary,
-                                ),
-                                onPressed: () => Navigator.pop(context),
-                              )
-                            : null,
                         actions: [
                           PopupMenuButton<PlanSortOption>(
                             icon: const Icon(

@@ -180,23 +180,30 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
                       const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final suggestion = _filteredSuggestions[index];
-                    return InkWell(
-                      // Use hitTestBehavior to ensure taps are captured
-                      onTap: () {
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapDown: (_) {
+                        // On mobile web, we need to capture the hit before focus changes
                         _selectSuggestion(suggestion);
                         widget.onSubmitted(suggestion);
                       },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        child: Text(
-                          suggestion,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppColors.textPrimary,
-                                  ),
+                      child: InkWell(
+                        onTap:
+                            () {}, // Handled by onTapDown for faster response
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Text(
+                            suggestion,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
+                          ),
                         ),
                       ),
                     );
