@@ -49,10 +49,7 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
         setIndex(0);
       },
       child: Scaffold(
-        body: IndexedStack(
-          index: safeIndex,
-          children: pages,
-        ),
+        body: pages[safeIndex],
         bottomNavigationBar: isMobile && safeIndex != 0
             ? Container(
                 decoration: BoxDecoration(

@@ -489,8 +489,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                     ),
                   ),
                 ),
-                // Add extra padding at bottom
-                const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
             ),
           ),

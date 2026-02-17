@@ -36,6 +36,7 @@ class _StatsPageState extends State<StatsPage> {
     super.initState();
     _scrollController = ScrollController();
     _sharePreviewController = ScreenshotController();
+    context.read<StatsBloc>().add(const StatsFetched(userId: '1'));
   }
 
   @override

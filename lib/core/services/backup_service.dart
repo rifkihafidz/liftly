@@ -69,7 +69,7 @@ class BackupService {
       // Add a timeout to prevent hanging on web
       _currentUser = await _googleSignIn
           .signInSilently()
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 10));
       debugPrint(
           'BackupService: Silent sign in successful: ${_currentUser?.email}');
 

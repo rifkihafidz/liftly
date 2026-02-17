@@ -142,40 +142,52 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
           link: _layerLink,
           showWhenUnlinked: false,
           offset: Offset(0.0, size.height + 5.0),
-          child: Material(
-            elevation: 8.0,
-            borderRadius: BorderRadius.circular(8),
-            color: AppColors.cardBg,
-            child: Container(
-              constraints: const BoxConstraints(maxHeight: 200),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: AppColors.cardBg,
-                border: Border.all(color: AppColors.borderLight),
-              ),
-              child: ListView.separated(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: _filteredSuggestions.length,
-                separatorBuilder: (context, index) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final suggestion = _filteredSuggestions[index];
-                  return InkWell(
-                    onTap: () => _selectSuggestion(suggestion),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        suggestion,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textPrimary,
+          child: TapRegion(
+            onTapOutside: (event) {
+              _removeOverlay();
+            },
+            child: Material(
+              elevation: 8.0,
+              borderRadius: BorderRadius.circular(8),
+              color: AppColors.cardBg,
+              child: Container(
+                constraints: const BoxConstraints(maxHeight: 200),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.cardBg,
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: ListView.separated(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: _filteredSuggestions.length,
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final suggestion = _filteredSuggestions[index];
+                    return InkWell(
+                      onTap: () {
+                        _selectSuggestion(suggestion);
+                        // Also trigger onSubmitted if needed, though _selectSuggestion
+                        // already updates the text.
+                        widget.onSubmitted(suggestion);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Text(
+                          suggestion,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ),

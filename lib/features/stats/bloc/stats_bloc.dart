@@ -52,6 +52,8 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
           timePeriod: defaultPeriod,
           referenceDate: now,
           personalRecords: results['prs'] as Map<String, PersonalRecord>,
+          prFilter: null,
+          sortOrder: PrSortOrder.az,
         ),
       );
     } catch (e) {
