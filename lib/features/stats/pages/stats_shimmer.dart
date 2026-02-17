@@ -14,6 +14,8 @@ class StatsPageShimmer extends StatelessWidget {
           SliverAppBar(
             pinned: true,
             centerTitle: false,
+            leadingWidth: 56,
+            leading: const SizedBox.shrink(),
             backgroundColor: AppColors.darkBg,
             surfaceTintColor: AppColors.darkBg,
             title: Shimmer.fromColors(

@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../session/pages/workout_history_page.dart';
 import '../../plans/pages/plans_page.dart';
 import '../../settings/pages/settings_page.dart';
@@ -38,6 +40,17 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
         _showErrorSnackBar(message);
       }
     });
+
+    // Defer initialization further to ensure browser identity services are stable
+    if (kIsWeb) {
+      Future.delayed(const Duration(milliseconds: 3500), () {
+        if (mounted) {
+          BackupService().init();
+        }
+      });
+    } else {
+      BackupService().init();
+    }
   }
 
   void _showErrorSnackBar(String message) {
@@ -50,8 +63,14 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
           label: 'Copy',
           textColor: Colors.white,
           onPressed: () {
-            // TODO: Copy to clipboard if needed, for now just dismiss
+            Clipboard.setData(ClipboardData(text: message));
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Copied to clipboard'),
+                duration: Duration(seconds: 2),
+              ),
+            );
           },
         ),
       ),
@@ -97,7 +116,7 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
       },
       child: Scaffold(
         body: pages[safeIndex],
-        bottomNavigationBar: isMobile && safeIndex != 0
+        bottomNavigationBar: isMobile
             ? Container(
                 decoration: BoxDecoration(
                   border: Border(

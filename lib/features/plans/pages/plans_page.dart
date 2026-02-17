@@ -105,18 +105,10 @@ class _PlansPageState extends State<PlansPage> {
                     slivers: [
                       SliverAppBar(
                         pinned: true,
-                        centerTitle: false,
                         automaticallyImplyLeading: false,
-                        backgroundColor: AppColors.darkBg,
-                        surfaceTintColor: AppColors.darkBg,
-                        title: const Text(
-                          'Workout Plans',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
+                        leadingWidth: 56,
+                        leading: const SizedBox.shrink(),
+                        title: const Text('Workout Plans'),
                         actions: [
                           PopupMenuButton<PlanSortOption>(
                             icon: const Icon(

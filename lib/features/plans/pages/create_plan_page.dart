@@ -171,17 +171,10 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
               slivers: [
                 SliverAppBar(
                   pinned: true,
-                  centerTitle: false,
-                  backgroundColor: AppColors.darkBg,
-                  surfaceTintColor: AppColors.darkBg,
                   title: Text(
                     widget.plan == null ? 'Create Plan' : 'Edit Plan',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
-                    ),
                   ),
+                  // centerTitle override removed
                   leading: IconButton(
                     icon: const Icon(
                       Icons.arrow_back,
@@ -229,8 +222,42 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        if (_exercises.isNotEmpty)
+                        if (_exercises.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(vertical: 40),
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AppColors.cardBg.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color:
+                                    AppColors.borderDark.withValues(alpha: 0.5),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.fitness_center_outlined,
+                                  size: 40,
+                                  color: AppColors.textSecondary
+                                      .withValues(alpha: 0.2),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No exercises added yet',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
                           ReorderableListView.builder(
+                            buildDefaultDragHandles: false,
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: _exercises.length,

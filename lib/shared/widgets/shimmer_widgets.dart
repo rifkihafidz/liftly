@@ -141,6 +141,8 @@ class WorkoutListShimmer extends StatelessWidget {
         SliverAppBar(
           pinned: true,
           centerTitle: false,
+          leadingWidth: 56,
+          leading: const SizedBox.shrink(),
           elevation: 0,
           scrolledUnderElevation: 0,
           backgroundColor: AppColors.darkBg,
@@ -402,6 +404,8 @@ class PlanListShimmer extends StatelessWidget {
         SliverAppBar(
           pinned: true,
           centerTitle: false,
+          leadingWidth: 56,
+          leading: const SizedBox.shrink(),
           backgroundColor: AppColors.darkBg,
           surfaceTintColor: AppColors.darkBg,
           title: Shimmer.fromColors(

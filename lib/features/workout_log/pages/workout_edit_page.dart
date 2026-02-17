@@ -126,42 +126,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                 SliverAppBar(
                   expandedHeight: 0,
                   pinned: true,
-                  centerTitle: false,
                   floating: true,
-                  backgroundColor: AppColors.darkBg,
-                  elevation: 0,
-                  surfaceTintColor: AppColors.darkBg,
-                  leading: IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: AppColors.textPrimary,
-                    ),
-                    onPressed: () async {
-                      if (_editedWorkout != widget.workout) {
-                        final shouldDiscard =
-                            await AppDialogs.showConfirmationDialog(
-                          context: context,
-                          title: 'Discard Changes?',
-                          message:
-                              'You have unsaved changes. Are you sure you want to discard them?',
-                          confirmText: 'Discard',
-                          isDangerous: true,
-                        );
-                        if (shouldDiscard == true && context.mounted) {
-                          Navigator.pop(context);
-                        }
-                      } else {
-                        Navigator.pop(context);
-                      }
-                    },
-                  ),
-                  title: const Text(
-                    'Edit Workout',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  title: const Text('Edit Workout'),
                   actions: [
                     IconButton(
                       icon: const Icon(
@@ -827,10 +793,10 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
           pr: widget.pr,
           onHistoryTap: widget.onHistoryTap,
         ),
-        const SizedBox(height: 16),
-        ...sets.map(
-          (set) => ViewSetRow(key: ValueKey('view_set_${set.id}'), set: set),
-        ),
+        if (!_currentExercise.skipped)
+          ...sets.map(
+            (set) => ViewSetRow(key: ValueKey('view_set_${set.id}'), set: set),
+          ),
         const SizedBox(height: 16),
         FilledButton.icon(
           onPressed: () => setState(() => _isEditing = true),

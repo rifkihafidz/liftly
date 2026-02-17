@@ -149,25 +149,10 @@ class _SessionPageState extends State<SessionPage> {
                           expandedHeight: 0,
                           pinned: true,
                           floating: true,
-                          centerTitle: false,
-                          backgroundColor: AppColors.darkBg,
-                          elevation: 0,
-                          surfaceTintColor: AppColors.darkBg,
-                          leading: IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: AppColors.textPrimary,
-                            ),
-                            onPressed: () => Navigator.maybePop(context),
-                          ),
                           title: Text(
                             widget.draftSession != null
                                 ? 'Resume Workout'
                                 : 'Log Workout',
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.bold,
-                            ),
                           ),
                           actions: [
                             IconButton(
@@ -797,10 +782,6 @@ class _SessionPageState extends State<SessionPage> {
                                 fontWeight: FontWeight.w500,
                                 color: AppColors.textPrimary,
                               ),
-                            ),
-                            trailing: const Icon(
-                              Icons.drag_handle_rounded,
-                              color: AppColors.textSecondary,
                             ),
                           );
                         },

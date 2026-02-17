@@ -16,7 +16,6 @@ import 'package:flutter/foundation.dart';
 import 'shared/widgets/error_view.dart';
 import 'core/services/update_service.dart';
 import 'core/services/hive_service.dart';
-import 'core/services/backup_service.dart';
 import 'features/home/pages/main_navigation_wrapper.dart';
 
 void main() async {
@@ -26,8 +25,6 @@ void main() async {
     UpdateService.startPolling();
     // Initialize Hive before runApp on Web for a seamless 1x loading experience
     await HiveService.init();
-    // Initialize BackupService early (non-blocking)
-    BackupService().init();
   }
 
   if (!kIsWeb) {

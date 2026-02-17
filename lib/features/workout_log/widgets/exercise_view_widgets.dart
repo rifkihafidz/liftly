@@ -75,38 +75,40 @@ class ExerciseViewHeader extends StatelessWidget {
                 ),
               ),
             ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(
-                Icons.layers_outlined,
-                size: 16,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${exercise.sets.length} Sets',
-                style: const TextStyle(
+          if (!exercise.skipped) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(
+                  Icons.layers_outlined,
+                  size: 16,
                   color: AppColors.textSecondary,
-                  fontSize: 14,
                 ),
-              ),
-              const SizedBox(width: 16),
-              const Icon(
-                Icons.fitness_center_outlined,
-                size: 16,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${exercise.totalVolume > 0 ? NumberFormat('#,##0.##', 'pt_BR').format(exercise.totalVolume) : "-"} kg',
-                style: const TextStyle(
+                const SizedBox(width: 4),
+                Text(
+                  '${exercise.sets.length} Sets',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Icon(
+                  Icons.fitness_center_outlined,
+                  size: 16,
                   color: AppColors.textSecondary,
-                  fontSize: 14,
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 4),
+                Text(
+                  '${exercise.totalVolume > 0 ? NumberFormat('#,##0.##', 'pt_BR').format(exercise.totalVolume) : "-"} kg',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (pr != null) ...[
             const SizedBox(height: 12),
             const Divider(height: 1, color: AppColors.borderLight),

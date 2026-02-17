@@ -74,9 +74,8 @@ class ExerciseListSummaryCard extends StatelessWidget {
                               color: AppColors.textPrimary,
                               fontWeight: FontWeight.w600,
                               fontSize: 16,
-                              decoration: isSkipped
-                                  ? TextDecoration.lineThrough
-                                  : null,
+                              decoration:
+                                  isSkipped ? TextDecoration.lineThrough : null,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -104,38 +103,40 @@ class ExerciseListSummaryCard extends StatelessWidget {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.layers_outlined,
-                          size: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${sets.length} Sets',
-                          style: const TextStyle(
+                    if (!isSkipped) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.layers_outlined,
+                            size: 14,
                             color: AppColors.textSecondary,
-                            fontSize: 12,
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Icon(
-                          Icons.fitness_center_outlined,
-                          size: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${totalVol > 0 ? NumberFormat('#,##0.##', 'pt_BR').format(totalVol) : "-"} kg',
-                          style: const TextStyle(
+                          const SizedBox(width: 4),
+                          Text(
+                            '${sets.length} Sets',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Icon(
+                            Icons.fitness_center_outlined,
+                            size: 14,
                             color: AppColors.textSecondary,
-                            fontSize: 12,
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${totalVol > 0 ? NumberFormat('#,##0.##', 'pt_BR').format(totalVol) : "-"} kg',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

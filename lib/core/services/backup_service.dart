@@ -31,19 +31,41 @@ class BackupService {
   factory BackupService() => _instance;
 
   BackupService._internal() {
-    _googleSignIn.onCurrentUserChanged.listen((user) {
-      _currentUser = user;
+    // Listen to the new authenticationEvents stream to maintain local state
+    _googleSignIn.authenticationEvents.listen((event) {
+      if (event is GoogleSignInAuthenticationEventSignIn) {
+        _currentUser = event.user;
+        _userChangeController.add(_currentUser);
+      } else if (event is GoogleSignInAuthenticationEventSignOut) {
+        _currentUser = null;
+        _userChangeController.add(null);
+      }
+    }, onError: (Object error) {
+      debugPrint('BackupService: Authentication stream error: $error');
+      _lastError = 'Authentication error: $error';
+      _errorController.add(_lastError!);
     });
   }
 
-  // Error stream for UI feedback
+  // Use the singleton instance
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+
+  // Manual state management
+  GoogleSignInAccount? _currentUser;
+  GoogleSignInAccount? get currentUser => _currentUser;
+
+  // Replicate onCurrentUserChanged for the rest of the app
+  final _userChangeController =
+      StreamController<GoogleSignInAccount?>.broadcast();
+  Stream<GoogleSignInAccount?> get onCurrentUserChanged =>
+      _userChangeController.stream;
+
   // Error stream for UI feedback
   final _errorController = StreamController<String>.broadcast();
   String? _lastError;
 
   Stream<String> get onError {
     if (_lastError != null) {
-      // Emit last error immediately to new listeners if present
       Future.delayed(Duration.zero, () {
         _errorController.add(_lastError!);
       });
@@ -52,20 +74,6 @@ class BackupService {
   }
 
   String? get lastError => _lastError;
-
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: kIsWeb ? AppConstants.googleClientId : null,
-    scopes: [
-      'email',
-      'openid',
-      drive.DriveApi.driveFileScope,
-    ],
-  );
-
-  GoogleSignInAccount? _currentUser;
-  GoogleSignInAccount? get currentUser => _currentUser;
-  Stream<GoogleSignInAccount?> get onCurrentUserChanged =>
-      _googleSignIn.onCurrentUserChanged;
 
   InitializationState _initState = InitializationState.idle;
   InitializationState get initState => _initState;
@@ -86,47 +94,37 @@ class BackupService {
   Future<void> _initInternal() async {
     _initState = InitializationState.pending;
     try {
-      // Small delay on Web to ensure GSI is ready
+      // In 7.2.0, initialize must be called once
+      debugPrint('BackupService: Initializing GoogleSignIn singleton...');
+      await _googleSignIn.initialize(
+        clientId: kIsWeb ? AppConstants.googleClientId : null,
+      );
+
+      // Web specific delay to ensure Identity Services are fully hooked
       if (kIsWeb) {
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(const Duration(milliseconds: 3000));
+        debugPrint('BackupService: Starting silent sign-in check (Web)...');
       }
 
-      // Add a timeout to prevent hanging on web, but slightly longer
-      // Also catching more specific errors if needed
-      _currentUser = await _googleSignIn
-          .signInSilently()
-          .timeout(const Duration(seconds: 15));
-
-      // Fallback: Check if currentUser is already populated in the plugin
-      if (_currentUser == null && _googleSignIn.currentUser != null) {
-        _currentUser = _googleSignIn.currentUser;
+      // In 7.0.0+, attemptLightweightAuthentication is the new silent sign-in
+      // FedCM on Web typically returns null here and relies on authenticationEvents
+      final silentResultFuture =
+          _googleSignIn.attemptLightweightAuthentication();
+      if (silentResultFuture != null) {
+        _currentUser =
+            await silentResultFuture.timeout(const Duration(seconds: 20));
         debugPrint(
-            'BackupService: signInSilently null, but currentUser found: ${_currentUser?.email}');
-      }
-
-      if (_currentUser != null) {
-        debugPrint(
-            'BackupService: Silent sign in successful: ${_currentUser?.email}');
-        _initState = InitializationState.success;
+            'BackupService: Silent sign-in result: ${_currentUser?.email}');
       } else {
-        debugPrint('BackupService: Silent sign in returned null (no session)');
-        // Ensure we mark as success (completed) even if no user, so UI doesn't hang on "Checking"
-        _initState = InitializationState.success;
-      }
-    } catch (e) {
-      debugPrint('BackupService: Silent sign in error: $e');
-      _lastError = 'Auto-signin error: $e';
-      _errorController.add(_lastError!);
-      // Check if currentUser is populated despite error
-      if (_googleSignIn.currentUser != null) {
-        _currentUser = _googleSignIn.currentUser;
-        _initState = InitializationState.success;
         debugPrint(
-            'BackupService: Recovered user from error: ${_currentUser?.email}');
-        return;
+            'BackupService: Silent sign-in delegated to authenticationEvents (FedCM mode)');
       }
 
-      // If error occurs, we still want to allow manual sign in, so set to success (idle) but with no user
+      _initState = InitializationState.success;
+    } catch (e) {
+      debugPrint('BackupService: Initialization error: $e');
+      _lastError = 'Google Sign-In initialization failed: $e';
+      _errorController.add(_lastError!);
       _initState = InitializationState.success;
     } finally {
       _initFuture = null;
@@ -135,19 +133,19 @@ class BackupService {
 
   /// Sign in with Google
   Future<GoogleSignInAccount?> signIn() async {
-    // Ensure initialization is at least attempted
-    if (!isInitialized && _initFuture != null) {
-      await _initFuture;
-    }
+    if (!isInitialized) await init();
 
     try {
-      // Add a 5-minute timeout for interactive login (manual entry + 2FA)
-      _currentUser =
-          await _googleSignIn.signIn().timeout(const Duration(minutes: 3));
+      debugPrint('BackupService: Starting interactive sign-in...');
+      _currentUser = await _googleSignIn
+          .authenticate()
+          .timeout(const Duration(minutes: 3));
+
+      _userChangeController.add(_currentUser);
       return _currentUser;
     } catch (e) {
-      debugPrint('BackupService: Sign in failed or timed out: $e');
-      throw BackupException('Sign in failed or timed out: ${e.toString()}');
+      debugPrint('BackupService: Sign in failed: $e');
+      throw BackupException('Sign in failed: ${e.toString()}');
     }
   }
 
@@ -156,6 +154,7 @@ class BackupService {
     try {
       await _googleSignIn.disconnect();
       _currentUser = null;
+      _userChangeController.add(null);
     } catch (e) {
       debugPrint('BackupService: Sign out failed: $e');
     }
@@ -189,23 +188,28 @@ class BackupService {
       return null;
     }
 
-    // Ensure we have the required scopes (especially important on Web)
-    debugPrint('BackupService: Verifying Drive scope before backup...');
     await _ensureDriveScope(silent: silent);
 
     try {
-      debugPrint('BackupService: Retrieving auth headers...');
-      final headers = await _currentUser!.authHeaders;
-      debugPrint(
-          'BackupService: Headers retrieved successfully. Initializing client...');
+      debugPrint('BackupService: Obtaining Drive authorization headers...');
+      // Use the convenient authorizationHeaders helper from 7.2.0
+      final headers =
+          await _currentUser!.authorizationClient.authorizationHeaders(
+        [drive.DriveApi.driveFileScope],
+        promptIfNecessary: !silent,
+      );
+
+      if (headers == null) {
+        throw BackupException(
+            'Could not obtain authorization for Google Drive-');
+      }
+
       final client = _GoogleAuthClient(headers);
       final driveApi = drive.DriveApi(client);
 
-      debugPrint('BackupService: Generating Excel bytes...');
       final fileBytes = await DataManagementService.generateExcelBytes(
           exportOnlyPlans: exportOnlyPlans);
 
-      debugPrint('BackupService: Accessing backup folder...');
       final folderId = await _getOrCreateBackupFolder(driveApi);
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final prefix = exportOnlyPlans ? 'plans' : 'liftly_data';
@@ -269,7 +273,14 @@ class BackupService {
     await _ensureDriveScope();
 
     try {
-      final headers = await _currentUser!.authHeaders;
+      final headers =
+          await _currentUser!.authorizationClient.authorizationHeaders(
+        [drive.DriveApi.driveFileScope],
+        promptIfNecessary: true,
+      );
+
+      if (headers == null) throw BackupException('Authorization failed');
+
       final client = _GoogleAuthClient(headers);
       final driveApi = drive.DriveApi(client);
 
@@ -298,11 +309,17 @@ class BackupService {
     await _ensureDriveScope();
 
     try {
-      final headers = await _currentUser!.authHeaders;
+      final headers =
+          await _currentUser!.authorizationClient.authorizationHeaders(
+        [drive.DriveApi.driveFileScope],
+        promptIfNecessary: true,
+      );
+
+      if (headers == null) throw RestoreException('Authorization failed');
+
       final client = _GoogleAuthClient(headers);
       final driveApi = drive.DriveApi(client);
 
-      // 1. Get file metadata for size
       onProgress?.call(0.05, 'Fetching backup info...');
       final fileMetadata = await driveApi.files.get(
         fileId,
@@ -310,14 +327,12 @@ class BackupService {
       ) as drive.File;
       final totalSize = int.tryParse(fileMetadata.size ?? '0') ?? 0;
 
-      // 2. Download media
       onProgress?.call(0.1, 'Downloading backup from Cloud...');
       final mediaResponse = await driveApi.files.get(
         fileId,
         downloadOptions: drive.DownloadOptions.fullMedia,
       ) as drive.Media;
 
-      // 3. Read bytes with progress
       final bytes = <int>[];
       int downloaded = 0;
       await for (final chunk in mediaResponse.stream) {
@@ -332,12 +347,10 @@ class BackupService {
 
       if (bytes.isEmpty) throw RestoreException('Selected file is empty');
 
-      // 4. Import using DataManagementService
       onProgress?.call(0.3, 'Processing backup data...');
       await DataManagementService.importDataFromBytes(
         Uint8List.fromList(bytes),
         onProgress: (p, msg) {
-          // Map DataManagementService progress (0.0-1.0) to (0.3-1.0)
           final mappedProgress = 0.3 + (0.7 * p);
           onProgress?.call(mappedProgress, msg);
         },
@@ -366,26 +379,20 @@ class _GoogleAuthClient extends http.BaseClient {
 extension on BackupService {
   Future<void> _ensureDriveScope({bool silent = false}) async {
     try {
-      debugPrint(
-          'BackupService: Checking for scope: ${drive.DriveApi.driveFileScope}');
-      final hasScope =
-          await _googleSignIn.canAccessScopes([drive.DriveApi.driveFileScope]);
+      if (_currentUser == null) return;
 
-      debugPrint('BackupService: hasScope result: $hasScope');
+      // authorizationHeaders handles both checking and requesting if promptIfNecessary is true
+      final headers =
+          await _currentUser!.authorizationClient.authorizationHeaders(
+        [drive.DriveApi.driveFileScope],
+        promptIfNecessary: !silent,
+      );
 
-      if (!hasScope) {
-        debugPrint(
-            'BackupService: Missing Drive scope, requesting via popup...');
-        final granted =
-            await _googleSignIn.requestScopes([drive.DriveApi.driveFileScope]);
-        debugPrint('BackupService: requestScopes granted result: $granted');
-        if (!granted && !silent) {
-          throw BackupException(
-              'Permission denied: Google Drive access is required to use this feature.');
-        }
+      if (headers != null) {
+        debugPrint('BackupService: Drive scope verified.');
       }
     } catch (e) {
-      debugPrint('BackupService: Scope check/request failed: $e');
+      debugPrint('BackupService: Scope authorization failed: $e');
     }
   }
 }

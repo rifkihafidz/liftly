@@ -29,8 +29,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   String _quote = '';
-  // State to track if we are in "Start Workout" mode within the Home tab
-  bool _isStartingWorkout = false;
 
   @override
   void initState() {
@@ -63,26 +61,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // If starting workout, show that page instead of Home content
-    // keeping it inside the Scaffold (and thus inside MainNavigationWrapper's body)
-    if (_isStartingWorkout) {
-      return PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-          setState(() {
-            _isStartingWorkout = false;
-          });
-        },
-        child: StartWorkoutPage(
-          onClose: () {
-            setState(() {
-              _isStartingWorkout = false;
-            });
-          },
-        ),
-      );
-    }
+    // Simplified build - removed conditional StartWorkoutPage embedding
 
     return Scaffold(
       backgroundColor: AppColors.darkBg,
@@ -109,16 +88,17 @@ class _HomePageState extends State<HomePage> {
                   SmoothPageRoute(page: SessionPage(draftSession: draft)),
                 );
               } else {
-                // Start New Workout
-                setState(() {
-                  _isStartingWorkout = true;
-                });
+                Navigator.push(
+                  context,
+                  SmoothPageRoute(page: const StartWorkoutPage()),
+                );
               }
             } else {
               // No Draft
-              setState(() {
-                _isStartingWorkout = true;
-              });
+              Navigator.push(
+                context,
+                SmoothPageRoute(page: const StartWorkoutPage()),
+              );
             }
           } else if (state is SessionError) {
             AppDialogs.showErrorDialog(

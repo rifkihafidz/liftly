@@ -205,7 +205,7 @@ class _StatsPageState extends State<StatsPage> {
 
         if (state is StatsError) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Statistics'), elevation: 0),
+            appBar: AppBar(title: const Text('Statistics')),
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -255,28 +255,10 @@ class _StatsPageState extends State<StatsPage> {
                   slivers: [
                     SliverAppBar(
                       pinned: true,
-                      centerTitle: false,
                       automaticallyImplyLeading: false,
-                      backgroundColor: AppColors.darkBg,
-                      surfaceTintColor: AppColors.darkBg,
-                      elevation: 0,
-                      title: Text(
-                        'Statistics',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      leading: Navigator.canPop(context)
-                          ? IconButton(
-                              icon: const Icon(
-                                Icons.arrow_back,
-                                color: AppColors.textPrimary,
-                              ),
-                              onPressed: () => Navigator.pop(context),
-                            )
-                          : null,
+                      leadingWidth: 56,
+                      leading: const SizedBox.shrink(),
+                      title: const Text('Statistics'),
                       actions: [
                         IconButton(
                           onPressed: () => _shareAsStoryImage(context, state),

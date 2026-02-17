@@ -44,13 +44,20 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.cardBg,
+        backgroundColor: AppColors.darkBg,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
         centerTitle: false,
+        titleSpacing: 0,
         titleTextStyle: TextStyle(
           color: AppColors.textPrimary,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+        iconTheme: IconThemeData(
+          color: AppColors.textPrimary,
+          size: 24,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

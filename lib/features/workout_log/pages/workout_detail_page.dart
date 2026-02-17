@@ -154,17 +154,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                 slivers: [
                   SliverAppBar(
                     pinned: true,
-                    centerTitle: false,
-                    backgroundColor: AppColors.darkBg,
-                    surfaceTintColor: AppColors.darkBg,
-                    title: Text(
-                      'Workout Details',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
+                    title: const Text('Workout Details'),
                     leading: IconButton(
                       icon: const Icon(
                         Icons.arrow_back,
@@ -194,8 +184,8 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                           );
                           if (updated == true && context.mounted) {
                             context.read<WorkoutBloc>().add(
-                              const WorkoutsFetched(userId: '1'),
-                            );
+                                  const WorkoutsFetched(userId: '1'),
+                                );
                           }
                         },
                       ),
