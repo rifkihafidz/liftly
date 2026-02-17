@@ -112,29 +112,45 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
         backgroundColor: AppColors.darkBg,
         body: BlocListener<WorkoutBloc, WorkoutState>(
           listener: (context, state) {
-            if (state is WorkoutsLoaded) {
+            if (state is WorkoutsLoaded || state is WorkoutUpdatedSuccess) {
               if (_isDeleting && mounted) {
                 _isDeleting = false;
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Close page
+                Navigator.pop(context); // Close "Deleting..." dialog
+                Navigator.pop(context); // Close detail page
                 AppDialogs.showSuccessDialog(
                   context: context,
                   title: 'Success',
                   message: 'Workout deleted successfully.',
                 );
-              } else if (!_isDeleting && mounted) {
+              } else if (mounted) {
                 final workoutId = _currentWorkout.id.toString();
-                try {
-                  final updatedWorkout = state.workouts.firstWhere((w) {
-                    return w.id == workoutId;
-                  });
-                  if (mounted) {
+
+                // If it's a success state, we can use the data directly if IDs match
+                if (state is WorkoutUpdatedSuccess && state.data != null) {
+                  final successData = WorkoutSession.fromMap(state.data!);
+                  if (successData.id == workoutId) {
+                    setState(() {
+                      _currentWorkout = successData;
+                    });
+                    return;
+                  }
+                }
+
+                // Otherwise, look in the updated list
+                if (state is WorkoutsLoaded) {
+                  try {
+                    final updatedWorkout = state.workouts.firstWhere((w) {
+                      return w.id == workoutId;
+                    });
                     setState(() {
                       _currentWorkout = updatedWorkout;
                     });
+                  } catch (e) {
+                    // Workout not found in list -> it was deleted!
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
                   }
-                } catch (e) {
-                  // Workout not found in list
                 }
               }
             } else if (state is WorkoutError && mounted) {
