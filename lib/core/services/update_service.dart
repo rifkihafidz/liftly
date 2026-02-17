@@ -56,7 +56,7 @@ class UpdateService {
             print('Comparing Versions - Server: $cleanServer, App: $cleanApp');
           }
 
-          if (cleanServer != cleanApp) {
+          if (_isUpdateRequired(cleanServer, cleanApp)) {
             debugPrint('UPDATE REQUIRED: $cleanApp -> $cleanServer');
             _timer?.cancel();
             platform.reloadPage();
@@ -74,5 +74,25 @@ class UpdateService {
 
   static void stopPolling() {
     _timer?.cancel();
+  }
+
+  static bool _isUpdateRequired(String serverVersion, String appVersion) {
+    try {
+      List<int> server = serverVersion.split('.').map(int.parse).toList();
+      List<int> app = appVersion.split('.').map(int.parse).toList();
+
+      for (int i = 0; i < 3; i++) {
+        // Assume missing parts are 0
+        int s = i < server.length ? server[i] : 0;
+        int a = i < app.length ? app[i] : 0;
+
+        if (s > a) return true;
+        if (s < a) return false;
+      }
+      return false; // Versions are equal
+    } catch (e) {
+      debugPrint('Error comparing versions: $e');
+      return false; // Default to no update on parse error
+    }
   }
 }
