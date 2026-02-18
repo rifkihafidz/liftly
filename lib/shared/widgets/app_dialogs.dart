@@ -463,7 +463,7 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
                     vertical: 14,
                   ),
                 ),
-                scrollPadding: const EdgeInsets.only(bottom: 48),
+                scrollPadding: const EdgeInsets.only(bottom: 20),
                 onSubmitted: (value) {
                   if (value.trim().isNotEmpty) {
                     widget.onConfirm(value.trim());
