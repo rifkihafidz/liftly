@@ -289,10 +289,13 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                                     Expanded(
                                       child: Row(
                                         children: [
-                                          const Icon(
-                                            Icons.drag_handle_rounded,
-                                            color: AppColors.textSecondary,
-                                            size: 20,
+                                          ReorderableDragStartListener(
+                                            index: index,
+                                            child: const Icon(
+                                              Icons.drag_handle_rounded,
+                                              color: AppColors.textSecondary,
+                                              size: 20,
+                                            ),
                                           ),
                                           const SizedBox(width: 12),
                                           Expanded(

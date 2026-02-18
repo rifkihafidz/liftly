@@ -434,66 +434,63 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
       title: Text(widget.title),
       content: SizedBox(
         width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.sentences,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
-              decoration: InputDecoration(
-                hintText: widget.hintText ?? 'Exercise Name',
-                hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                filled: true,
-                fillColor: AppColors.inputBg,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-              ),
-              scrollPadding: EdgeInsets.zero,
-              onSubmitted: (value) {
-                if (value.trim().isNotEmpty) {
-                  widget.onConfirm(value.trim());
-                  Navigator.pop(context);
-                }
-              },
-            ),
-            if (_filteredSuggestions.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Flexible(
-                child: Container(
-                  constraints: const BoxConstraints(maxHeight: 200),
-                  decoration: BoxDecoration(
-                    color: AppColors.inputBg,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _controller,
+                autofocus: true,
+                textCapitalization: TextCapitalization.sentences,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: widget.hintText ?? 'Exercise Name',
+                  hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                  filled: true,
+                  fillColor: AppColors.inputBg,
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.borderLight),
+                    borderSide: BorderSide.none,
                   ),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    padding: EdgeInsets.zero,
-                    itemCount: _filteredSuggestions.length,
-                    separatorBuilder: (context, index) => Divider(
-                      height: 1,
-                      color: AppColors.borderLight.withValues(alpha: 0.5),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty) {
+                    widget.onConfirm(value.trim());
+                    Navigator.pop(context);
+                  }
+                },
+              ),
+              if (_filteredSuggestions.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Flexible(
+                  child: Container(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    decoration: BoxDecoration(
+                      color: AppColors.inputBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.borderLight),
                     ),
-                    itemBuilder: (context, index) {
-                      final suggestion = _filteredSuggestions[index];
-                      return GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTapDown: (_) => _selectSuggestion(suggestion),
-                        child: InkWell(
-                          onTap: () {},
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      itemCount: _filteredSuggestions.length,
+                      separatorBuilder: (context, index) => Divider(
+                        height: 1,
+                        color: AppColors.borderLight.withValues(alpha: 0.5),
+                      ),
+                      itemBuilder: (context, index) {
+                        final suggestion = _filteredSuggestions[index];
+                        return InkWell(
+                          onTap: () => _selectSuggestion(suggestion),
                           borderRadius: BorderRadius.only(
                             topLeft: Radius.circular(index == 0 ? 12 : 0),
                             topRight: Radius.circular(index == 0 ? 12 : 0),
@@ -519,14 +516,14 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
                                   ),
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
       actions: [
