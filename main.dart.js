@@ -33252,7 +33252,7 @@ if(l.b===200){g=l
 k=B.dA.dT(0,A.b9A(A.b92(g.e)).dT(0,g.w))
 j=A.am(J.b7(k,"version"))
 if(j!=null){i=j.split("+")[0]
-h="1.5.5".split("+")[0]
+h="1.5.6".split("+")[0]
 if(A.buG(i,h)){A.d0().$1("UPDATE REQUIRED: "+A.m(h)+" -> "+A.m(i))
 g=$.bfV
 if(g!=null)g.aS(0)
@@ -77822,7 +77822,7 @@ k=A.b([A.bo(new A.aq(B.vt,A.ml(k.c,a2,a2,B.en,!0,b0,a2,a2,B.b6),a2),1)],a3)
 if(!f)B.b.M(k,s)
 if(f)k.push(A.ch(a2,a2,h*0.4))
 a3=A.b([A.aJ(k,B.n,a2,B.i,B.h,0,a2,a2)],a3)
-if(f)a3.push(new A.aq(B.Vi,A.aJ(s,B.n,a2,B.fG,B.h,0,a2,a2),a2))
+if(f)a3.push(new A.aq(B.Vh,A.aJ(s,B.n,a2,B.fG,B.h,0,a2,a2),a2))
 d=new A.aq(n,A.aI0(B.f2,a3,0,0),a2)
 if(!p)d=A.CR(!0,d,!0,B.ac,!0,!1)
 a3=a1.a
@@ -118372,7 +118372,7 @@ q=t.p
 r=A.ao(A.b([n,B.aA,o,B.aA,A.el(A.R(s,p,p,p,p,r==null?p:r.iM(B.r,16),p,p,p),2),B.cS,A.el(new A.a8c("Start Workout","Log a new session manually",B.wp,new A.aQ3(a),p),3),B.aU],q),B.E,p,B.i,B.h,0,B.o)
 s=A.bfb(new A.aQ4())
 o=A.x(a).ok.Q
-return A.jb(p,B.aq,A.v3(p,A.j3(0,p,p,B.M,p,B.S,p,p,B.cX,p,p,!1,B.a1,!1,A.b([new A.ed(B.VD,new A.en(r,p),p),new A.ed(B.fr,s,p),new A.en(new A.aq(B.pe,A.d3(A.R("1.5.5",p,p,p,p,o==null?p:o.Qj(B.r.af(0.5),12,1),p,p,p),p,p),p),p)],q)),p,new A.aQ5(),t.Q,t.CK),p,p)}}
+return A.jb(p,B.aq,A.v3(p,A.j3(0,p,p,B.M,p,B.S,p,p,B.cX,p,p,!1,B.a1,!1,A.b([new A.ed(B.VD,new A.en(r,p),p),new A.ed(B.fr,s,p),new A.en(new A.aq(B.pe,A.d3(A.R("1.5.6",p,p,p,p,o==null?p:o.Qj(B.r.af(0.5),12,1),p,p,p),p,p),p),p)],q)),p,new A.aQ5(),t.Q,t.CK),p,p)}}
 A.aQ5.prototype={
 $2(a,b){return this.abk(a,b)},
 abk(a,b){var s=0,r=A.u(t.H),q,p,o,n
@@ -124501,7 +124501,7 @@ if(r==null)r="Exercise Name"
 q=A.x(a).ok.z
 q=q==null?n:q.b9(B.r)
 p=t.p
-s=A.b([A.qm(n,B.cN,!0,n,!0,B.M,n,A.uJ(),k,n,n,n,n,n,2,A.mt(n,new A.dT(4,A.a7(12),B.x),n,B.pi,n,n,n,n,!0,n,n,n,n,n,n,B.bg,!0,n,n,n,n,n,n,n,n,n,n,n,n,n,q,r,n,n,n,n,n,n,n,n,n,!0,!0,!1,n,n,n,n,n,n,n,n,n,n,n,n,n,n),B.S,!0,n,!0,n,!1,n,B.cG,n,n,n,n,n,n,n,n,1,n,n,!1,"\u2022",n,n,n,new A.aOw(o,a),n,!1,n,n,!1,n,!0,n,B.Vh,n,n,n,n,n,n,n,n,n,n,n,s,!0,B.aM,n,B.anA,n,n,n,n)],p)
+s=A.b([A.qm(n,B.cN,!0,n,!0,B.M,n,A.uJ(),k,n,n,n,n,n,2,A.mt(n,new A.dT(4,A.a7(12),B.x),n,B.pi,n,n,n,n,!0,n,n,n,n,n,n,B.bg,!0,n,n,n,n,n,n,n,n,n,n,n,n,n,q,r,n,n,n,n,n,n,n,n,n,!0,!0,!1,n,n,n,n,n,n,n,n,n,n,n,n,n,n),B.S,!0,n,!0,n,!1,n,B.cG,n,n,n,n,n,n,n,n,1,n,n,!1,"\u2022",n,n,n,new A.aOw(o,a),n,!1,n,n,!1,n,!0,n,B.vs,n,n,n,n,n,n,n,n,n,n,n,s,!0,B.aM,n,B.anA,n,n,n,n)],p)
 k=o.e.length
 if(k!==0){r=A.a7(12)
 q=A.cx(B.an,1)
@@ -124892,7 +124892,7 @@ if(r.a.ax!=null)s.push(B.aj1)
 return s},
 $S:853}
 A.Se.prototype={
-F(a0){var s,r,q,p,o,n,m,l,k,j=this,i=null,h=j.c,g=h.b,f=J.a5(g),e=f.gv(g),d=j.d,c=j.e,b=d===c-1,a=j.as&&b?B.Vj:B.vs
+F(a0){var s,r,q,p,o,n,m,l,k,j=this,i=null,h=j.c,g=h.b,f=J.a5(g),e=f.gv(g),d=j.d,c=j.e,b=d===c-1,a=j.as&&b?B.Vj:B.Vi
 e=A.b([new A.acD(h,d,j.f,e>1,j.x,i),B.aO],t.p)
 for(s=j.w,r=j.Q,h=h.a,q="seg_row_"+h+"_",p=t.kK,o=0;o<f.gv(g);++o){n=f.h(g,o)
 m=f.h(g,o)
@@ -133622,12 +133622,12 @@ B.Vf=new A.dk(64,0,0,0)
 B.pd=new A.dk(8,0,12,0)
 B.Vg=new A.dk(8,0,4,6)
 B.vr=new A.a8(0,0,0,10)
-B.Vh=new A.a8(0,0,0,100)
 B.j0=new A.a8(0,0,0,12)
-B.Vi=new A.a8(0,0,0,14)
+B.Vh=new A.a8(0,0,0,14)
 B.eb=new A.a8(0,0,0,16)
-B.vs=new A.a8(0,0,0,250)
+B.Vi=new A.a8(0,0,0,250)
 B.Vj=new A.a8(0,0,0,450)
+B.vs=new A.a8(0,0,0,48)
 B.fq=new A.a8(0,0,0,8)
 B.Vl=new A.a8(0,10,0,10)
 B.l6=new A.a8(0,12,0,12)
