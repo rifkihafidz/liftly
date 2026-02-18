@@ -105,18 +105,18 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
         Future.delayed(const Duration(milliseconds: 300), () {
           if (!mounted || _scrollTargetKey.currentContext == null) return;
 
-          // Calculate dynamic alignment to match keyboard-off position.
-          // Formula: (target_alignment_full * full_height) / visible_height
+          // If keyboard is open, pull the target row higher (alignment 0.15)
+          // to ensure buttons below it (Add Set, etc.) remain visible.
           final media = MediaQuery.of(_scrollTargetKey.currentContext!);
-          final fullHeight = media.size.height;
           final keyboardHeight = media.viewInsets.bottom;
-          final visibleHeight = fullHeight - keyboardHeight;
+          final isKeyboardOpen = keyboardHeight > 100;
 
-          double targetAlignmentFull = widget.isLastExercise ? 0.7 : 0.45;
-          double alignment = (targetAlignmentFull * fullHeight) / visibleHeight;
-
-          // Clamp to ensure it doesn't go below the keyboard or too high
-          alignment = alignment.clamp(0.1, 0.85);
+          double alignment;
+          if (isKeyboardOpen) {
+            alignment = 0.15; // Pull up to top 15% of visible area
+          } else {
+            alignment = widget.isLastExercise ? 0.7 : 0.45;
+          }
 
           Scrollable.ensureVisible(
             _scrollTargetKey.currentContext!,
