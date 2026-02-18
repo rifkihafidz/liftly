@@ -11,19 +11,21 @@ import '../../../core/services/backup_service.dart';
 import '../../stats/pages/stats_page.dart';
 
 class MainNavigationWrapper extends StatefulWidget {
-  const MainNavigationWrapper({super.key});
+  final int initialIndex;
+  const MainNavigationWrapper({super.key, this.initialIndex = 0});
 
   @override
   State<MainNavigationWrapper> createState() => MainNavigationWrapperState();
 }
 
 class MainNavigationWrapperState extends State<MainNavigationWrapper> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
   StreamSubscription<String>? _errorSubscription;
 
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialIndex;
     // Listen for auto-signin errors
     final backupService = BackupService();
 

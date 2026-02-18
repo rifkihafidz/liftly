@@ -5,7 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 
-import '../../session/pages/workout_history_page.dart';
+import '../../home/pages/main_navigation_wrapper.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../bloc/workout_state.dart';
@@ -42,10 +42,14 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
 
   void _handleBack() {
     if (widget.fromSession) {
-      // Replace detail with history (smooth transition, no Home flash)
-      Navigator.pushReplacement(
+      // Navigate back to navigation wrapper with History tab selected
+      // Replacing everything to ensure a clean navigation stack
+      Navigator.pushAndRemoveUntil(
         context,
-        SmoothPageRoute(page: const WorkoutHistoryPage()),
+        SmoothPageRoute(
+          page: const MainNavigationWrapper(initialIndex: 1),
+        ),
+        (route) => false,
       );
     } else if (Navigator.canPop(context)) {
       Navigator.pop(context);

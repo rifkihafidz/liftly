@@ -105,11 +105,20 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
         Future.delayed(const Duration(milliseconds: 300), () {
           if (!mounted || _scrollTargetKey.currentContext == null) return;
 
+          // Detect if keyboard is open and adjust alignment accordingly.
+          // When keyboard is open, the viewport shrinks, so we use a higher
+          // alignment value to keep the new row at a consistent visual position.
+          final keyboardHeight =
+              MediaQuery.of(_scrollTargetKey.currentContext!).viewInsets.bottom;
+          final isKeyboardOpen = keyboardHeight > 100;
+          final alignment =
+              isKeyboardOpen ? 0.3 : (widget.isLastExercise ? 0.8 : 0.5);
+
           Scrollable.ensureVisible(
             _scrollTargetKey.currentContext!,
             duration: const Duration(milliseconds: 350),
             curve: Curves.easeOutCubic,
-            alignment: widget.isLastExercise ? 0.8 : 0.5,
+            alignment: alignment,
           ).then((_) {
             if (mounted) {
               setState(() {
