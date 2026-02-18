@@ -58,6 +58,19 @@ void main() async {
     return true;
   };
 
+  if (kIsWeb) {
+    // Safari iOS Focus & Layout Fix: Handle metrics change delay to stabilize viewport
+    // often needed when keyboard appears/disappears on Safari iOS
+    final originalOnMetricsChanged =
+        PlatformDispatcher.instance.onMetricsChanged;
+    PlatformDispatcher.instance.onMetricsChanged = () {
+      originalOnMetricsChanged?.call();
+      Future.delayed(const Duration(milliseconds: 100), () {
+        WidgetsBinding.instance.handleMetricsChanged();
+      });
+    };
+  }
+
   runApp(const Liftly());
 }
 

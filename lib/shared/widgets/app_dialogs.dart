@@ -387,17 +387,27 @@ class _ExerciseEntryDialog extends StatefulWidget {
 
 class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
   late TextEditingController _controller;
+  late FocusNode _focusNode;
   List<String> _filteredSuggestions = [];
 
   @override
   void initState() {
     super.initState();
+    _focusNode = FocusNode();
     _controller = TextEditingController(text: widget.initialValue);
     _controller.addListener(_onTextChanged);
+
+    // Safari iOS Focus Fix: Delay focus request for smoother keyboard interaction
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _focusNode.requestFocus();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -442,7 +452,8 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
             children: [
               TextField(
                 controller: _controller,
-                autofocus: true,
+                focusNode: _focusNode,
+                autofocus: false,
                 textCapitalization: TextCapitalization.sentences,
                 style: Theme.of(
                   context,
