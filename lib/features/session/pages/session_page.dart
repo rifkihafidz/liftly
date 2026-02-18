@@ -783,6 +783,10 @@ class _SessionPageState extends State<SessionPage> {
                                 color: AppColors.textPrimary,
                               ),
                             ),
+                            trailing: const Icon(
+                              Icons.drag_handle_rounded,
+                              color: AppColors.textSecondary,
+                            ),
                           );
                         },
                       ),
