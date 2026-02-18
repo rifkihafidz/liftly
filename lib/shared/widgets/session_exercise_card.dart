@@ -113,7 +113,8 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
 
           double alignment;
           if (isKeyboardOpen) {
-            alignment = 0.15; // Pull up to top 15% of visible area
+            alignment =
+                0.3; // Pull up to top 30% of visible area (lowered from 0.15)
           } else {
             alignment = widget.isLastExercise ? 0.7 : 0.45;
           }
