@@ -396,13 +396,9 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
     _focusNode = FocusNode();
     _controller = TextEditingController(text: widget.initialValue);
     _controller.addListener(_onTextChanged);
-
-    // Safari iOS Focus Fix: Delay focus request for smoother keyboard interaction
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        _focusNode.requestFocus();
-      }
-    });
+    // No auto-focus: let user tap to focus naturally.
+    // Auto-focusing on dialog open causes keyboard + viewport resize to race,
+    // making the dialog jump off-screen on first focus in mobile browsers.
   }
 
   @override

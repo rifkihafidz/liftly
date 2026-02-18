@@ -35,14 +35,8 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
     super.initState();
     widget.controller.addListener(_onTextChanged);
     _effectiveFocusNode.addListener(_onFocusChanged);
-
-    // Safari iOS Focus Fix: Delay focus request to ensure keyboard animation
-    // and viewport resizing are handled correctly by the browser.
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted && _effectiveFocusNode.canRequestFocus) {
-        _effectiveFocusNode.requestFocus();
-      }
-    });
+    // No auto-focus: let user tap to focus naturally.
+    // Auto-focusing causes keyboard + viewport resize to race on mobile browsers.
   }
 
   @override
