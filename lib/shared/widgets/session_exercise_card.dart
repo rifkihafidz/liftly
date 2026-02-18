@@ -105,18 +105,18 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
         Future.delayed(const Duration(milliseconds: 300), () {
           if (!mounted || _scrollTargetKey.currentContext == null) return;
 
-          // If keyboard is open, pull the target row higher (alignment 0.15)
-          // to ensure buttons below it (Add Set, etc.) remain visible.
+          // Unified consistency formula: (TargetYRatio * FullHeight) / VisibleHeight
+          // This ensures the target lands at the same physical pixel position.
           final media = MediaQuery.of(_scrollTargetKey.currentContext!);
+          final fullHeight = media.size.height;
           final keyboardHeight = media.viewInsets.bottom;
-          final isKeyboardOpen = keyboardHeight > 100;
+          final visibleHeight = fullHeight - keyboardHeight;
 
-          double alignment;
-          if (isKeyboardOpen) {
-            alignment = 0.8; // Keep buttons near keyboard, pulling form lower
-          } else {
-            alignment = widget.isLastExercise ? 0.7 : 0.45;
-          }
+          // Target 40% from the top of the physical screen
+          double alignment = (0.4 * fullHeight) / visibleHeight;
+
+          // Safety clamp
+          alignment = alignment.clamp(0.05, 0.85);
 
           Scrollable.ensureVisible(
             _scrollTargetKey.currentContext!,
@@ -562,8 +562,8 @@ class _SetRow extends StatelessWidget {
     final isDropSet = segments.length > 1;
 
     final targetedPadding = isLastExercise
-        ? const EdgeInsets.only(bottom: 250)
-        : const EdgeInsets.only(bottom: 220);
+        ? const EdgeInsets.only(bottom: 300)
+        : const EdgeInsets.only(bottom: 280);
 
     return RepaintBoundary(
       child: Column(
