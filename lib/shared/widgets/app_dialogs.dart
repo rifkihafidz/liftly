@@ -431,6 +431,7 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
     return AlertDialog(
       backgroundColor: AppColors.cardBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       title: Text(widget.title),
       content: SizedBox(
         width: double.maxFinite,
@@ -462,6 +463,7 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
                     vertical: 14,
                   ),
                 ),
+                scrollPadding: const EdgeInsets.only(bottom: 200),
                 onSubmitted: (value) {
                   if (value.trim().isNotEmpty) {
                     widget.onConfirm(value.trim());

@@ -240,18 +240,11 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
       body: BlocConsumer<PlanBloc, PlanState>(
         listener: (context, state) {
           if (state is PlansLoaded) {
-            _sortPlans();
             _loadAvailableExercises();
-            // Reset page index if plans change significantly
-            if (_sortedPlans.isNotEmpty &&
-                _currentPageIndex >=
-                    (_sortedPlans.length / _plansPerPage).ceil()) {
-              _currentPageIndex = 0;
-            }
           }
         },
         builder: (context, state) {
-          if (state is PlanLoading) {
+          if (state is PlanLoading && _sortedPlans.isEmpty) {
             return const Center(
               child: CircularProgressIndicator(color: AppColors.accent),
             );
@@ -264,6 +257,29 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                 style: const TextStyle(color: AppColors.error),
               ),
             );
+          }
+
+          final plansToUse = state is PlansLoaded ? state.plans : _sortedPlans;
+          final sortedPlans = List<WorkoutPlan>.from(plansToUse);
+          switch (_sortOption) {
+            case PlanSortOption.recent:
+              sortedPlans.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+              break;
+            case PlanSortOption.oldest:
+              sortedPlans.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+              break;
+            case PlanSortOption.alphabetical:
+              sortedPlans.sort((a, b) => a.name.compareTo(b.name));
+              break;
+          }
+
+          // Persistence for next build if state changes to loading/error
+          _sortedPlans = sortedPlans;
+
+          if (_sortedPlans.isNotEmpty &&
+              _currentPageIndex >=
+                  (_sortedPlans.length / _plansPerPage).ceil()) {
+            _currentPageIndex = 0;
           }
 
           return CustomScrollView(

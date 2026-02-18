@@ -113,9 +113,8 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
           focusNode: _effectiveFocusNode,
           autofocus: true,
           textInputAction: TextInputAction.done,
-          // Set to zero because we handle bottom padding manually in the page layout
-          // This prevents the "double jump" or overshoot on first focus
-          scrollPadding: EdgeInsets.zero,
+          // Added significant scroll padding to prevent "sinking" on mobile browsers
+          scrollPadding: const EdgeInsets.only(bottom: 250),
           style: Theme.of(context)
               .textTheme
               .bodyMedium
