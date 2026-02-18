@@ -445,7 +445,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
         ),
         contentPadding: const EdgeInsets.all(16),
       ),
-      scrollPadding: const EdgeInsets.only(bottom: 250),
+      scrollPadding: const EdgeInsets.only(bottom: 48),
     );
   }
 

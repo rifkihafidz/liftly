@@ -306,7 +306,7 @@ class WeightField extends StatefulWidget {
     super.key,
     required this.initialValue,
     required this.onChanged,
-    this.scrollPadding = const EdgeInsets.only(bottom: 175),
+    this.scrollPadding = const EdgeInsets.only(bottom: 48),
   });
 
   @override
@@ -452,7 +452,7 @@ class NumberField extends StatefulWidget {
     required this.initialValue,
     required this.onChanged,
     this.hasError = false,
-    this.scrollPadding = const EdgeInsets.only(bottom: 175),
+    this.scrollPadding = const EdgeInsets.only(bottom: 48),
   });
 
   @override
@@ -576,7 +576,7 @@ class ToField extends StatefulWidget {
     required this.onChanged,
     this.onDeleteTap,
     this.hasError = false,
-    this.scrollPadding = const EdgeInsets.only(bottom: 175),
+    this.scrollPadding = const EdgeInsets.only(bottom: 48),
   });
 
   @override
@@ -709,7 +709,7 @@ class NotesField extends StatefulWidget {
     super.key,
     required this.initialValue,
     required this.onChanged,
-    this.scrollPadding = const EdgeInsets.only(bottom: 200),
+    this.scrollPadding = const EdgeInsets.only(bottom: 60),
   });
 
   @override

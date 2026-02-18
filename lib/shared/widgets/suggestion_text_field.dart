@@ -114,7 +114,7 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
           autofocus: true,
           textInputAction: TextInputAction.done,
           // Added significant scroll padding to prevent "sinking" on mobile browsers
-          scrollPadding: const EdgeInsets.only(bottom: 250),
+          scrollPadding: const EdgeInsets.only(bottom: 48),
           style: Theme.of(context)
               .textTheme
               .bodyMedium
