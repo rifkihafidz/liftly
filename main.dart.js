@@ -33252,7 +33252,7 @@ if(l.b===200){g=l
 k=B.dA.dT(0,A.b9C(A.b94(g.e)).dT(0,g.w))
 j=A.am(J.b7(k,"version"))
 if(j!=null){i=j.split("+")[0]
-h="1.6.1".split("+")[0]
+h="1.6.2".split("+")[0]
 if(A.buI(i,h)){A.d0().$1("UPDATE REQUIRED: "+A.m(h)+" -> "+A.m(i))
 g=$.bfX
 if(g!=null)g.aS(0)
@@ -118376,7 +118376,7 @@ q=t.p
 r=A.ao(A.b([n,B.aA,o,B.aA,A.el(A.R(s,p,p,p,p,r==null?p:r.iM(B.r,16),p,p,p),2),B.cS,A.el(new A.a8c("Start Workout","Log a new session manually",B.wo,new A.aQ3(a),p),3),B.aU],q),B.E,p,B.i,B.h,0,B.o)
 s=A.bfd(new A.aQ4())
 o=A.x(a).ok.Q
-return A.jc(p,B.aq,A.v3(p,A.j3(0,p,p,B.M,p,B.S,p,p,B.cX,p,p,!1,B.a1,!1,A.b([new A.ed(B.VC,new A.eo(r,p),p),new A.ed(B.fr,s,p),new A.eo(new A.aq(B.pe,A.d3(A.R("1.6.1",p,p,p,p,o==null?p:o.Qk(B.r.af(0.5),12,1),p,p,p),p,p),p),p)],q)),p,new A.aQ5(),t.Q,t.CK),p,p)}}
+return A.jc(p,B.aq,A.v3(p,A.j3(0,p,p,B.M,p,B.S,p,p,B.cX,p,p,!1,B.a1,!1,A.b([new A.ed(B.VC,new A.eo(r,p),p),new A.ed(B.fr,s,p),new A.eo(new A.aq(B.pe,A.d3(A.R("1.6.2",p,p,p,p,o==null?p:o.Qk(B.r.af(0.5),12,1),p,p,p),p,p),p),p)],q)),p,new A.aQ5(),t.Q,t.CK),p,p)}}
 A.aQ5.prototype={
 $2(a,b){return this.abk(a,b)},
 abk(a,b){var s=0,r=A.u(t.H),q,p,o,n
@@ -133642,9 +133642,9 @@ B.Vf=new A.dk(8,0,4,6)
 B.vr=new A.a8(0,0,0,10)
 B.j0=new A.a8(0,0,0,12)
 B.Vg=new A.a8(0,0,0,14)
+B.Vh=new A.a8(0,0,0,150)
 B.eb=new A.a8(0,0,0,16)
-B.Vh=new A.a8(0,0,0,250)
-B.Vi=new A.a8(0,0,0,450)
+B.Vi=new A.a8(0,0,0,350)
 B.fq=new A.a8(0,0,0,8)
 B.Vk=new A.a8(0,10,0,10)
 B.l6=new A.a8(0,12,0,12)
