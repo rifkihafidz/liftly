@@ -389,6 +389,7 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
   late TextEditingController _controller;
   late FocusNode _focusNode;
   List<String> _filteredSuggestions = [];
+  String? _errorText;
 
   @override
   void initState() {
@@ -411,6 +412,7 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
   void _onTextChanged() {
     final query = _controller.text.trim().toLowerCase();
     setState(() {
+      if (_errorText != null) _errorText = null;
       if (query.isEmpty) {
         _filteredSuggestions = [];
       } else {
@@ -461,9 +463,28 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
                       ),
                   filled: true,
                   fillColor: AppColors.inputBg,
+                  errorText: _errorText,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: AppColors.error, width: 1),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: AppColors.error, width: 1),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -475,6 +496,10 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
                   if (value.trim().isNotEmpty) {
                     widget.onConfirm(value.trim());
                     Navigator.pop(context);
+                  } else {
+                    setState(() {
+                      _errorText = 'Exercise name cannot be empty';
+                    });
                   }
                 },
               ),
@@ -545,6 +570,10 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
             if (_controller.text.trim().isNotEmpty) {
               widget.onConfirm(_controller.text.trim());
               Navigator.pop(context);
+            } else {
+              setState(() {
+                _errorText = 'Exercise name cannot be empty';
+              });
             }
           },
           child: Text(widget.initialValue != null ? 'Update' : 'Add'),
