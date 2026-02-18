@@ -45,9 +45,6 @@ void main() async {
   // Handle errors not caught by Flutter framework
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    if (kReleaseMode) {
-      // Logic for logging to analytics/crashlytics in release
-    }
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
@@ -57,19 +54,6 @@ void main() async {
     }
     return true;
   };
-
-  if (kIsWeb) {
-    // Safari iOS Focus & Layout Fix: Handle metrics change delay to stabilize viewport
-    // often needed when keyboard appears/disappears on Safari iOS
-    final originalOnMetricsChanged =
-        PlatformDispatcher.instance.onMetricsChanged;
-    PlatformDispatcher.instance.onMetricsChanged = () {
-      originalOnMetricsChanged?.call();
-      Future.delayed(const Duration(milliseconds: 100), () {
-        WidgetsBinding.instance.handleMetricsChanged();
-      });
-    };
-  }
 
   runApp(const Liftly());
 }

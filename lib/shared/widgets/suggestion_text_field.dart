@@ -113,9 +113,8 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
         TextField(
           controller: widget.controller,
           focusNode: _effectiveFocusNode,
-          autofocus: false, // Managed manually with delay in initState
+          autofocus: false,
           textInputAction: TextInputAction.done,
-          // Added significant scroll padding to prevent "sinking" on mobile browsers
           scrollPadding: EdgeInsets.zero,
           style: Theme.of(context)
               .textTheme

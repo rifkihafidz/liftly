@@ -601,8 +601,6 @@ class _SetRow extends StatelessWidget {
     );
   }
 }
-// This needs more care as _ActionButtons is below the segment rows.
-// I need to update _SegmentRow to accept scrollPadding.
 
 /// Extracted widget for set header - static UI that rarely changes
 class _SetHeader extends StatelessWidget {
