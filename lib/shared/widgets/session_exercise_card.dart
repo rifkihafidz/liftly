@@ -548,9 +548,8 @@ class _SetRow extends StatelessWidget {
     final segments = set.segments;
     final isDropSet = segments.length > 1;
 
-    final isLastSet = setIndex == totalSets - 1;
-    final targetedPadding = isLastExercise && isLastSet
-        ? const EdgeInsets.only(bottom: 350)
+    final targetedPadding = isLastExercise
+        ? const EdgeInsets.only(bottom: 175)
         : const EdgeInsets.only(bottom: 150);
 
     return RepaintBoundary(
