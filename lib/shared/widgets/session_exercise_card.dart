@@ -105,21 +105,18 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
         Future.delayed(const Duration(milliseconds: 300), () {
           if (!mounted || _scrollTargetKey.currentContext == null) return;
 
-          // Unified consistency formula: (TargetYRatio * FullHeight) / VisibleHeight
-          // This ensures the target lands at the same physical pixel position.
           final media = MediaQuery.of(_scrollTargetKey.currentContext!);
-          final fullHeight = media.size.height;
           final keyboardHeight = media.viewInsets.bottom;
-          final visibleHeight = fullHeight - keyboardHeight;
+          final isKeyboardOpen = keyboardHeight > 100;
 
-          // Target position: 65% from top generally, 80% for the last exercise.
-          // Lowering this ratio (moving it down physically) prevents the card
-          // header from sinking off-screen at the top.
-          double targetYRatio = widget.isLastExercise ? 0.8 : 0.65;
-          double alignment = (targetYRatio * fullHeight) / visibleHeight;
-
-          // Safety clamp
-          alignment = alignment.clamp(0.05, 0.85);
+          double alignment;
+          if (isKeyboardOpen) {
+            // Push buttons as low as possible (0.95) to pull the header down into view
+            alignment = 0.95;
+          } else {
+            // Rollback to stable keyboard-off values
+            alignment = widget.isLastExercise ? 0.7 : 0.45;
+          }
 
           Scrollable.ensureVisible(
             _scrollTargetKey.currentContext!,
