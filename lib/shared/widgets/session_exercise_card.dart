@@ -111,11 +111,11 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
 
           double alignment;
           if (isKeyboardOpen) {
-            // Push buttons as low as possible (0.95) to pull the header down into view
-            alignment = 0.95;
+            // Keep buttons lower (near keyboard) to keep form centered
+            alignment = 0.85;
           } else {
-            // Rollback to stable keyboard-off values
-            alignment = widget.isLastExercise ? 0.7 : 0.45;
+            // User-confirmed preferred position when keyboard is off
+            alignment = 0.4;
           }
 
           Scrollable.ensureVisible(
@@ -562,8 +562,8 @@ class _SetRow extends StatelessWidget {
     final isDropSet = segments.length > 1;
 
     final targetedPadding = isLastExercise
-        ? const EdgeInsets.only(bottom: 300)
-        : const EdgeInsets.only(bottom: 280);
+        ? const EdgeInsets.only(bottom: 180)
+        : const EdgeInsets.only(bottom: 150);
 
     return RepaintBoundary(
       child: Column(
