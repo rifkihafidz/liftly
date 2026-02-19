@@ -112,7 +112,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
           double alignment;
           if (isKeyboardOpen) {
             // Keep buttons lower (near keyboard) to keep form centered
-            alignment = 0.85;
+            alignment = 0.7;
           } else {
             // User-confirmed preferred position when keyboard is off
             alignment = 0.4;
@@ -561,9 +561,7 @@ class _SetRow extends StatelessWidget {
     final segments = set.segments;
     final isDropSet = segments.length > 1;
 
-    final targetedPadding = isLastExercise
-        ? const EdgeInsets.only(bottom: 180)
-        : const EdgeInsets.only(bottom: 150);
+    final targetedPadding = const EdgeInsets.only(bottom: 140);
 
     return RepaintBoundary(
       child: Column(
