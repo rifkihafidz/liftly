@@ -112,8 +112,11 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
           final keyboardHeight = media.viewInsets.bottom;
           final visibleHeight = fullHeight - keyboardHeight;
 
-          // Target 40% from the top of the physical screen
-          double alignment = (0.4 * fullHeight) / visibleHeight;
+          // Target position: 65% from top generally, 80% for the last exercise.
+          // Lowering this ratio (moving it down physically) prevents the card
+          // header from sinking off-screen at the top.
+          double targetYRatio = widget.isLastExercise ? 0.8 : 0.65;
+          double alignment = (targetYRatio * fullHeight) / visibleHeight;
 
           // Safety clamp
           alignment = alignment.clamp(0.05, 0.85);
