@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/colors.dart';
 import '../../core/models/workout_session.dart';
@@ -111,14 +112,21 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
           final isKeyboardOpen =
               keyboardHeight > 50 || FocusScope.of(context).hasFocus;
 
+          // Safari iOS fix: Safari often reports viewInsets.bottom: 0 even when
+          // the keyboard is open. We use a 0.6 floor for Safari to prevent sinking.
+          final isIOSWeb =
+              kIsWeb && Theme.of(context).platform == TargetPlatform.iOS;
+
           double alignment;
           if (isKeyboardOpen) {
             // Alignment 0.8 keeps the buttons low but visible,
             // providing max head-room for inputs above.
             alignment = 0.8;
           } else {
-            // Center the new set when keyboard is off
-            alignment = 0.45;
+            // Center the new set when keyboard is off.
+            // For Safari iOS, we use 0.6 to avoid the form "sinking" to top
+            // if it misreports the keyboard as closed when it's actually open.
+            alignment = isIOSWeb ? 0.6 : 0.4;
           }
 
           Scrollable.ensureVisible(
@@ -564,7 +572,7 @@ class _SetRow extends StatelessWidget {
     final segments = set.segments;
     final isDropSet = segments.length > 1;
 
-    final targetedPadding = const EdgeInsets.only(bottom: 50);
+    final targetedPadding = const EdgeInsets.only(bottom: 130);
 
     return RepaintBoundary(
       child: Column(
