@@ -111,11 +111,33 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
 
           double alignment;
           if (isKeyboardOpen) {
-            // Keep buttons exactly at the bottom to maximize space for inputs above
-            alignment = 1.0;
+            // Keep buttons slightly higher (alignment 0.7) to prevent form sinking to top
+            alignment = 0.7;
           } else {
             // User-confirmed preferred position when keyboard is off
             alignment = 0.4;
+          }
+
+          if (mounted) {
+            final visibleH = media.size.height - media.viewInsets.bottom;
+            final pad = 150; // Current hardcoded value in _SetRow
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'FullH: ${media.size.height.toStringAsFixed(0)}, '
+                  'KbdH: ${media.viewInsets.bottom.toStringAsFixed(0)}, '
+                  'Align: $alignment, '
+                  'VisibleH: ${visibleH.toStringAsFixed(0)}, '
+                  'Pad: $pad',
+                ),
+                duration: const Duration(seconds: 10),
+                action: SnackBarAction(
+                  label: 'CLOSE',
+                  onPressed: () =>
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+                ),
+              ),
+            );
           }
 
           Scrollable.ensureVisible(
@@ -561,7 +583,7 @@ class _SetRow extends StatelessWidget {
     final segments = set.segments;
     final isDropSet = segments.length > 1;
 
-    final targetedPadding = const EdgeInsets.only(bottom: 80);
+    final targetedPadding = const EdgeInsets.only(bottom: 150);
 
     return RepaintBoundary(
       child: Column(
