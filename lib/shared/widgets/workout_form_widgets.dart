@@ -772,6 +772,7 @@ class _NotesFieldState extends State<NotesField> {
           focusNode: focusNode,
           scrollPadding: widget.scrollPadding,
           maxLines: 2,
+          textCapitalization: TextCapitalization.sentences,
           onChanged: (v) {
             if (_debounce?.isActive ?? false) _debounce!.cancel();
             _debounce = Timer(const Duration(milliseconds: 500), () {

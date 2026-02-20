@@ -1724,7 +1724,7 @@ class _VolumeChartCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total: ${NumberFormat('#,##0.##', 'pt_BR').format(totalVolume)} kg',
+                'Total Volume: ${NumberFormat('#,##0.##', 'pt_BR').format(totalVolume)} kg',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
@@ -1732,15 +1732,9 @@ class _VolumeChartCard extends StatelessWidget {
                     ),
               ),
               Text(
-                'Avg: ${NumberFormat('#,##0.##', 'pt_BR').format(
-                  // Average over non-zero days/months or just period length?
-                  // Usually average per session is better, but here we show trend over time.
-                  // Let's do average per active period unit (e.g. active days)
-                  volumeData.where((v) => v > 0).isEmpty
-                      ? 0.0
-                      : volumeData.where((v) => v > 0).reduce((a, b) => a + b) /
-                          volumeData.where((v) => v > 0).length,
-                )} kg / active ${timePeriod == TimePeriod.year || timePeriod == TimePeriod.allTime ? 'mo' : 'day'}',
+                'Avg / Session: ${NumberFormat('#,##0.##', 'pt_BR').format(
+                  sessions.isEmpty ? 0.0 : totalVolume / sessions.length,
+                )} kg',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.success,
                       fontWeight: FontWeight.w500,

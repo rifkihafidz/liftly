@@ -393,7 +393,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         if (exercise.sets.isNotEmpty) {
           final previousSet = exercise.sets.last;
           if (previousSet.segments.isNotEmpty) {
-            initialNotes = previousSet.segments.last.notes;
+            initialNotes = previousSet.segments.first.notes;
           }
         }
 
