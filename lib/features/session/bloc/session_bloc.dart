@@ -16,8 +16,10 @@ void _log(String message) {
 }
 
 class SessionBloc extends Bloc<SessionEvent, SessionState> {
-  final WorkoutRepository _workoutRepository = WorkoutRepository();
-  SessionBloc() : super(const SessionInitial()) {
+  final WorkoutRepository _workoutRepository;
+  SessionBloc({WorkoutRepository? workoutRepository})
+      : _workoutRepository = workoutRepository ?? WorkoutRepository(),
+        super(const SessionInitial()) {
     on<SessionStarted>(_onSessionStarted);
     on<SessionRecovered>(_onSessionRecovered);
     on<SessionExerciseSkipToggled>(_onExerciseSkipToggled);

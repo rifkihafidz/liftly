@@ -6,6 +6,7 @@ import 'package:liftly/core/models/workout_metadata.dart';
 import 'package:liftly/core/models/workout_plan.dart';
 import 'package:liftly/core/models/workout_session.dart';
 import 'package:liftly/core/models/personal_record.dart';
+import 'package:liftly/core/services/statistics_service.dart';
 import 'package:liftly/core/utils/persistence_helper.dart';
 import 'package:liftly/core/constants/app_constants.dart';
 import 'package:path_provider/path_provider.dart';
@@ -395,71 +396,12 @@ class HiveService {
       for (final ex in w.exercises) {
         if (ex.name.toLowerCase() == exerciseName.toLowerCase() &&
             !ex.skipped) {
-          double sessionMaxWeight = 0;
-          int sessionMaxWeightReps = 0;
-          double sessionTotalVolume = 0;
-          double bestSetVolume = 0;
-          String bestSetVolumeBreakdown = '';
-          double bestSetVolumeWeight = 0;
-          int bestSetVolumeReps = 0;
-          int sessionTotalReps = 0;
-
-          for (final set in ex.sets) {
-            final segments = set.segments;
-            double currentSetVolume = 0;
-            List<String> breakdownParts = [];
-            double firstSegmentWeight = 0;
-            int totalSetReps = 0;
-
-            for (int i = 0; i < segments.length; i++) {
-              final seg = segments[i];
-              final effectiveReps = seg.repsTo - seg.repsFrom + 1;
-
-              if (i == 0) firstSegmentWeight = seg.weight;
-
-              totalSetReps += effectiveReps;
-              sessionTotalReps += effectiveReps;
-
-              // Max Weight
-              if (seg.weight > sessionMaxWeight) {
-                sessionMaxWeight = seg.weight;
-                sessionMaxWeightReps = effectiveReps;
-              } else if (seg.weight == sessionMaxWeight) {
-                if (effectiveReps > sessionMaxWeightReps) {
-                  sessionMaxWeightReps = effectiveReps;
-                }
-              }
-
-              final vol = seg.weight * effectiveReps;
-              currentSetVolume += vol;
-              sessionTotalVolume += vol;
-
-              breakdownParts.add(
-                  '${seg.weight % 1 == 0 ? seg.weight.toInt() : seg.weight} kg x $effectiveReps');
-            }
-
-            if (currentSetVolume > bestSetVolume) {
-              bestSetVolume = currentSetVolume;
-              bestSetVolumeBreakdown = breakdownParts.join(' + ');
-              bestSetVolumeWeight = firstSegmentWeight;
-              bestSetVolumeReps = totalSetReps;
-            }
-          }
-
-          if (sessionTotalVolume > 0 || sessionMaxWeight > 0) {
-            history.add({
-              'workoutDate': w.workoutDate.toIso8601String(),
-              'totalVolume': sessionTotalVolume,
-              'totalReps': sessionTotalReps,
-              'maxWeight': sessionMaxWeight,
-              'maxWeightReps': sessionMaxWeightReps,
-              'bestSetVolume': bestSetVolume,
-              'bestSetVolumeBreakdown': bestSetVolumeBreakdown,
-              'bestSetVolumeWeight': bestSetVolumeWeight,
-              'bestSetVolumeReps': bestSetVolumeReps,
-              'sets': ex.sets,
-            });
-          }
+          final metrics = StatisticsService.calculateSessionMetrics(
+            ex,
+            w.workoutDate,
+            ex.sets,
+          );
+          history.add(metrics);
         }
       }
     }
@@ -521,92 +463,22 @@ class HiveService {
       }
     }
 
-    final history = await getExerciseHistory(
-        userId, exerciseName); // Note: swapped args in my impl vs call
+    final history = await getExerciseHistory(userId, exerciseName);
 
     if (history.isEmpty) return null;
 
-    double globalMaxWeight = 0;
-    int globalMaxWeightReps = 0;
+    final filteredHistory = history.where((record) {
+      final date = DateTime.parse(record['workoutDate'] as String);
+      if (startDate != null && date.isBefore(startDate)) return false;
+      if (endDate != null && date.isAfter(endDate)) return false;
+      return true;
+    }).toList();
 
-    double globalMaxSetVolume = 0;
-    double globalMaxSetVolumeWeight = 0;
-    int globalMaxSetVolumeReps = 0;
-    String globalMaxSetVolumeBreakdown = '';
-
-    double globalBestSessionVolume = 0;
-    int globalBestSessionReps = 0;
-    String? globalBestSessionDate;
-    List<ExerciseSet>? globalBestSessionSets;
-
-    for (final record in history) {
-      final dateStr = record['workoutDate'] as String;
-      final date = DateTime.parse(dateStr);
-
-      if (startDate != null && date.isBefore(startDate)) continue;
-      if (endDate != null && date.isAfter(endDate)) continue;
-
-      // 1. Max Weight
-      final rMaxWeight = record['maxWeight'] as double;
-      if (rMaxWeight > globalMaxWeight) {
-        globalMaxWeight = rMaxWeight;
-        globalMaxWeightReps = record['maxWeightReps'] as int;
-      }
-
-      // 2. Max Set Volume
-      final rBestSetVol = record['bestSetVolume'] as double;
-      if (rBestSetVol > globalMaxSetVolume) {
-        globalMaxSetVolume = rBestSetVol;
-        globalMaxSetVolumeWeight = record['bestSetVolumeWeight'] as double;
-        globalMaxSetVolumeReps = record['bestSetVolumeReps'] as int;
-        globalMaxSetVolumeBreakdown =
-            record['bestSetVolumeBreakdown'] as String;
-      }
-
-      // 3. Best Session Volume
-      final rSessionVol = record['totalVolume'] as double;
-      final rSessionReps = record['totalReps'] as int? ?? 0;
-
-      bool isNewBest = false;
-      if (rSessionVol > globalBestSessionVolume) {
-        isNewBest = true;
-      } else if (globalBestSessionVolume == 0 && rSessionVol == 0) {
-        if (rSessionReps > globalBestSessionReps) {
-          isNewBest = true;
-        }
-      }
-
-      if (isNewBest) {
-        globalBestSessionVolume = rSessionVol;
-        globalBestSessionReps = rSessionReps;
-        globalBestSessionDate = dateStr;
-        globalBestSessionSets = record['sets'] as List<ExerciseSet>;
-      }
-    }
-
-    if (globalMaxWeight == 0 &&
-        globalMaxSetVolume == 0 &&
-        globalBestSessionVolume == 0 &&
-        globalBestSessionReps == 0) {
-      return null;
-    }
-
-    final pr = PersonalRecord(
-      maxWeight: globalMaxWeight,
-      maxWeightReps: globalMaxWeightReps,
-      maxVolume: globalMaxSetVolume,
-      maxVolumeWeight: globalMaxSetVolumeWeight,
-      maxVolumeReps: globalMaxSetVolumeReps,
-      maxVolumeBreakdown: globalMaxSetVolumeBreakdown,
-      bestSessionVolume: globalBestSessionVolume,
-      bestSessionReps: globalBestSessionReps,
-      bestSessionDate: globalBestSessionDate,
-      bestSessionSets: globalBestSessionSets,
-      exerciseName: exerciseName,
-    );
+    final pr =
+        StatisticsService.calculatePRFromHistory(exerciseName, filteredHistory);
 
     // Cache
-    if (startDate == null && endDate == null) {
+    if (startDate == null && endDate == null && pr != null) {
       final cacheKey = '$userId:${exerciseName.toLowerCase()}';
       _prCache[cacheKey] = pr;
     }
@@ -643,163 +515,27 @@ class HiveService {
         final exerciseNameLower = ex.name.toLowerCase();
         exerciseHistories.putIfAbsent(exerciseNameLower, () => []);
 
-        // Calculate session metrics (same logic as getExerciseHistory)
-        double sessionMaxWeight = 0;
-        int sessionMaxWeightReps = 0;
-        double sessionTotalVolume = 0;
-        double bestSetVolume = 0;
-        String bestSetVolumeBreakdown = '';
-        double bestSetVolumeWeight = 0;
-        int bestSetVolumeReps = 0;
-        int sessionTotalReps = 0;
+        final metrics = StatisticsService.calculateSessionMetrics(
+          ex,
+          w.workoutDate,
+          ex.sets,
+        );
 
-        for (final set in ex.sets) {
-          final segments = set.segments;
-          double currentSetVolume = 0;
-          List<String> breakdownParts = [];
-          double firstSegmentWeight = 0;
-          int totalSetReps = 0;
-
-          for (int i = 0; i < segments.length; i++) {
-            final seg = segments[i];
-            final effectiveReps = seg.repsTo - seg.repsFrom + 1;
-
-            if (i == 0) firstSegmentWeight = seg.weight;
-
-            totalSetReps += effectiveReps;
-            sessionTotalReps += effectiveReps;
-
-            if (seg.weight > sessionMaxWeight) {
-              sessionMaxWeight = seg.weight;
-              sessionMaxWeightReps = effectiveReps;
-            } else if (seg.weight == sessionMaxWeight) {
-              if (effectiveReps > sessionMaxWeightReps) {
-                sessionMaxWeightReps = effectiveReps;
-              }
-            }
-
-            final vol = seg.weight * effectiveReps;
-            currentSetVolume += vol;
-            sessionTotalVolume += vol;
-
-            breakdownParts.add(
-                '${seg.weight % 1 == 0 ? seg.weight.toInt() : seg.weight} kg x $effectiveReps');
-          }
-
-          if (currentSetVolume > bestSetVolume) {
-            bestSetVolume = currentSetVolume;
-            bestSetVolumeBreakdown = breakdownParts.join(' + ');
-            bestSetVolumeWeight = firstSegmentWeight;
-            bestSetVolumeReps = totalSetReps;
-          }
-        }
-
-        if (sessionTotalVolume > 0 || sessionMaxWeight > 0) {
-          exerciseHistories[exerciseNameLower]!.add({
-            'workoutDate': w.workoutDate.toIso8601String(),
-            'totalVolume': sessionTotalVolume,
-            'totalReps': sessionTotalReps,
-            'maxWeight': sessionMaxWeight,
-            'maxWeightReps': sessionMaxWeightReps,
-            'bestSetVolume': bestSetVolume,
-            'bestSetVolumeBreakdown': bestSetVolumeBreakdown,
-            'bestSetVolumeWeight': bestSetVolumeWeight,
-            'bestSetVolumeReps': bestSetVolumeReps,
-            'sets': ex.sets,
-          });
-        }
+        exerciseHistories[exerciseNameLower]!.add(metrics);
       }
     }
 
     // Calculate PRs from collected data
     final results = <String, PersonalRecord>{};
     for (final entry in exerciseHistories.entries) {
-      final pr = _calculatePRFromHistory(entry.key, entry.value);
+      final pr =
+          StatisticsService.calculatePRFromHistory(entry.key, entry.value);
       if (pr != null) {
         results[entry.key] = pr;
       }
     }
 
     return results;
-  }
-
-  // Helper method to calculate PR from history data
-  static PersonalRecord? _calculatePRFromHistory(
-      String exerciseName, List<Map<String, dynamic>> history) {
-    if (history.isEmpty) return null;
-
-    double globalMaxWeight = 0;
-    int globalMaxWeightReps = 0;
-
-    double globalMaxSetVolume = 0;
-    double globalMaxSetVolumeWeight = 0;
-    int globalMaxSetVolumeReps = 0;
-    String globalMaxSetVolumeBreakdown = '';
-
-    double globalBestSessionVolume = 0;
-    int globalBestSessionReps = 0;
-    String? globalBestSessionDate;
-    List<ExerciseSet>? globalBestSessionSets;
-
-    for (final record in history) {
-      // 1. Max Weight
-      final rMaxWeight = record['maxWeight'] as double;
-      if (rMaxWeight > globalMaxWeight) {
-        globalMaxWeight = rMaxWeight;
-        globalMaxWeightReps = record['maxWeightReps'] as int;
-      }
-
-      // 2. Max Set Volume
-      final rBestSetVol = record['bestSetVolume'] as double;
-      if (rBestSetVol > globalMaxSetVolume) {
-        globalMaxSetVolume = rBestSetVol;
-        globalMaxSetVolumeWeight = record['bestSetVolumeWeight'] as double;
-        globalMaxSetVolumeReps = record['bestSetVolumeReps'] as int;
-        globalMaxSetVolumeBreakdown =
-            record['bestSetVolumeBreakdown'] as String;
-      }
-
-      // 3. Best Session Volume
-      final rSessionVol = record['totalVolume'] as double;
-      final rSessionReps = record['totalReps'] as int? ?? 0;
-
-      bool isNewBest = false;
-      if (rSessionVol > globalBestSessionVolume) {
-        isNewBest = true;
-      } else if (globalBestSessionVolume == 0 && rSessionVol == 0) {
-        if (rSessionReps > globalBestSessionReps) {
-          isNewBest = true;
-        }
-      }
-
-      if (isNewBest) {
-        globalBestSessionVolume = rSessionVol;
-        globalBestSessionReps = rSessionReps;
-        globalBestSessionDate = record['workoutDate'] as String;
-        globalBestSessionSets = record['sets'] as List<ExerciseSet>;
-      }
-    }
-
-    if (globalMaxWeight == 0 &&
-        globalMaxSetVolume == 0 &&
-        globalBestSessionVolume == 0 &&
-        globalBestSessionReps == 0) {
-      return null;
-    }
-
-    return PersonalRecord(
-      maxWeight: globalMaxWeight,
-      maxWeightReps: globalMaxWeightReps,
-      maxVolume: globalMaxSetVolume,
-      maxVolumeWeight: globalMaxSetVolumeWeight,
-      maxVolumeReps: globalMaxSetVolumeReps,
-      maxVolumeBreakdown: globalMaxSetVolumeBreakdown,
-      bestSessionVolume: globalBestSessionVolume,
-      bestSessionReps: globalBestSessionReps,
-      bestSessionDate: globalBestSessionDate,
-      bestSessionSets: globalBestSessionSets,
-      exerciseName: exerciseName,
-    );
   }
 
   // ================= Utility =================

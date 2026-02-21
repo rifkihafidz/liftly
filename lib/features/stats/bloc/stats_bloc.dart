@@ -3,6 +3,7 @@ import '../../../core/models/workout_session.dart';
 import 'package:flutter/foundation.dart'; // for kDebugMode
 import '../../../core/models/personal_record.dart'; // Assuming this exists, I will verify
 import '../../../core/models/stats_filter.dart';
+import '../../../core/services/statistics_service.dart';
 import '../../workout_log/repositories/workout_repository.dart';
 import 'stats_event.dart';
 import 'stats_state.dart';
@@ -77,15 +78,6 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
         'sessions': currentState.allSessions,
         'period': event.timePeriod,
         'refDate': now,
-        'repository':
-            _workoutRepository, // Pass repository? No, repository likely not transferrable
-        // We need raw data or a way to calculate PRs without repository in isolate.
-        // Actually, PR calculation typically needs ALL history to find the max.
-        // But `getAllPersonalRecords` in Repo might be SQL specific or Hive specific.
-        // If it's Hive, passing Repository might fail if it holds open boxes.
-        // It's safer to replicate the PR logic purely in-memory if we have all sessions.
-        // Wait, `allSessions` IS all history.
-        // So we can implement `_calculatePersonalRecordsInMemory` inside the isolate!
       });
 
       emit(
@@ -98,7 +90,6 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
       );
     } catch (e) {
       // Handle error gently, maybe keep old state or show snackbar?
-      // For now, just log or do nothing, to avoid crashing UI if calculation fails
       if (kDebugMode) print('Stats recalc error: $e');
     }
   }
@@ -166,117 +157,31 @@ Future<Map<String, dynamic>> _calculateStatsIsolate(
     return {'filtered': filtered, 'prs': prs};
   }
 
-  // Efficient Single Pass for PRs
-  // We need to track: Max Weight (and reps for tiebreaker), Max Volume (and weight/reps for details)
-  // For each exercise ID.
-
-  final exerciseStats = <String, Map<String, dynamic>>{};
-
-  // Sort sessions by date ascending to ensure we process in order if needed,
-  // though for absolute max records order doesn't strictly matter unless we want "first achieved date".
-  // filtered is likely DESC (newest first).
+  final exerciseStats = <String, List<Map<String, dynamic>>>{};
 
   for (final workout in filtered) {
     for (final exercise in workout.exercises) {
       if (exercise.skipped) continue;
 
-      final exId = exercise.id;
-      if (!exerciseStats.containsKey(exId)) {
-        exerciseStats[exId] = {
-          'name': exercise.name, // Capture name
-          'maxWeight': 0.0,
-          'maxWeightReps': 0,
-          'maxVolume': 0.0,
-          'maxVolumeWeight': 0.0,
-          'maxVolumeReps': 0,
-          'bestSessionVolume': 0.0,
-          'bestSessionReps': 0,
-          'bestSessionDate': workout.effectiveDate.toIso8601String(),
-          'bestSessionSets': <ExerciseSet>[],
-        };
-      } else {
-        // Update name if needed (e.g. if previous entry had no name or we want latest name)
-        // Usually first encounter is fine, or last.
-        // Let's stick to first encounter for simplicity or maybe check if empty.
-        if ((exerciseStats[exId]!['name'] as String).isEmpty &&
-            exercise.name.isNotEmpty) {
-          exerciseStats[exId]!['name'] = exercise.name;
-        }
-      }
+      final exName = exercise.name;
+      exerciseStats.putIfAbsent(exName, () => []);
 
-      final stats = exerciseStats[exId]!;
+      final metrics = StatisticsService.calculateSessionMetrics(
+        exercise,
+        workout.effectiveDate,
+        exercise.sets,
+      );
 
-      // Session Volume Calculation
-      double sessionVol = 0;
-      int sessionReps = 0;
-
-      for (final set in exercise.sets) {
-        // Calculate Set Stats
-        double setVol = 0;
-        double setWeight = 0; // Usage for single-segment sets mostly
-        int setReps = 0;
-
-        for (final segment in set.segments) {
-          final segVol = segment.volume;
-          setVol += segVol;
-          setReps += segment.totalReps;
-
-          if (set.segments.length == 1) {
-            setWeight = segment.weight;
-          } else {
-            // For multi-segment (dropset), "weight" is ambiguous.
-            // Usually max weight of the set? Or average?
-            // For Max Weight PR, we look at SEGMENTS individually usually.
-          }
-
-          // Check Max Weight (1RM candidate) - Check per SEGMENT
-          if (segment.weight > (stats['maxWeight'] as double)) {
-            stats['maxWeight'] = segment.weight;
-            stats['maxWeightReps'] = segment.totalReps;
-          } else if (segment.weight == (stats['maxWeight'] as double) &&
-              segment.totalReps > (stats['maxWeightReps'] as int)) {
-            stats['maxWeightReps'] = segment.totalReps;
-          }
-        }
-
-        sessionVol += setVol;
-        sessionReps += setReps;
-
-        // Check Max Volume (Best Set)
-        if (setVol > (stats['maxVolume'] as double)) {
-          stats['maxVolume'] = setVol;
-          stats['maxVolumeWeight'] =
-              setWeight; // Only valid for single segment really
-          stats['maxVolumeReps'] = setReps;
-          // breakdown...
-        }
-      }
-
-      // Check Best Session Volume
-      if (sessionVol > (stats['bestSessionVolume'] as double)) {
-        stats['bestSessionVolume'] = sessionVol;
-        stats['bestSessionReps'] = sessionReps;
-        stats['bestSessionDate'] = workout.effectiveDate.toIso8601String();
-        stats['bestSessionSets'] = exercise.sets;
-      }
+      exerciseStats[exName]!.add(metrics);
     }
   }
 
   // Convert collected stats to PersonalRecord objects
   for (final entry in exerciseStats.entries) {
-    final s = entry.value;
-    prs[entry.key] = PersonalRecord(
-      exerciseName: s['name'] as String? ?? 'Unknown Exercise',
-      maxWeight: s['maxWeight'] as double,
-      maxWeightReps: s['maxWeightReps'] as int,
-      maxVolume: s['maxVolume'] as double,
-      maxVolumeWeight: s['maxVolumeWeight'] as double,
-      maxVolumeReps: s['maxVolumeReps'] as int,
-      bestSessionVolume: s['bestSessionVolume'] as double,
-      bestSessionReps: s['bestSessionReps'] as int,
-      bestSessionDate: s['bestSessionDate'] as String?,
-      bestSessionSets: s['bestSessionSets'] as List<ExerciseSet>?,
-    );
+    final pr = StatisticsService.calculatePRFromHistory(entry.key, entry.value);
+    if (pr != null) {
+      prs[entry.key] = pr;
+    }
   }
 
   return {'filtered': filtered, 'prs': prs};

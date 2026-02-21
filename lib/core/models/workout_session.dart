@@ -172,6 +172,13 @@ class SessionExercise extends Equatable {
       }
     }
 
+    // Assumptions: if name contains 'single' or 'unilateral', it's a unilateral exercise
+    // and the volume should be doubled to account for both sides.
+    final nameLower = name.toLowerCase();
+    if (nameLower.contains('single') || nameLower.contains('unilateral')) {
+      vol *= 2;
+    }
+
     return vol;
   }
 

@@ -18,6 +18,7 @@ import 'core/services/update_service.dart';
 import 'core/services/hive_service.dart';
 import 'core/services/backup_service.dart';
 import 'features/home/pages/main_navigation_wrapper.dart';
+import 'core/constants/app_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,19 +88,25 @@ class _LiftlyState extends State<Liftly> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final workoutRepository = WorkoutRepository();
+    final planRepository = PlanRepository();
+
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (context) => SessionBloc()),
         BlocProvider(
-          create: (context) => PlanBloc(planRepository: PlanRepository()),
+          create: (context) =>
+              SessionBloc(workoutRepository: workoutRepository),
+        ),
+        BlocProvider(
+          create: (context) => PlanBloc(planRepository: planRepository),
         ),
         BlocProvider(
           create: (context) =>
-              WorkoutBloc(workoutRepository: WorkoutRepository()),
+              WorkoutBloc(workoutRepository: workoutRepository),
         ),
         BlocProvider(
-          create: (context) =>
-              StatsBloc()..add(const StatsFetched(userId: '1')),
+          create: (context) => StatsBloc(workoutRepository: workoutRepository)
+            ..add(const StatsFetched(userId: AppConstants.defaultUserId)),
         ),
       ],
       child: MaterialApp(

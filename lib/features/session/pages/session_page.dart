@@ -22,6 +22,7 @@ import '../../workout_log/repositories/workout_repository.dart';
 import '../../plans/bloc/plan_bloc.dart';
 import '../../plans/bloc/plan_event.dart';
 import '../../plans/bloc/plan_state.dart';
+import '../../../core/constants/app_constants.dart';
 
 class SessionPage extends StatefulWidget {
   final List<SessionExercise> exercises; // Updated from exerciseNames
@@ -47,11 +48,11 @@ class _SessionPageState extends State<SessionPage> {
   @override
   void initState() {
     super.initState();
-    initializeDateFormatting('pt_BR');
+    initializeDateFormatting();
 
     // Start session with actual exercises or resume draft
     _sessionBloc = context.read<SessionBloc>();
-    const userId = '1'; // Default local user ID
+    const userId = AppConstants.defaultUserId;
 
     if (widget.draftSession != null) {
       _sessionBloc.add(SessionDraftResumed(draftSession: widget.draftSession!));
