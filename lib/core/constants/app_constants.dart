@@ -1,14 +1,12 @@
 class AppConstants {
   // --- General ---
-  static const String appVersion = '2.0.0';
+  static const String appVersion = '2.0.1';
   static const String appName = 'Liftly';
   static const String defaultUserId = '1';
 
   // --- Backup & Cloud ---
-  static const String googleClientId = String.fromEnvironment(
-    'GOOGLE_CLIENT_ID',
-    defaultValue: '',
-  );
+  static const String googleClientId =
+      '640418928410-gi91t91l20sn2roq14r7snvpptlff6mq.apps.googleusercontent.com';
   static const String backupFolderName = 'Liftly Backup';
   static const String backupMimeFolder = 'application/vnd.google-apps.folder';
   static const String excelMimeType =
