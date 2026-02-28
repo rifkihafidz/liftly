@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/colors.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/shimmer_widgets.dart';
@@ -10,6 +11,7 @@ import '../../plans/bloc/plan_state.dart';
 import 'create_plan_page.dart';
 import '../../../core/utils/page_transitions.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
+import '../../../shared/widgets/navigation/active_tab_scope.dart';
 import '../../../shared/widgets/cards/plan_card.dart';
 
 enum PlanSortOption { newest, oldest, nameAZ, nameZA }
@@ -23,11 +25,34 @@ class PlansPage extends StatefulWidget {
 
 class _PlansPageState extends State<PlansPage> {
   PlanSortOption _sortOption = PlanSortOption.newest;
+  late ScrollController _scrollController;
+  int? _lastActiveTab;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final activeTab = ActiveTabScope.maybeOf(context);
+    if (activeTab != null &&
+        _lastActiveTab != null &&
+        activeTab != _lastActiveTab &&
+        activeTab == 3 &&
+        _scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+    _lastActiveTab = activeTab;
+  }
 
   @override
   void initState() {
     super.initState();
-    context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
+    _scrollController = ScrollController();
+    context.read<PlanBloc>().add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   String _getSortLabel(PlanSortOption option) {
@@ -109,6 +134,7 @@ class _PlansPageState extends State<PlansPage> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1000),
                   child: CustomScrollView(
+                    controller: _scrollController,
                     physics: const BouncingScrollPhysics(),
                     slivers: [
                       SliverAppBar(
@@ -342,7 +368,7 @@ class _PlansPageState extends State<PlansPage> {
       isDangerous: true,
     ).then((confirm) {
       if (confirm == true && context.mounted) {
-        context.read<PlanBloc>().add(PlanDeleted(userId: '1', planId: plan.id));
+        context.read<PlanBloc>().add(PlanDeleted(userId: AppConstants.defaultUserId, planId: plan.id));
       }
     });
   }

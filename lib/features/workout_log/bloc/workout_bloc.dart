@@ -4,11 +4,9 @@ import '../repositories/workout_repository.dart';
 import 'workout_event.dart';
 import 'workout_state.dart';
 
-// Global counter for unique workout IDs
-int _workoutIdCounter = 0;
-
 class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
   final WorkoutRepository _workoutRepository;
+  int _workoutIdCounter = 0;
 
   WorkoutBloc({required WorkoutRepository workoutRepository})
       : _workoutRepository = workoutRepository,
@@ -63,7 +61,21 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
         workout: workoutToUpdate,
       );
 
-      // If we were in WorkoutsLoaded, update the list in-place
+      // Emit success first so BlocListener in edit page can show the popup.
+      // The Future.delayed(Duration.zero) yields to the event loop between the
+      // two emits, guaranteeing BlocListener processes WorkoutUpdatedSuccess in
+      // its own microtask before WorkoutsLoaded arrives.
+      emit(
+        WorkoutUpdatedSuccess(
+          message: 'Workout updated successfully',
+          data: result.toMap(),
+        ),
+      );
+      await Future.delayed(Duration.zero);
+
+      // Emit the updated list last so BlocBuilder always sees WorkoutsLoaded
+      // as the final state — prevents the history page's _lastInputWorkouts
+      // cache from staying stale due to Flutter frame batching.
       if (currentState is WorkoutsLoaded) {
         final updatedWorkouts = currentState.workouts.map((w) {
           return w.id == event.workoutId ? result : w;
@@ -74,13 +86,6 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
           hasReachedMax: currentState.hasReachedMax,
         ));
       }
-
-      emit(
-        WorkoutUpdatedSuccess(
-          message: 'Workout updated successfully',
-          data: result.toMap(),
-        ),
-      );
     } catch (e) {
       emit(WorkoutError(message: e.toString()));
     }
@@ -188,6 +193,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
         final exMap = exData as Map<String, dynamic>;
         final sets = <ExerciseSet>[];
 
+
         // Convert sets
         if (exMap['sets'] is List) {
           for (int setIndex = 0;
@@ -197,6 +203,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
             final setMap = setData as Map<String, dynamic>;
             final segments = <SetSegment>[];
 
+
             // Convert segments
             if (setMap['segments'] is List) {
               for (int segIndex = 0;
@@ -204,6 +211,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
                   segIndex++) {
                 final segData = (setMap['segments'] as List<dynamic>)[segIndex];
                 final segMap = segData as Map<String, dynamic>;
+
                 segments.add(
                   SetSegment(
                     id: (segMap['id'] as String?) ??
@@ -237,6 +245,8 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
             sets: sets,
             skipped: exMap['skipped'] as bool? ?? false,
             isTemplate: exMap['isTemplate'] as bool? ?? false,
+            notes: exMap['notes'] as String? ?? '',
+            variation: exMap['variation'] as String? ?? '',
           ),
         );
       }

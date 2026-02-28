@@ -27,7 +27,7 @@ class PlanCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -66,6 +66,7 @@ class PlanCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
                     PopupMenuButton(
                       icon: Icon(
                         Icons.more_vert_rounded,
@@ -113,7 +114,9 @@ class PlanCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(
+                  height: (plan.description?.isEmpty ?? true) ? 0 : 12,
+                ),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -143,7 +146,9 @@ class PlanCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(
+                  height: (plan.description?.isEmpty ?? true) ? 6 : 12,
+                ),
                 Column(
                   children: plan.exercises.take(3).toList().asMap().entries.map(
                     (entry) {
@@ -168,14 +173,31 @@ class PlanCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: Text(
-                                ex.name,
+                              child: Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: ex.name,
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    if (ex.variation.isNotEmpty)
+                                      TextSpan(
+                                        text: ' (${ex.variation})',
+                                        style: TextStyle(
+                                          color: AppColors.accent.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                  ],
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 13,
-                                ),
                               ),
                             ),
                           ],

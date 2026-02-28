@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'data_management_service.dart';
 import 'hive_service.dart';
 import '../constants/app_constants.dart';
+import '../utils/app_logger.dart';
 
 class BackupException implements Exception {
   final String message;
@@ -16,7 +17,7 @@ class BackupException implements Exception {
   String toString() => message;
 }
 
-enum InitializationState { idle, pending, success, failed }
+enum InitializationState { idle, pending, completedWithUser, completedNoUser, failed }
 
 class RestoreException implements Exception {
   final String message;
@@ -37,7 +38,6 @@ class BackupService {
   }
 
   // Error stream for UI feedback
-  // Error stream for UI feedback
   final _errorController = StreamController<String>.broadcast();
   String? _lastError;
 
@@ -54,7 +54,9 @@ class BackupService {
   String? get lastError => _lastError;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: kIsWeb ? AppConstants.googleClientId : null,
+    clientId: kIsWeb && AppConstants.googleClientId.isNotEmpty
+        ? AppConstants.googleClientId
+        : null,
     scopes: [
       'email',
       'openid',
@@ -69,7 +71,9 @@ class BackupService {
 
   InitializationState _initState = InitializationState.idle;
   InitializationState get initState => _initState;
-  bool get isInitialized => _initState == InitializationState.success;
+  bool get isInitialized =>
+      _initState == InitializationState.completedWithUser ||
+      _initState == InitializationState.completedNoUser;
   bool get isInitializing => _initState == InitializationState.pending;
 
   Future<void>? _initFuture;
@@ -88,8 +92,8 @@ class BackupService {
     try {
       // On web, skip auto sign-in to require manual login after reload
       if (kIsWeb) {
-        debugPrint('BackupService: Skipping auto sign-in on web platform');
-        _initState = InitializationState.success;
+        AppLogger.debug('BackupService', 'Skipping auto sign-in on web platform');
+        _initState = InitializationState.completedNoUser;
         return;
       }
 
@@ -101,34 +105,33 @@ class BackupService {
       // Fallback: Check if currentUser is already populated in the plugin
       if (_currentUser == null && _googleSignIn.currentUser != null) {
         _currentUser = _googleSignIn.currentUser;
-        debugPrint(
-            'BackupService: signInSilently null, but currentUser found: ${_currentUser?.email}');
+        AppLogger.debug('BackupService',
+            'signInSilently null, but currentUser found: ${_currentUser?.email}');
       }
 
       if (_currentUser != null) {
-        debugPrint(
-            'BackupService: Silent sign in successful: ${_currentUser?.email}');
-        _initState = InitializationState.success;
+        AppLogger.debug('BackupService',
+            'Silent sign in successful: ${_currentUser?.email}');
+        _initState = InitializationState.completedWithUser;
       } else {
-        debugPrint('BackupService: Silent sign in returned null (no session)');
-        // Ensure we mark as success (completed) even if no user, so UI doesn't hang on "Checking"
-        _initState = InitializationState.success;
+        AppLogger.debug('BackupService', 'Silent sign in returned null (no session)');
+        _initState = InitializationState.completedNoUser;
       }
     } catch (e) {
-      debugPrint('BackupService: Silent sign in error: $e');
+      AppLogger.error('BackupService', 'Silent sign in error', e);
       _lastError = 'Auto-signin error: $e';
       _errorController.add(_lastError!);
       // Check if currentUser is populated despite error
       if (_googleSignIn.currentUser != null) {
         _currentUser = _googleSignIn.currentUser;
-        _initState = InitializationState.success;
-        debugPrint(
-            'BackupService: Recovered user from error: ${_currentUser?.email}');
+        _initState = InitializationState.completedWithUser;
+        AppLogger.debug('BackupService',
+            'Recovered user from error: ${_currentUser?.email}');
         return;
       }
 
-      // If error occurs, we still want to allow manual sign in, so set to success (idle) but with no user
-      _initState = InitializationState.success;
+      // If error occurs, we still want to allow manual sign in
+      _initState = InitializationState.completedNoUser;
     } finally {
       _initFuture = null;
     }
@@ -147,7 +150,7 @@ class BackupService {
           await _googleSignIn.signIn().timeout(const Duration(minutes: 3));
       return _currentUser;
     } catch (e) {
-      debugPrint('BackupService: Sign in failed or timed out: $e');
+      AppLogger.error('BackupService', 'Sign in failed or timed out', e);
       throw BackupException('Sign in failed or timed out: ${e.toString()}');
     }
   }
@@ -158,7 +161,7 @@ class BackupService {
       await _googleSignIn.disconnect();
       _currentUser = null;
     } catch (e) {
-      debugPrint('BackupService: Sign out failed: $e');
+      AppLogger.error('BackupService', 'Sign out failed', e);
     }
   }
 
@@ -171,12 +174,12 @@ class BackupService {
           await init();
         }
         if (_currentUser != null) {
-          debugPrint('BackupService: Starting auto-backup...');
+          AppLogger.debug('BackupService', 'Starting auto-backup...');
           await backupDatabase(silent: true);
         }
       }
     } catch (e) {
-      debugPrint('BackupService: Auto-backup check failed: $e');
+      AppLogger.error('BackupService', 'Auto-backup check failed', e);
     }
   }
 
@@ -184,6 +187,7 @@ class BackupService {
   Future<String?> backupDatabase({
     bool silent = false,
     bool exportOnlyPlans = false,
+    Function(double progress, String message)? onProgress,
   }) async {
     if (_currentUser == null) {
       if (!silent) throw BackupException('User not signed in');
@@ -191,22 +195,25 @@ class BackupService {
     }
 
     // Ensure we have the required scopes (especially important on Web)
-    debugPrint('BackupService: Verifying Drive scope before backup...');
+    AppLogger.debug('BackupService', 'Verifying Drive scope before backup...');
+    onProgress?.call(0.05, 'Connecting to Google Drive...');
     await _ensureDriveScope(silent: silent);
 
     try {
-      debugPrint('BackupService: Retrieving auth headers...');
+      AppLogger.debug('BackupService', 'Retrieving auth headers...');
       final headers = await _currentUser!.authHeaders;
-      debugPrint(
-          'BackupService: Headers retrieved successfully. Initializing client...');
+      AppLogger.debug('BackupService',
+          'Headers retrieved successfully. Initializing client...');
       final client = _GoogleAuthClient(headers);
       final driveApi = drive.DriveApi(client);
 
-      debugPrint('BackupService: Generating Excel bytes...');
+      AppLogger.debug('BackupService', 'Generating Excel bytes...');
+      onProgress?.call(0.2, 'Generating backup data...');
       final fileBytes = await DataManagementService.generateExcelBytes(
           exportOnlyPlans: exportOnlyPlans);
 
-      debugPrint('BackupService: Accessing backup folder...');
+      AppLogger.debug('BackupService', 'Accessing backup folder...');
+      onProgress?.call(0.6, 'Uploading to Google Drive...');
       final folderId = await _getOrCreateBackupFolder(driveApi);
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final prefix = exportOnlyPlans ? 'plans' : 'liftly_data';
@@ -222,6 +229,7 @@ class BackupService {
         uploadMedia: drive.Media(Stream.value(fileBytes), fileBytes.length),
       );
 
+      onProgress?.call(1.0, 'Done!');
       await HiveService.savePreference(
         'last_backup_time',
         DateTime.now().toIso8601String(),
@@ -229,7 +237,7 @@ class BackupService {
 
       return result.id;
     } catch (e) {
-      debugPrint('BackupService: Backup failed: $e');
+      AppLogger.error('BackupService', 'Backup failed', e);
       if (!silent) {
         throw BackupException('Failed to upload backup: ${e.toString()}');
       }
@@ -258,7 +266,7 @@ class BackupService {
       final result = await driveApi.files.create(folder);
       return result.id!;
     } catch (e) {
-      debugPrint('BackupService: Create folder failed: $e');
+      AppLogger.error('BackupService', 'Create folder failed', e);
       throw BackupException('Could not access backup folder: ${e.toString()}');
     }
   }
@@ -284,7 +292,7 @@ class BackupService {
 
       return fileList.files ?? [];
     } catch (e) {
-      debugPrint('BackupService: List backups failed: $e');
+      AppLogger.error('BackupService', 'List backups failed', e);
       throw BackupException('Failed to list backups: ${e.toString()}');
     }
   }
@@ -344,7 +352,7 @@ class BackupService {
         },
       );
     } catch (e) {
-      debugPrint('BackupService: Restore failed: $e');
+      AppLogger.error('BackupService', 'Restore failed', e);
       if (e is RestoreException) rethrow;
       throw RestoreException('Restore failed: ${e.toString()}');
     }
@@ -367,26 +375,27 @@ class _GoogleAuthClient extends http.BaseClient {
 extension on BackupService {
   Future<void> _ensureDriveScope({bool silent = false}) async {
     try {
-      debugPrint(
-          'BackupService: Checking for scope: ${drive.DriveApi.driveFileScope}');
+      AppLogger.debug('BackupService',
+          'Checking for scope: ${drive.DriveApi.driveFileScope}');
       final hasScope =
           await _googleSignIn.canAccessScopes([drive.DriveApi.driveFileScope]);
 
-      debugPrint('BackupService: hasScope result: $hasScope');
+      AppLogger.debug('BackupService', 'hasScope result: $hasScope');
 
       if (!hasScope) {
-        debugPrint(
-            'BackupService: Missing Drive scope, requesting via popup...');
+        AppLogger.debug('BackupService',
+            'Missing Drive scope, requesting via popup...');
         final granted =
             await _googleSignIn.requestScopes([drive.DriveApi.driveFileScope]);
-        debugPrint('BackupService: requestScopes granted result: $granted');
+        AppLogger.debug('BackupService', 'requestScopes granted result: $granted');
         if (!granted && !silent) {
           throw BackupException(
               'Permission denied: Google Drive access is required to use this feature.');
         }
       }
     } catch (e) {
-      debugPrint('BackupService: Scope check/request failed: $e');
+      if (e is BackupException) rethrow;
+      AppLogger.error('BackupService', 'Scope check/request failed', e);
     }
   }
 }

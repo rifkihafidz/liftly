@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../constants/app_constants.dart';
+import '../utils/app_logger.dart';
 
 // Conditional import for web implementation
 import 'update_service_web.dart' if (dart.library.io) 'update_service_stub.dart'
@@ -41,7 +42,7 @@ class UpdateService {
       );
 
       if (kDebugMode) {
-        print('Version check response: ${response.statusCode}');
+        AppLogger.debug('UpdateService', 'Version check response: ${response.statusCode}');
       }
 
       if (response.statusCode == 200) {
@@ -53,11 +54,11 @@ class UpdateService {
           final cleanApp = AppConstants.appVersion.split('+')[0];
 
           if (kDebugMode) {
-            print('Comparing Versions - Server: $cleanServer, App: $cleanApp');
+            AppLogger.debug('UpdateService', 'Comparing Versions - Server: $cleanServer, App: $cleanApp');
           }
 
           if (_isUpdateRequired(cleanServer, cleanApp)) {
-            debugPrint('UPDATE REQUIRED: $cleanApp -> $cleanServer');
+            AppLogger.info('UpdateService', 'UPDATE REQUIRED: $cleanApp -> $cleanServer');
             _timer?.cancel();
             platform.reloadPage();
           }
@@ -65,7 +66,7 @@ class UpdateService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Failed to check version: $e');
+        AppLogger.error('UpdateService', 'Failed to check version', e);
       }
     } finally {
       _isChecking = false;

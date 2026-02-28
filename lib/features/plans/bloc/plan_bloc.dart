@@ -6,8 +6,9 @@ import 'plan_state.dart';
 
 class PlanBloc extends Bloc<PlanEvent, PlanState> {
   final PlanRepository _planRepository;
-  final List<WorkoutPlan> _plans = [];
-  static const String defaultUserId = '1';
+  /// Cached plan list, independent of state, to avoid data loss
+  /// when an intermediate state (PlanLoading/PlanSuccess) is emitted.
+  List<WorkoutPlan> _cachedPlans = [];
 
   PlanBloc({required PlanRepository planRepository})
       : _planRepository = planRepository,
@@ -18,6 +19,9 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
     on<PlanDeleted>(_onPlanDeleted);
   }
 
+  /// Helper to get current plans — uses cache that survives intermediate states.
+  List<WorkoutPlan> get _currentPlans => _cachedPlans;
+
   Future<void> _onPlansFetchRequested(
     PlansFetchRequested event,
     Emitter<PlanState> emit,
@@ -27,11 +31,10 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
     }
     try {
       final plans = await _planRepository.getPlans(userId: event.userId);
-      _plans.clear();
-      _plans.addAll(plans);
-      emit(PlansLoaded(plans: _plans));
+      _cachedPlans = plans;
+      emit(PlansLoaded(plans: plans));
     } catch (e) {
-      emit(PlanError(message: _parseErrorMessage(e.toString())));
+      emit(PlanError(message: e.toString().replaceFirst('Exception: ', '')));
     }
   }
 
@@ -48,13 +51,15 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
         name: event.name,
         description: event.description,
         exercises: event.exercises,
+        exerciseVariations: event.exerciseVariations,
       );
 
-      _plans.add(newPlan);
+      final updatedPlans = [..._currentPlans, newPlan];
+      _cachedPlans = updatedPlans;
       emit(const PlanSuccess(message: 'Plan created successfully'));
-      emit(PlansLoaded(plans: _plans));
+      emit(PlansLoaded(plans: updatedPlans));
     } catch (e) {
-      emit(PlanError(message: _parseErrorMessage(e.toString())));
+      emit(PlanError(message: e.toString().replaceFirst('Exception: ', '')));
     }
   }
 
@@ -72,17 +77,18 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
         name: event.name,
         description: event.description,
         exercises: event.exercises,
+        exerciseVariations: event.exerciseVariations,
       );
 
-      final index = _plans.indexWhere((p) => p.id == event.planId);
-      if (index != -1) {
-        _plans[index] = updatedPlan;
-      }
+      final updatedPlans = _currentPlans.map((p) {
+        return p.id == event.planId ? updatedPlan : p;
+      }).toList();
 
+      _cachedPlans = updatedPlans;
       emit(const PlanSuccess(message: 'Plan updated successfully'));
-      emit(PlansLoaded(plans: _plans));
+      emit(PlansLoaded(plans: updatedPlans));
     } catch (e) {
-      emit(PlanError(message: _parseErrorMessage(e.toString())));
+      emit(PlanError(message: e.toString().replaceFirst('Exception: ', '')));
     }
   }
 
@@ -99,18 +105,12 @@ class PlanBloc extends Bloc<PlanEvent, PlanState> {
         planId: event.planId,
       );
 
-      _plans.removeWhere((p) => p.id == event.planId);
+      final updatedPlans = _currentPlans.where((p) => p.id != event.planId).toList();
+      _cachedPlans = updatedPlans;
       emit(const PlanSuccess(message: 'Plan deleted successfully'));
-      emit(PlansLoaded(plans: _plans));
+      emit(PlansLoaded(plans: updatedPlans));
     } catch (e) {
-      emit(PlanError(message: _parseErrorMessage(e.toString())));
+      emit(PlanError(message: e.toString().replaceFirst('Exception: ', '')));
     }
-  }
-
-  String _parseErrorMessage(String error) {
-    if (error.contains('Exception: ')) {
-      return error.replaceAll('Exception: ', '');
-    }
-    return error;
   }
 }

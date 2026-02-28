@@ -121,15 +121,11 @@ class WorkoutCardShimmer extends StatelessWidget {
 /// List of workout card shimmers for loading state
 class WorkoutListShimmer extends StatelessWidget {
   final int itemCount;
-  final bool shrinkWrap;
-  final ScrollPhysics? physics;
   final EdgeInsetsGeometry padding;
 
   const WorkoutListShimmer({
     super.key,
     this.itemCount = 6,
-    this.shrinkWrap = false,
-    this.physics,
     this.padding = const EdgeInsets.fromLTRB(24, 0, 24, 24),
   });
 
@@ -384,15 +380,11 @@ class PlanCardShimmer extends StatelessWidget {
 /// List of plan card shimmers
 class PlanListShimmer extends StatelessWidget {
   final int itemCount;
-  final bool shrinkWrap;
-  final ScrollPhysics? physics;
   final EdgeInsetsGeometry padding;
 
   const PlanListShimmer({
     super.key,
     this.itemCount = 4,
-    this.shrinkWrap = false,
-    this.physics,
     this.padding = const EdgeInsets.all(16),
   });
 

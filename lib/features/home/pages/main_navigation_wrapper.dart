@@ -8,6 +8,7 @@ import '../../../core/constants/colors.dart';
 
 import 'dart:async';
 import '../../../core/services/backup_service.dart';
+import '../../../shared/widgets/navigation/active_tab_scope.dart';
 import '../../stats/pages/stats_page.dart';
 
 class MainNavigationWrapper extends StatefulWidget {
@@ -83,20 +84,21 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
     setIndex(index);
   }
 
+  // Keep pages alive across tab switches so they don't lose state / re-fetch.
+  static const _pages = <Widget>[
+    HomePage(),
+    WorkoutHistoryPage(),
+    StatsPage(),
+    PlansPage(),
+    SettingsPage(),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final List<Widget> pages = [
-      const HomePage(),
-      const WorkoutHistoryPage(),
-      const StatsPage(),
-      const PlansPage(),
-      const SettingsPage(),
-    ];
-
     final bool isMobile = MediaQuery.of(context).size.width < 600;
 
     // Safety check to prevent index out of bounds
-    final int safeIndex = _selectedIndex < pages.length ? _selectedIndex : 0;
+    final int safeIndex = _selectedIndex < _pages.length ? _selectedIndex : 0;
 
     return PopScope(
       canPop: safeIndex == 0,
@@ -105,7 +107,13 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
         setIndex(0);
       },
       child: Scaffold(
-        body: pages[safeIndex],
+        body: ActiveTabScope(
+          activeIndex: safeIndex,
+          child: IndexedStack(
+            index: safeIndex,
+            children: _pages,
+          ),
+        ),
         bottomNavigationBar: isMobile
             ? Container(
                 decoration: BoxDecoration(

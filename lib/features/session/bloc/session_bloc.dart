@@ -1,22 +1,19 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../core/services/backup_service.dart';
+import '../../../core/utils/app_logger.dart';
 
 import '../../workout_log/repositories/workout_repository.dart';
 import '../../../core/models/personal_record.dart';
 import 'session_event.dart';
 import 'session_state.dart';
 
-// Global counter for unique workout IDs
-int _workoutIdCounter = 0;
-
-void _log(String message) {
-  debugPrint('[SessionBloc] $message');
-}
+const String _tag = 'SessionBloc';
 
 class SessionBloc extends Bloc<SessionEvent, SessionState> {
   final WorkoutRepository _workoutRepository;
+  int _workoutIdCounter = 0;
+
   SessionBloc({WorkoutRepository? workoutRepository})
       : _workoutRepository = workoutRepository ?? WorkoutRepository(),
         super(const SessionInitial()) {
@@ -37,9 +34,11 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     on<SessionExerciseAdded>(_onExerciseAdded);
     on<SessionExerciseRemoved>(_onExerciseRemoved);
     on<SessionExerciseNameUpdated>(_onExerciseNameUpdated);
+    on<SessionExerciseVariationUpdated>(_onExerciseVariationUpdated);
+    on<SessionExerciseNotesUpdated>(_onExerciseNotesUpdated);
     on<SessionDiscarded>(_onSessionDiscarded);
     on<SessionExercisesReordered>(_onExercisesReordered);
-    on<SessionFocusCleared>(_onFocusCleared);
+
   }
 
   Future<void> _onSessionStarted(
@@ -59,34 +58,37 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       final generatedId =
           '${workoutDate.millisecondsSinceEpoch}_${now.millisecondsSinceEpoch}_$_workoutIdCounter';
       final timestamp = now.millisecondsSinceEpoch;
-      final exercises = event.exerciseNames
-          .asMap()
-          .entries
-          .map(
-            (e) => SessionExercise(
-              id: 'ex_${timestamp}_${e.key}',
-              name: e.value,
-              order: e.key,
-              isTemplate: event.planId != null,
-              sets: [
-                ExerciseSet(
-                  id: 'set_${timestamp}_ex${e.key}_s1',
-                  setNumber: 1,
-                  segments: [
-                    SetSegment(
-                      id: 'seg_${timestamp}_ex${e.key}_s1_0',
-                      weight: 0.0,
-                      repsFrom: 1,
-                      repsTo: 12,
-                      segmentOrder: 0,
-                      notes: '',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          )
-          .toList();
+      final exercises = event.exerciseNames.asMap().entries.map(
+        (e) {
+          final variation = (event.exerciseVariations != null &&
+                  e.key < event.exerciseVariations!.length)
+              ? event.exerciseVariations![e.key]
+              : '';
+          return SessionExercise(
+            id: 'ex_${timestamp}_${e.key}',
+            name: e.value,
+            variation: variation,
+            order: e.key,
+            isTemplate: event.planId != null,
+            sets: [
+              ExerciseSet(
+                id: 'set_${timestamp}_ex${e.key}_s1',
+                setNumber: 1,
+                segments: [
+                  SetSegment(
+                    id: 'seg_${timestamp}_ex${e.key}_s1_0',
+                    weight: 0.0,
+                    repsFrom: 1,
+                    repsTo: 12,
+                    segmentOrder: 0,
+                    notes: '',
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ).toList();
 
       final session = WorkoutSession(
         id: generatedId,
@@ -100,30 +102,42 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         updatedAt: now,
       );
 
-      _log(
+      AppLogger.debug(_tag,
           'SessionStarted: planName=${event.planName}, session.planName=${session.planName}');
 
       // Load history and PRs in parallel for better performance
-      final exerciseNames = event.exerciseNames.toSet();
       final historyFutures = <Future<void>>[];
 
       final previousSessions = <String, WorkoutSession>{};
       final exercisePRs = <String, PersonalRecord>{};
 
-      for (final name in exerciseNames) {
+      for (int i = 0; i < event.exerciseNames.length; i++) {
+        final name = event.exerciseNames[i];
+        final variation = (event.exerciseVariations != null &&
+                i < event.exerciseVariations!.length)
+            ? event.exerciseVariations![i]
+            : '';
+        final statsKey = '$name:$variation'.toLowerCase();
+
         historyFutures.add(
           _workoutRepository
-              .getLastExerciseLog(userId: event.userId, exerciseName: name)
+              .getLastExerciseLog(
+                  userId: event.userId,
+                  exerciseName: name,
+                  exerciseVariation: variation)
               .then((lastLog) {
-            if (lastLog != null) previousSessions[name] = lastLog;
+            if (lastLog != null) previousSessions[statsKey] = lastLog;
           }),
         );
 
         historyFutures.add(
           _workoutRepository
-              .getExercisePR(userId: event.userId, exerciseName: name)
+              .getExercisePR(
+                  userId: event.userId,
+                  exerciseName: name,
+                  exerciseVariation: variation)
               .then((pr) {
-            if (pr != null) exercisePRs[name] = pr;
+            if (pr != null) exercisePRs[statsKey] = pr;
           }),
         );
       }
@@ -210,6 +224,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       final newExercise = SessionExercise(
         id: 'ex_${timestamp}_$newExerciseIndex',
         name: event.exerciseName,
+        variation: event.exerciseVariation,
         order: newExerciseIndex,
         isTemplate: false,
         sets: [
@@ -233,47 +248,15 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       return [...exercises, newExercise];
     });
 
-    // 2. Load History and PR for the new exercise in parallel
+    // 2. Load history and PR for the new exercise
     if (state is! SessionInProgress) return;
-    final updatedState = state as SessionInProgress;
-    final session = updatedState.session;
-
-    final name = event.exerciseName;
-
-    // Load both in parallel
-    final results = await Future.wait([
-      _workoutRepository.getLastExerciseLog(
-        userId: session.userId,
-        exerciseName: name,
-      ),
-      _workoutRepository.getExercisePR(
-        userId: session.userId,
-        exerciseName: name,
-      ),
-    ]);
-
-    final lastLog = results[0] as WorkoutSession?;
-    final pr = results[1] as PersonalRecord?;
-
-    if (lastLog != null || pr != null) {
-      Map<String, WorkoutSession> updatedPreviousSessions = Map.from(
-        updatedState.previousSessions,
-      );
-      Map<String, PersonalRecord> updatedExercisePRs = Map.from(
-        updatedState.exercisePRs,
-      );
-
-      if (lastLog != null) updatedPreviousSessions[name] = lastLog;
-      if (pr != null) updatedExercisePRs[name] = pr;
-
-      emit(
-        SessionInProgress(
-          session: session,
-          previousSessions: updatedPreviousSessions,
-          exercisePRs: updatedExercisePRs,
-        ),
-      );
-    }
+    final session = (state as SessionInProgress).session;
+    await _loadStatsAndEmit(
+      name: event.exerciseName,
+      variation: event.exerciseVariation,
+      userId: session.userId,
+      emit: emit,
+    );
   }
 
   Future<void> _onExerciseRemoved(
@@ -300,57 +283,112 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     SessionExerciseNameUpdated event,
     Emitter<SessionState> emit,
   ) async {
-    // 1. Update name locally
+    // 1. Update name and variation locally
     _updateSessionState(emit, (exercises) {
       if (event.exerciseIndex < exercises.length) {
         final exercise = exercises[event.exerciseIndex];
-        exercises[event.exerciseIndex] = exercise.copyWith(name: event.newName);
+        exercises[event.exerciseIndex] = exercise.copyWith(
+          name: event.newName,
+          variation: event.newVariation ?? exercise.variation,
+        );
       }
       return exercises;
     });
 
-    // 2. Load History and PR for the updated name in parallel
+    // 2. Load history and PR for the updated exercise
+    if (state is! SessionInProgress) return;
+    final session = (state as SessionInProgress).session;
+    if (event.exerciseIndex >= session.exercises.length) return;
+    final updatedExercise = session.exercises[event.exerciseIndex];
+    await _loadStatsAndEmit(
+      name: updatedExercise.name,
+      variation: updatedExercise.variation,
+      userId: session.userId,
+      emit: emit,
+    );
+  }
+
+  Future<void> _onExerciseVariationUpdated(
+    SessionExerciseVariationUpdated event,
+    Emitter<SessionState> emit,
+  ) async {
+    // 1. Update variation locally
+    _updateSessionState(emit, (exercises) {
+      if (event.exerciseIndex < exercises.length) {
+        final exercise = exercises[event.exerciseIndex];
+        exercises[event.exerciseIndex] =
+            exercise.copyWith(variation: event.newVariation);
+      }
+      return exercises;
+    });
+
+    // 2. Load history and PR for the updated variation
+    if (state is! SessionInProgress) return;
+    final session = (state as SessionInProgress).session;
+    if (event.exerciseIndex >= session.exercises.length) return;
+    final updatedExercise = session.exercises[event.exerciseIndex];
+    await _loadStatsAndEmit(
+      name: updatedExercise.name,
+      variation: updatedExercise.variation,
+      userId: session.userId,
+      emit: emit,
+    );
+  }
+
+  Future<void> _onExerciseNotesUpdated(
+    SessionExerciseNotesUpdated event,
+    Emitter<SessionState> emit,
+  ) async {
+    _updateSessionState(emit, (exercises) {
+      if (event.exerciseIndex < exercises.length) {
+        final exercise = exercises[event.exerciseIndex];
+        exercises[event.exerciseIndex] =
+            exercise.copyWith(notes: event.newNotes);
+      }
+      return exercises;
+    });
+  }
+
+  /// Loads the last exercise log + PR in parallel and emits an updated
+  /// [SessionInProgress] state. Shared by [_onExerciseAdded],
+  /// [_onExerciseNameUpdated], and [_onExerciseVariationUpdated].
+  Future<void> _loadStatsAndEmit({
+    required String name,
+    required String variation,
+    required String userId,
+    required Emitter<SessionState> emit,
+  }) async {
+    final statsKey = '$name:$variation'.toLowerCase();
+    final results = await Future.wait([
+      _workoutRepository.getLastExerciseLog(
+        userId: userId,
+        exerciseName: name,
+        exerciseVariation: variation,
+      ),
+      _workoutRepository.getExercisePR(
+        userId: userId,
+        exerciseName: name,
+        exerciseVariation: variation,
+      ),
+    ]);
+
     if (state is! SessionInProgress) return;
     final currentState = state as SessionInProgress;
-    final session = currentState.session;
-    final name = event.newName;
+    final updatedPreviousSessions =
+        Map<String, WorkoutSession>.from(currentState.previousSessions);
+    final updatedExercisePRs =
+        Map<String, PersonalRecord>.from(currentState.exercisePRs);
 
-    // Only load if not already loaded
-    if (!currentState.previousSessions.containsKey(name)) {
-      final results = await Future.wait([
-        _workoutRepository.getLastExerciseLog(
-          userId: session.userId,
-          exerciseName: name,
-        ),
-        _workoutRepository.getExercisePR(
-          userId: session.userId,
-          exerciseName: name,
-        ),
-      ]);
-
-      final lastLog = results[0] as WorkoutSession?;
-      final pr = results[1] as PersonalRecord?;
-
-      if (lastLog != null || pr != null) {
-        Map<String, WorkoutSession> updatedPreviousSessions = Map.from(
-          currentState.previousSessions,
-        );
-        Map<String, PersonalRecord> updatedExercisePRs = Map.from(
-          currentState.exercisePRs,
-        );
-
-        if (lastLog != null) updatedPreviousSessions[name] = lastLog;
-        if (pr != null) updatedExercisePRs[name] = pr;
-
-        emit(
-          SessionInProgress(
-            session: session,
-            previousSessions: updatedPreviousSessions,
-            exercisePRs: updatedExercisePRs,
-          ),
-        );
-      }
+    if (results[0] != null) {
+      updatedPreviousSessions[statsKey] = results[0] as WorkoutSession;
     }
+    if (results[1] != null) {
+      updatedExercisePRs[statsKey] = results[1] as PersonalRecord;
+    }
+    emit(currentState.copyWith(
+      previousSessions: updatedPreviousSessions,
+      exercisePRs: updatedExercisePRs,
+    ));
   }
 
   Future<void> _onExerciseSkipToggled(
@@ -575,12 +613,24 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
 
             segments[event.segmentIndex] = updatedSegment;
             sets[event.setIndex] = set.copyWith(segments: segments);
-            exercises[event.exerciseIndex] = exercise.copyWith(sets: sets);
+
+            // Sync exercise-level variation notes with first set's segment notes
+            if (event.field == 'notes' && event.setIndex == 0) {
+              exercises[event.exerciseIndex] = exercise.copyWith(
+                sets: sets,
+                notes: event.value as String,
+              );
+            } else {
+              exercises[event.exerciseIndex] = exercise.copyWith(sets: sets);
+            }
           }
         }
       }
       return exercises;
     });
+
+    // Variation is set separately via SessionExerciseVariationUpdated event.
+    // Segment-level notes are for technique cues only and do not affect stats.
   }
 
   Future<void> _onDateTimesUpdated(
@@ -664,29 +714,38 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     emit(const SessionLoading());
     try {
       final session = event.draftSession;
-      _log('SessionDraftResumed: draftSession.planName=${session.planName}');
+      AppLogger.debug(_tag, 'SessionDraftResumed: draftSession.planName=${session.planName}');
 
       // Load history and PRs in parallel
-      final exerciseNames = session.exercises.map((e) => e.name).toSet();
       final historyFutures = <Future<void>>[];
 
       final previousSessions = <String, WorkoutSession>{};
       final exercisePRs = <String, PersonalRecord>{};
 
-      for (final name in exerciseNames) {
+      for (final ex in session.exercises) {
+        final name = ex.name;
+        final variation = ex.variation;
+        final statsKey = '$name:$variation'.toLowerCase();
+
         historyFutures.add(
           _workoutRepository
-              .getLastExerciseLog(userId: session.userId, exerciseName: name)
+              .getLastExerciseLog(
+                  userId: session.userId,
+                  exerciseName: name,
+                  exerciseVariation: variation)
               .then((lastLog) {
-            if (lastLog != null) previousSessions[name] = lastLog;
+            if (lastLog != null) previousSessions[statsKey] = lastLog;
           }),
         );
 
         historyFutures.add(
           _workoutRepository
-              .getExercisePR(userId: session.userId, exerciseName: name)
+              .getExercisePR(
+                  userId: session.userId,
+                  exerciseName: name,
+                  exerciseVariation: variation)
               .then((pr) {
-            if (pr != null) exercisePRs[name] = pr;
+            if (pr != null) exercisePRs[statsKey] = pr;
           }),
         );
       }
@@ -717,7 +776,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         isDraft: true,
         updatedAt: DateTime.now(),
       );
-      _log('SessionSaveDraftRequested: session.planName=${session.planName}');
+      AppLogger.debug(_tag, 'SessionSaveDraftRequested: session.planName=${session.planName}');
 
       // Save workout directly using WorkoutRepository
       // createWorkout uses REPLACE conflict algorithm, so it handles updates too
@@ -774,18 +833,5 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
 
       return updatedExercises;
     });
-  }
-
-  void _onFocusCleared(SessionFocusCleared event, Emitter<SessionState> emit) {
-    if (state is! SessionInProgress) return;
-    final currentState = state as SessionInProgress;
-
-    emit(
-      SessionInProgress(
-        session: currentState.session,
-        previousSessions: currentState.previousSessions,
-        exercisePRs: currentState.exercisePRs,
-      ),
-    );
   }
 }

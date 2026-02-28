@@ -2,10 +2,16 @@ import '../models/workout_session.dart';
 import '../models/personal_record.dart';
 
 class StatisticsService {
-  /// Helper to identify unilateral exercises
-  static bool isUnilateral(String name) {
+  /// Helper to identify unilateral exercises.
+  /// Checks both [name] and [variation] to stay consistent with
+  /// [SessionExercise.totalVolume] which also checks both fields.
+  static bool isUnilateral(String name, {String variation = ''}) {
     final lower = name.toLowerCase();
-    return lower.contains('single') || lower.contains('unilateral');
+    final varLower = variation.toLowerCase();
+    return lower.contains('single') ||
+        lower.contains('unilateral') ||
+        varLower.contains('single') ||
+        varLower.contains('unilateral');
   }
 
   /// Calculate exercise metrics (volume, max weight, etc.) for a single session
@@ -23,7 +29,7 @@ class StatisticsService {
     int bestSetVolumeReps = 0;
     int sessionTotalReps = 0;
 
-    final isUnilateralEx = isUnilateral(ex.name);
+    final isUnilateralEx = isUnilateral(ex.name, variation: ex.variation);
     final volumeMultiplier = isUnilateralEx ? 2 : 1;
 
     for (final set in sets) {
@@ -85,8 +91,9 @@ class StatisticsService {
   /// Calculate Personal Record from history
   static PersonalRecord? calculatePRFromHistory(
     String exerciseName,
-    List<Map<String, dynamic>> history,
-  ) {
+    List<Map<String, dynamic>> history, {
+    String variation = '',
+  }) {
     if (history.isEmpty) return null;
 
     double globalMaxWeight = 0;
@@ -104,25 +111,32 @@ class StatisticsService {
 
     for (final record in history) {
       // 1. Max Weight
-      final rMaxWeight = record['maxWeight'] as double;
+      final rMaxWeight = (record['maxWeight'] as num).toDouble();
+      final rMaxWeightReps =
+          (record['maxWeightReps'] as num?)?.toInt() ?? 0;
       if (rMaxWeight > globalMaxWeight) {
         globalMaxWeight = rMaxWeight;
-        globalMaxWeightReps = record['maxWeightReps'] as int;
+        globalMaxWeightReps = rMaxWeightReps;
+      } else if (rMaxWeight == globalMaxWeight &&
+          rMaxWeightReps > globalMaxWeightReps) {
+        globalMaxWeightReps = rMaxWeightReps;
       }
 
       // 2. Max Set Volume
-      final rBestSetVol = record['bestSetVolume'] as double;
+      final rBestSetVol = (record['bestSetVolume'] as num).toDouble();
       if (rBestSetVol > globalMaxSetVolume) {
         globalMaxSetVolume = rBestSetVol;
-        globalMaxSetVolumeWeight = record['bestSetVolumeWeight'] as double;
-        globalMaxSetVolumeReps = record['bestSetVolumeReps'] as int;
+        globalMaxSetVolumeWeight =
+            (record['bestSetVolumeWeight'] as num).toDouble();
+        globalMaxSetVolumeReps =
+            (record['bestSetVolumeReps'] as num?)?.toInt() ?? 0;
         globalMaxSetVolumeBreakdown =
             record['bestSetVolumeBreakdown'] as String;
       }
 
       // 3. Best Session Volume
-      final rSessionVol = record['totalVolume'] as double;
-      final rSessionReps = record['totalReps'] as int? ?? 0;
+      final rSessionVol = (record['totalVolume'] as num).toDouble();
+      final rSessionReps = (record['totalReps'] as num?)?.toInt() ?? 0;
 
       bool isNewBest = false;
       if (rSessionVol > globalBestSessionVolume) {
@@ -137,7 +151,7 @@ class StatisticsService {
         globalBestSessionVolume = rSessionVol;
         globalBestSessionReps = rSessionReps;
         globalBestSessionDate = record['workoutDate'] as String;
-        globalBestSessionSets = record['sets'] as List<ExerciseSet>;
+        globalBestSessionSets = (record['sets'] as List?)?.cast<ExerciseSet>();
       }
     }
 
@@ -160,6 +174,7 @@ class StatisticsService {
       bestSessionDate: globalBestSessionDate,
       bestSessionSets: globalBestSessionSets,
       exerciseName: exerciseName,
+      variation: variation,
     );
   }
 }

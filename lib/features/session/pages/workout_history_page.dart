@@ -11,6 +11,7 @@ import '../../../core/models/workout_session.dart';
 import '../../../core/utils/page_transitions.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
 import '../../../shared/widgets/cards/workout_session_card.dart';
+import '../../../shared/widgets/navigation/active_tab_scope.dart';
 
 class WorkoutHistoryPage extends StatefulWidget {
   const WorkoutHistoryPage({super.key});
@@ -22,6 +23,10 @@ class WorkoutHistoryPage extends StatefulWidget {
 class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   final ScrollController _scrollController = ScrollController();
   bool _sortDescending = true;
+
+  /// Tracks the last active tab index so we can scroll back to top
+  /// when this tab becomes visible again.
+  int? _lastActiveTab;
   String? _selectedPlanName;
   DateTimeRange? _selectedDateRange;
 
@@ -38,6 +43,20 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   List<WorkoutSession> _cachedFilteredWorkouts = [];
   Map<String, List<WorkoutSession>> _cachedGroupedWorkouts = {};
   List<String> _cachedSortedKeys = [];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final activeTab = ActiveTabScope.maybeOf(context);
+    if (activeTab != null &&
+        _lastActiveTab != null &&
+        activeTab != _lastActiveTab &&
+        activeTab == 1 &&
+        _scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+    _lastActiveTab = activeTab;
+  }
 
   @override
   void initState() {
@@ -645,8 +664,8 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                   child: RepaintBoundary(
                     child: WorkoutSessionCard(
                       session: session,
-                      onTap: () {
-                        Navigator.push(
+                      onTap: () async {
+                        final result = await Navigator.push<bool>(
                           context,
                           SmoothPageRoute(
                             page: WorkoutDetailPage(
@@ -655,6 +674,10 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                             ),
                           ),
                         );
+                        // If workout was deleted, refresh the list
+                        if (result == true && mounted) {
+                          // Bloc will automatically update the list
+                        }
                       },
                     ),
                   ),

@@ -1,4 +1,4 @@
-import 'dart:developer';
+import '../../../core/utils/app_logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -62,6 +62,7 @@ class _SessionPageState extends State<SessionPage> {
           planId: widget.planId,
           planName: widget.planName,
           exerciseNames: widget.exercises.map((e) => e.name).toList(),
+          exerciseVariations: widget.exercises.map((e) => e.variation).toList(),
           userId: userId,
         ),
       );
@@ -300,9 +301,14 @@ class _SessionPageState extends State<SessionPage> {
                                           key: ValueKey(exercise.id),
                                           exercise: exercise,
                                           exerciseIndex: exIndex,
-                                          history: state
-                                              .previousSessions[exercise.name],
-                                          pr: state.exercisePRs[exercise.name],
+                                          // History is keyed by variation
+                                          history: state.previousSessions[
+                                              '${exercise.name}:${exercise.variation}'
+                                                  .toLowerCase()],
+                                          // PR cards: variation-specific only
+                                          pr: state.exercisePRs[
+                                              '${exercise.name}:${exercise.variation}'
+                                                  .toLowerCase()],
                                           focusedSetIndex:
                                               state.focusedExerciseIndex ==
                                                       exIndex
@@ -324,9 +330,21 @@ class _SessionPageState extends State<SessionPage> {
                                             _showExerciseHistory(
                                               context,
                                               exercise.name,
+                                              exercise.variation,
                                               state.previousSessions[
-                                                  exercise.name],
-                                              state.exercisePRs[exercise.name],
+                                                  '${exercise.name}:${exercise.variation}'
+                                                      .toLowerCase()],
+                                              state.exercisePRs[
+                                                  '${exercise.name}:${exercise.variation}'
+                                                      .toLowerCase()],
+                                            );
+                                          },
+                                          onEditVariation: () {
+                                            _showEditVariationDialog(
+                                              context,
+                                              exIndex,
+                                              exercise.name,
+                                              exercise.variation,
                                             );
                                           },
                                           onAddSet: () {
@@ -478,6 +496,7 @@ class _SessionPageState extends State<SessionPage> {
   void _showExerciseHistory(
     BuildContext context,
     String exerciseName,
+    String exerciseVariation,
     WorkoutSession? lastSession,
     PersonalRecord? pr,
   ) {
@@ -490,9 +509,34 @@ class _SessionPageState extends State<SessionPage> {
       ),
       builder: (context) => SessionExerciseHistorySheet(
         exerciseName: exerciseName,
+        exerciseVariation: exerciseVariation,
         history: lastSession,
         pr: pr,
       ),
+    );
+  }
+
+  void _showEditVariationDialog(
+    BuildContext context,
+    int index,
+    String exerciseName,
+    String currentVariation,
+  ) {
+    AppDialogs.showExerciseEntryDialog(
+      context: context,
+      userId: AppConstants.defaultUserId,
+      title: 'Edit Exercise',
+      initialValue: exerciseName,
+      initialVariation: currentVariation,
+      suggestions: const [],
+      onConfirm: (_, newVariation) {
+        context.read<SessionBloc>().add(
+              SessionExerciseVariationUpdated(
+                exerciseIndex: index,
+                newVariation: newVariation,
+              ),
+            );
+      },
     );
   }
 
@@ -578,25 +622,24 @@ class _SessionPageState extends State<SessionPage> {
 
       availableExercises = uniqueNames.toList()..sort();
     } catch (e, stackTrace) {
-      log(
-        'Error loading suggestions',
-        name: 'SessionPage',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      AppLogger.error('SessionPage', 'Error loading suggestions', e, stackTrace);
     }
 
     if (!context.mounted) return;
 
     AppDialogs.showExerciseEntryDialog(
       context: context,
-      title: 'Rename Exercise',
+      userId: AppConstants.defaultUserId,
+      title: 'Edit Exercise',
       initialValue: currentName,
       suggestions: availableExercises,
-      onConfirm: (newName) {
+      onConfirm: (newName, variation) {
         context.read<SessionBloc>().add(
               SessionExerciseNameUpdated(
-                  exerciseIndex: index, newName: newName),
+                exerciseIndex: index,
+                newName: newName,
+                newVariation: variation,
+              ),
             );
       },
     );
@@ -624,7 +667,7 @@ class _SessionPageState extends State<SessionPage> {
     // Load suggestions
     try {
       // 1. Load from history
-      const userId = '1';
+      const userId = AppConstants.defaultUserId;
       final historyNames = await workoutRepository.getExerciseNames(
         userId: userId,
       );
@@ -645,24 +688,23 @@ class _SessionPageState extends State<SessionPage> {
 
       availableExercises = uniqueNames.toList()..sort();
     } catch (e, stackTrace) {
-      log(
-        'Error loading suggestions',
-        name: 'SessionPage',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      AppLogger.error('SessionPage', 'Error loading suggestions', e, stackTrace);
     }
 
     if (!context.mounted) return;
 
     AppDialogs.showExerciseEntryDialog(
       context: context,
+      userId: AppConstants.defaultUserId,
       title: 'Add Exercise',
-      hintText: 'Exercise Name (e.g. Bench Press)',
+      hintText: 'Exercise Name (ex: Bench Press)',
       suggestions: availableExercises,
-      onConfirm: (exerciseName) {
+      onConfirm: (exerciseName, variation) {
         context.read<SessionBloc>().add(
-              SessionExerciseAdded(exerciseName: exerciseName),
+              SessionExerciseAdded(
+                exerciseName: exerciseName,
+                exerciseVariation: variation,
+              ),
             );
       },
     );
@@ -748,6 +790,7 @@ class _SessionPageState extends State<SessionPage> {
                     Expanded(
                       child: ReorderableListView.builder(
                         scrollController: scrollController,
+                        buildDefaultDragHandles: false,
                         itemCount: exercises.length,
                         onReorder: (oldIndex, newIndex) {
                           _sessionBloc.add(
@@ -784,9 +827,12 @@ class _SessionPageState extends State<SessionPage> {
                                 color: AppColors.textPrimary,
                               ),
                             ),
-                            trailing: const Icon(
-                              Icons.drag_handle_rounded,
-                              color: AppColors.textSecondary,
+                            trailing: ReorderableDelayedDragStartListener(
+                              index: index,
+                              child: const Icon(
+                                Icons.drag_handle_rounded,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           );
                         },

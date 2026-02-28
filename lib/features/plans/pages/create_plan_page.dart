@@ -1,6 +1,7 @@
-import 'dart:developer';
+import '../../../core/utils/app_logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_plan.dart';
 import '../../../shared/widgets/app_dialogs.dart';
@@ -13,7 +14,9 @@ import '../../workout_log/repositories/workout_repository.dart';
 class _QueueItem {
   final String id;
   final String name;
-  _QueueItem(this.name) : id = UniqueKey().toString();
+  final String variation;
+
+  _QueueItem(this.name, {this.variation = ''}) : id = UniqueKey().toString();
 }
 
 class CreatePlanPage extends StatefulWidget {
@@ -28,7 +31,7 @@ class CreatePlanPage extends StatefulWidget {
 class _CreatePlanPageState extends State<CreatePlanPage> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
-  final _focusNode = FocusNode();
+
   final List<_QueueItem> _exercises = [];
   final List<String> _availableExercises = [];
   final _workoutRepository = WorkoutRepository();
@@ -42,10 +45,11 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
     );
 
     if (widget.plan != null) {
-      _exercises.addAll(widget.plan!.exercises.map((e) => _QueueItem(e.name)));
+      _exercises.addAll(widget.plan!.exercises
+          .map((e) => _QueueItem(e.name, variation: e.variation)));
     }
 
-    context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
+    context.read<PlanBloc>().add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
     _loadAvailableExercises();
   }
 
@@ -60,19 +64,14 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
       }
     }
     try {
-      final workouts = await _workoutRepository.getWorkouts(userId: '1');
+      final workouts = await _workoutRepository.getWorkouts(userId: AppConstants.defaultUserId);
       for (var w in workouts) {
         for (var e in w.exercises) {
           names.add(e.name);
         }
       }
     } catch (e, stackTrace) {
-      log(
-        'Error loading suggestions',
-        name: 'CreatePlanPage',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      AppLogger.error('CreatePlanPage', 'Error loading suggestions', e, stackTrace);
     }
 
     if (mounted) {
@@ -87,29 +86,31 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
-    _focusNode.dispose();
     super.dispose();
   }
 
-  void _addExercise(String name) {
+  void _addExercise(String name, {String variation = ''}) {
     if (name.isNotEmpty) {
       setState(() {
-        _exercises.add(_QueueItem(name));
+        _exercises.add(_QueueItem(name, variation: variation));
       });
     }
   }
 
-  void _editExercise(int index, String newName) {
+  void _editExercise(int index, String newName, {String newVariation = ''}) {
     if (newName.isNotEmpty) {
       setState(() {
         // Replace item but keep ID if possible, or new ID is fine
         // Using distinct ID for new content is generally safer for keys
-        _exercises[index] = _QueueItem(newName);
+        _exercises[index] = _QueueItem(newName, variation: newVariation);
       });
     }
   }
 
-  Future<void> _showExerciseDialog({int? index, String? initialValue}) async {
+  // Consolidating edit icons: _editExerciseVariation and _showVariationDialog are no longer used separately
+
+  Future<void> _showExerciseDialog(
+      {int? index, String? initialValue, String? initialVariation}) async {
     // Ensure suggestions are loaded
     if (_availableExercises.isEmpty) {
       await _loadAvailableExercises();
@@ -119,19 +120,23 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
 
     AppDialogs.showExerciseEntryDialog(
       context: context,
+      userId: AppConstants.defaultUserId,
       title: index != null ? 'Edit Exercise' : 'Add Exercise',
       initialValue: initialValue,
-      hintText: 'Exercise Name (e.g. Bench Press)',
+      initialVariation: initialVariation,
+      hintText: 'Exercise Name (ex: Bench Press)',
       suggestions: _availableExercises,
-      onConfirm: (name) {
+      onConfirm: (name, variation) {
         if (index != null) {
-          _editExercise(index, name);
+          _editExercise(index, name, newVariation: variation);
         } else {
-          _addExercise(name);
+          _addExercise(name, variation: variation);
         }
       },
     );
   }
+
+  // Consolidating edit icons: _showVariationDialog is no longer used separately
 
   @override
   Widget build(BuildContext context) {
@@ -193,14 +198,14 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                         const SizedBox(height: 8),
                         _buildTextField(
                           controller: _nameController,
-                          hint: 'e.g., Push/Pull/Legs',
+                          hint: 'ex: Push/Pull/Legs',
                         ),
                         const SizedBox(height: 24),
                         _buildLabel('Description (optional)'),
                         const SizedBox(height: 8),
                         _buildTextField(
                           controller: _descriptionController,
-                          hint: 'e.g., 3-day strength program',
+                          hint: 'ex: 3-day strength program',
                           maxLines: 3,
                         ),
                         const SizedBox(height: 24),
@@ -299,52 +304,71 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                                           ),
                                           const SizedBox(width: 12),
                                           Expanded(
-                                            child: Text(
-                                              exercise.name,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w500,
-                                                color: AppColors.textPrimary,
-                                              ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  exercise.name,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w500,
+                                                    color:
+                                                        AppColors.textPrimary,
+                                                  ),
+                                                ),
+                                                if (exercise
+                                                    .variation.isNotEmpty) ...[
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    exercise.variation,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: AppColors.accent
+                                                          .withValues(
+                                                              alpha: 0.7),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        InkWell(
-                                          onTap: () => _showExerciseDialog(
-                                            index: index,
-                                            initialValue: exercise.name,
-                                          ),
-                                          child: const Padding(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                            ),
-                                            child: Icon(
-                                              Icons.edit_rounded,
-                                              size: 18,
-                                              color: AppColors.accent,
-                                            ),
-                                          ),
+                                    InkWell(
+                                      onTap: () => _showExerciseDialog(
+                                        index: index,
+                                        initialValue: exercise.name,
+                                        initialVariation: exercise.variation,
+                                      ),
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 8,
                                         ),
-                                        InkWell(
-                                          onTap: () => setState(
-                                            () => _exercises.removeAt(index),
-                                          ),
-                                          child: const Padding(
-                                            padding: EdgeInsets.only(left: 4),
-                                            child: Icon(
-                                              Icons.close_rounded,
-                                              size: 20,
-                                              color: AppColors.error,
-                                            ),
-                                          ),
+                                        child: Icon(
+                                          Icons.edit_rounded,
+                                          size: 18,
+                                          color: AppColors.accent,
                                         ),
-                                      ],
+                                      ),
+                                    ),
+                                    InkWell(
+                                      onTap: () => setState(
+                                        () => _exercises.removeAt(index),
+                                      ),
+                                      child: const Padding(
+                                        padding: EdgeInsets.only(left: 4),
+                                        child: Icon(
+                                          Icons.close_rounded,
+                                          size: 20,
+                                          color: AppColors.error,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -479,21 +503,23 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
 
     final event = widget.plan == null
         ? PlanCreated(
-            userId: '1',
+            userId: AppConstants.defaultUserId,
             name: _nameController.text,
             description: _descriptionController.text.isNotEmpty
                 ? _descriptionController.text
                 : null,
             exercises: _exercises.map((e) => e.name).toList(),
+            exerciseVariations: _exercises.map((e) => e.variation).toList(),
           )
         : PlanUpdated(
-            userId: '1',
+            userId: AppConstants.defaultUserId,
             planId: widget.plan!.id,
             name: _nameController.text,
             description: _descriptionController.text.isNotEmpty
                 ? _descriptionController.text
                 : null,
             exercises: _exercises.map((e) => e.name).toList(),
+            exerciseVariations: _exercises.map((e) => e.variation).toList(),
           );
 
     context.read<PlanBloc>().add(event);

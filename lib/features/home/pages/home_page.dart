@@ -17,7 +17,7 @@ import '../../settings/pages/settings_page.dart';
 import '../../../core/utils/page_transitions.dart';
 import '../../../shared/widgets/animations/scale_button_wrapper.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
-
+import '../../../shared/widgets/navigation/active_tab_scope.dart';
 import '../../../shared/widgets/cards/menu_grid_item.dart';
 
 class HomePage extends StatefulWidget {
@@ -29,11 +29,34 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   String _quote = '';
+  late ScrollController _scrollController;
+  int? _lastActiveTab;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final activeTab = ActiveTabScope.maybeOf(context);
+    if (activeTab != null &&
+        _lastActiveTab != null &&
+        activeTab != _lastActiveTab &&
+        activeTab == 0 &&
+        _scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+    _lastActiveTab = activeTab;
+  }
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
     _quote = _getRandomQuote();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   String _getGreeting() {
@@ -109,6 +132,7 @@ class _HomePageState extends State<HomePage> {
           }
         },
         child: CustomScrollView(
+          controller: _scrollController,
           physics: const BouncingScrollPhysics(),
           slivers: [
             SliverPadding(
@@ -170,7 +194,7 @@ class _HomePageState extends State<HomePage> {
                         icon: Icons.add_rounded,
                         onTap: () {
                           context.read<SessionBloc>().add(
-                                const SessionCheckDraftRequested(userId: '1'),
+                                const SessionCheckDraftRequested(userId: AppConstants.defaultUserId),
                               );
                         },
                       ),

@@ -81,6 +81,15 @@ liftly/
 - **[googleapis](https://pub.dev/packages/googleapis)** - Google Drive integration
 - **[excel](https://pub.dev/packages/excel)** - Excel file generation and parsing
 
-## 📄 License
+## � Changelog
+
+### v2.0.0
+- **Bug fixes**: Resolved workout history stale data after editing a workout
+- **Bug fixes**: Success popup now correctly appears after saving workout edits
+- **Stability**: Comprehensive codebase audit — removed dead code, fixed minor bugs across 76+ files
+- **Refactor**: Unified logging via `AppLogger`; replaced hardcoded constants with `AppConstants`
+- **UI**: Scroll-to-top on tab re-select for all 5 main pages via `IndexedStack` + `ActiveTabScope`
+
+## �📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

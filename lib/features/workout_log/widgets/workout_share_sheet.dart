@@ -1,4 +1,4 @@
-import 'dart:developer';
+import '../../../core/utils/app_logger.dart';
 import 'package:flutter/material.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
@@ -62,12 +62,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
         }
       }
     } catch (e, stackTrace) {
-      log(
-        'Error sharing image',
-        name: 'WorkoutShareSheet',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      AppLogger.error('WorkoutShareSheet', 'Error sharing image', e, stackTrace);
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }
@@ -96,10 +91,12 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
         color: AppColors.darkBg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
         children: [
-          Padding(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -129,7 +126,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                 if (_isTransparent)
                   Container(
                     width: 320,
-                    height: 400,
+                    height: (workout.planName?.isNotEmpty ?? false) ? 440 : 400,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -144,7 +141,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                   controller: _screenshotController,
                   child: Container(
                     width: 320,
-                    height: 400,
+                    height: (workout.planName?.isNotEmpty ?? false) ? 440 : 400,
                     decoration: BoxDecoration(
                       color: _isTransparent
                           ? Colors.transparent
@@ -193,6 +190,13 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
 
                               const Spacer(),
 
+                              if (workout.planName != null &&
+                                  workout.planName!.isNotEmpty) ...
+                                [
+                                  _buildStatGroup(
+                                      'Plan', workout.planName!),
+                                  const SizedBox(height: 12),
+                                ],
                               _buildStatGroup('Exercises', '$exerciseCount'),
                               const SizedBox(height: 12),
                               _buildStatGroup('Total Sets', '$totalSets'),
@@ -287,10 +291,19 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
             ),
           ),
 
+          // Close Column children & Column widget
+            ],
+          ),
+
           if (_isGenerating)
-            Container(
-              color: Colors.black54,
-              child: const Center(child: CircularProgressIndicator()),
+            Positioned.fill(
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
             ),
         ],
       ),

@@ -21,16 +21,19 @@ class PlanCreated extends PlanEvent {
   final String name;
   final String? description;
   final List<String> exercises;
+  final List<String>? exerciseVariations;
 
   const PlanCreated({
     required this.userId,
     required this.name,
     this.description,
     required this.exercises,
+    this.exerciseVariations,
   });
 
   @override
-  List<Object?> get props => [userId, name, description, exercises];
+  List<Object?> get props =>
+      [userId, name, description, exercises, exerciseVariations];
 }
 
 class PlanUpdated extends PlanEvent {
@@ -39,6 +42,7 @@ class PlanUpdated extends PlanEvent {
   final String name;
   final String? description;
   final List<String> exercises;
+  final List<String>? exerciseVariations;
 
   const PlanUpdated({
     required this.userId,
@@ -46,10 +50,18 @@ class PlanUpdated extends PlanEvent {
     required this.name,
     this.description,
     required this.exercises,
+    this.exerciseVariations,
   });
 
   @override
-  List<Object?> get props => [userId, planId, name, description, exercises];
+  List<Object?> get props => [
+        userId,
+        planId,
+        name,
+        description,
+        exercises,
+        exerciseVariations
+      ];
 }
 
 class PlanDeleted extends PlanEvent {

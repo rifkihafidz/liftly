@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../session/widgets/session_exercise_history_sheet.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'dart:typed_data';
+import '../../../core/constants/app_constants.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
@@ -18,6 +19,7 @@ import '../bloc/stats_state.dart';
 import 'stats_shimmer.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
 import '../../../shared/widgets/cards/stat_overview_card.dart';
+import '../../../shared/widgets/navigation/active_tab_scope.dart';
 
 class StatsPage extends StatefulWidget {
   const StatsPage({super.key});
@@ -30,29 +32,63 @@ class _StatsPageState extends State<StatsPage> {
   late ScrollController _scrollController;
   int _prCurrentPage = 0; // Pagination for personal records
   late ScreenshotController _sharePreviewController;
+  /// True until the first fresh StatsLoaded (or StatsError) from OUR
+  /// StatsFetched dispatch arrives. Shows shimmer during this period.
+  bool _waitingForFreshLoad = true;
+
+  /// Direct subscription on the bloc stream so we see EVERY state emission
+  /// individually — unlike BlocBuilder, which can batch rapid setState calls
+  /// and skip intermediate states within the same frame.
+  StreamSubscription<StatsState>? _freshLoadSubscription;
+
+  /// Tracks the last active tab index so we can detect when Stats tab
+  /// becomes visible and scroll back to the top.
+  int? _lastActiveTab;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final activeTab = ActiveTabScope.maybeOf(context);
+    if (activeTab != null &&
+        _lastActiveTab != null &&
+        activeTab != _lastActiveTab &&
+        activeTab == 2 &&
+        _scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+    _lastActiveTab = activeTab;
+  }
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _sharePreviewController = ScreenshotController();
-    context.read<StatsBloc>().add(const StatsFetched(userId: '1'));
+
+    final bloc = context.read<StatsBloc>();
+    bloc.add(const StatsFetched(userId: AppConstants.defaultUserId));
+
+    // Watch for the first StatsLoading that comes after our dispatch, then
+    // clear the flag once StatsLoaded/StatsError follows.
+    // Using a raw stream subscription guarantees we see every event in order,
+    // even if the bloc emits Loading+Loaded faster than one Flutter frame.
+    bool seenLoading = false;
+    _freshLoadSubscription = bloc.stream.listen((state) {
+      if (state is StatsLoading) {
+        seenLoading = true;
+      } else if ((state is StatsLoaded || state is StatsError) && seenLoading) {
+        _freshLoadSubscription?.cancel();
+        _freshLoadSubscription = null;
+        if (mounted) setState(() => _waitingForFreshLoad = false);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _freshLoadSubscription?.cancel();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  // Helper function to format numbers with thousand separators
-  String _formatNumber(double num) {
-    if (num >= 1000000) {
-      return '${(num / 1000000).toStringAsFixed(1).replaceAll('.', ',')}M';
-    } else if (num >= 1000) {
-      return '${(num / 1000).toStringAsFixed(1).replaceAll('.', ',')}k';
-    }
-    return NumberFormat('#,##0.##', 'pt_BR').format(num);
   }
 
   /// Show filter dialog for personal records
@@ -109,9 +145,6 @@ class _StatsPageState extends State<StatsPage> {
         return;
       }
 
-      // Resize image to fit 9:16 (Instagram story format)
-      image = await _resizeImageTo(image);
-
       // Share using SharePlus with file data
       try {
         // ignore: deprecated_member_use
@@ -165,15 +198,86 @@ class _StatsPageState extends State<StatsPage> {
         return;
       }
 
-      // 2. Capture using ScreenshotController (from an invisible widget)
+      // 2. Ask user which metric to feature on the card
+      if (!context.mounted) return;
+      final metric = await showModalBottomSheet<_PRMetric>(
+        context: context,
+        backgroundColor: const Color(0xFF141A21),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Text(
+                'What to show on share card?',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'One metric per exercise keeps the card clean.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: _PRMetricOption(
+                      icon: Icons.fitness_center_rounded,
+                      label: 'Heaviest',
+                      sublabel: 'Max weight lifted',
+                      color: AppColors.accent,
+                      onTap: () => Navigator.pop(ctx, _PRMetric.heaviest),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _PRMetricOption(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Best Volume',
+                      sublabel: 'Total weight moved',
+                      color: AppColors.success,
+                      onTap: () => Navigator.pop(ctx, _PRMetric.volume),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+      if (metric == null || !context.mounted) return;
+
+      // 3. Capture using ScreenshotController
       final image = await _sharePreviewController.captureFromWidget(
-        _PRSharePreview(records: filteredRecords),
+        _PRSharePreview(records: filteredRecords, metric: metric),
         delay: const Duration(milliseconds: 100),
         pixelRatio: 2.0,
-        context: context, // Provide context for Theme/Media access
+        context: context,
       );
 
-      // 3. Share
+      // 4. Share
       // ignore: deprecated_member_use
       await Share.shareXFiles([
         XFile.fromData(image, mimeType: 'image/png', name: 'liftly_prs.png'),
@@ -188,19 +292,17 @@ class _StatsPageState extends State<StatsPage> {
     }
   }
 
-  /// Resize captured image to maintain quality
-  /// Keeps aspect ratio as-is (already 9:16 from preview)
-  Future<Uint8List> _resizeImageTo(Uint8List imageData) async {
-    // Return image as-is since it's already captured at correct aspect ratio
-    return imageData;
-  }
-
   StatsLoaded? _lastLoadedState;
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<StatsBloc, StatsState>(
       builder: (context, state) {
+        // While waiting for our fresh fetch (tracked via stream subscription
+        // in initState), show shimmer regardless of any stale state the bloc
+        // might still hold.
+        if (_waitingForFreshLoad) return const StatsPageShimmer();
+
         if (state is StatsLoaded) {
           _lastLoadedState = state;
         }
@@ -239,7 +341,7 @@ class _StatsPageState extends State<StatsPage> {
                   FilledButton(
                     onPressed: () {
                       context.read<StatsBloc>().add(
-                            const StatsFetched(userId: '1'),
+                            const StatsFetched(userId: AppConstants.defaultUserId),
                           );
                     },
                     child: const Text('Retry'),
@@ -648,12 +750,18 @@ class _StatsPageState extends State<StatsPage> {
     final itemsPerPage = 4;
     final totalPages = (prsList.length / itemsPerPage).ceil();
 
-    // Ensure current page is valid
-    if (_prCurrentPage >= totalPages) {
-      _prCurrentPage = 0;
+    // Clamp current page to valid range (avoids mutation during build)
+    final safePage = totalPages > 0
+        ? _prCurrentPage.clamp(0, totalPages - 1)
+        : 0;
+    // Defer actual field update to avoid setState-during-build
+    if (safePage != _prCurrentPage) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _prCurrentPage = safePage);
+      });
     }
 
-    final startIndex = _prCurrentPage * itemsPerPage;
+    final startIndex = safePage * itemsPerPage;
     final endIndex = (startIndex + itemsPerPage < prsList.length)
         ? startIndex + itemsPerPage
         : prsList.length;
@@ -682,16 +790,27 @@ class _StatsPageState extends State<StatsPage> {
                   index: index,
                   child: InkWell(
                     onTap: () {
-                      // Find last session for this exercise using name for better compatibility
+                      // Find last session for this exercise with matching variation
                       WorkoutSession? lastSession;
                       try {
                         final exerciseName = entry.value.exerciseName;
                         lastSession = allSessions.firstWhere((s) => s.exercises
                             .any((e) =>
                                 e.name.toLowerCase() ==
-                                exerciseName.toLowerCase()));
+                                    exerciseName.toLowerCase() &&
+                                e.variation.toLowerCase() ==
+                                    entry.value.variation.toLowerCase()));
                       } catch (_) {
-                        // ignore
+                        // Fallback to first matching exercise without variation check
+                        try {
+                          final exerciseName = entry.value.exerciseName;
+                          lastSession = allSessions.firstWhere((s) =>
+                              s.exercises.any((e) =>
+                                  e.name.toLowerCase() ==
+                                  exerciseName.toLowerCase()));
+                        } catch (_) {
+                          // ignore
+                        }
                       }
 
                       showModalBottomSheet(
@@ -704,6 +823,7 @@ class _StatsPageState extends State<StatsPage> {
                         ),
                         builder: (context) => SessionExerciseHistorySheet(
                           exerciseName: entry.value.exerciseName,
+                          exerciseVariation: entry.value.variation,
                           history: lastSession,
                           pr: entry.value,
                         ),
@@ -747,6 +867,7 @@ class _StatsPageState extends State<StatsPage> {
                               mainAxisAlignment:
                                   MainAxisAlignment.start, // Avoid stretching
                               children: [
+                                // Exercise name
                                 Text(
                                   entry.value.exerciseName.toUpperCase(),
                                   style: Theme.of(context)
@@ -760,6 +881,8 @@ class _StatsPageState extends State<StatsPage> {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
+                                // Variation info if exists and not empty
+                                ..._buildVariationDisplay(context, entry.value),
                                 const SizedBox(height: 8),
                                 // Best 1 Set (Max Weight)
                                 _buildPRValueRow(
@@ -796,24 +919,24 @@ class _StatsPageState extends State<StatsPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                onPressed: _prCurrentPage > 0
+                onPressed: safePage > 0
                     ? () {
-                        setState(() => _prCurrentPage--);
+                        setState(() => _prCurrentPage = safePage - 1);
                       }
                     : null,
                 icon: const Icon(Icons.arrow_back),
                 iconSize: 20,
               ),
               Text(
-                '${_prCurrentPage + 1} / $totalPages',
+                '${safePage + 1} / $totalPages',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
               ),
               IconButton(
-                onPressed: _prCurrentPage < totalPages - 1
+                onPressed: safePage < totalPages - 1
                     ? () {
-                        setState(() => _prCurrentPage++);
+                        setState(() => _prCurrentPage = safePage + 1);
                       }
                     : null,
                 icon: const Icon(Icons.arrow_forward),
@@ -824,6 +947,29 @@ class _StatsPageState extends State<StatsPage> {
         ],
       ],
     );
+  }
+
+  List<Widget> _buildVariationDisplay(
+      BuildContext context, PersonalRecord record) {
+    final variation = record.variation;
+    if (variation.isNotEmpty) {
+      return [
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            variation,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.accent,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
+                ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ];
+    }
+    return [];
   }
 
   Widget _buildPRValueRow(
@@ -892,55 +1038,70 @@ class _StatsPageState extends State<StatsPage> {
     );
   }
 
-  double _calculateTotalVolume(List<WorkoutSession> sessions) {
-    double total = 0;
-    for (var session in sessions) {
-      total += session.totalVolume;
-    }
-    return total;
+}
+
+// ─── PR share metric selection ───────────────────────────────────────────────
+enum _PRMetric { heaviest, volume }
+
+// ─── File-private helpers shared by _StatsPageState and _StatsSharePreview ───
+
+String _formatNumber(double num) {
+  if (num >= 1000000) {
+    return '${(num / 1000000).toStringAsFixed(1).replaceAll('.', ',')}M';
+  } else if (num >= 1000) {
+    return '${(num / 1000).toStringAsFixed(1).replaceAll('.', ',')}k';
   }
+  return NumberFormat('#,##0.##', 'pt_BR').format(num);
+}
 
-  String _calculateTotalDuration(List<WorkoutSession> sessions) {
-    final durations = sessions
-        .where((s) => s.duration != null)
-        .map((s) => s.duration!)
-        .toList();
-
-    if (durations.isEmpty) return '-';
-
-    final totalDuration = durations.fold<Duration>(
-      Duration.zero,
-      (sum, d) => sum + d,
-    );
-
-    final hours = totalDuration.inHours;
-    final minutes = totalDuration.inMinutes % 60;
-
-    if (hours > 0) {
-      return '${hours}h ${minutes}m';
-    }
-    return '${minutes}m';
+double _calculateTotalVolume(List<WorkoutSession> sessions) {
+  double total = 0;
+  for (var session in sessions) {
+    total += session.totalVolume;
   }
+  return total;
+}
 
-  String _calculateAverageDuration(List<WorkoutSession> sessions) {
-    final durations = sessions
-        .where((s) => s.duration != null)
-        .map((s) => s.duration!)
-        .toList();
+String _calculateTotalDuration(List<WorkoutSession> sessions) {
+  final durations = sessions
+      .where((s) => s.duration != null)
+      .map((s) => s.duration!)
+      .toList();
 
-    if (durations.isEmpty) return '-';
+  if (durations.isEmpty) return '-';
 
-    final totalMinutes = durations.fold<int>(0, (sum, d) => sum + d.inMinutes);
-    final avgMinutes = totalMinutes ~/ durations.length;
+  final totalDuration = durations.fold<Duration>(
+    Duration.zero,
+    (sum, d) => sum + d,
+  );
 
-    final hours = avgMinutes ~/ 60;
-    final minutes = avgMinutes % 60;
+  final hours = totalDuration.inHours;
+  final minutes = totalDuration.inMinutes % 60;
 
-    if (hours > 0) {
-      return '${hours}h ${minutes}m';
-    }
-    return '${minutes}m';
+  if (hours > 0) {
+    return '${hours}h ${minutes}m';
   }
+  return '${minutes}m';
+}
+
+String _calculateAverageDuration(List<WorkoutSession> sessions) {
+  final durations = sessions
+      .where((s) => s.duration != null)
+      .map((s) => s.duration!)
+      .toList();
+
+  if (durations.isEmpty) return '-';
+
+  final totalMinutes = durations.fold<int>(0, (sum, d) => sum + d.inMinutes);
+  final avgMinutes = totalMinutes ~/ durations.length;
+
+  final hours = avgMinutes ~/ 60;
+  final minutes = avgMinutes % 60;
+
+  if (hours > 0) {
+    return '${hours}h ${minutes}m';
+  }
+  return '${minutes}m';
 }
 
 /// Share Preview Widget - Optimized for 9:16 Instagram Story format
@@ -954,65 +1115,6 @@ class _StatsSharePreview extends StatelessWidget {
     required this.sessions,
     required this.referenceDate,
   });
-
-  double _calculateTotalVolume(List<WorkoutSession> sessions) {
-    double total = 0;
-    for (var session in sessions) {
-      total += session.totalVolume;
-    }
-    return total;
-  }
-
-  String _calculateTotalDuration(List<WorkoutSession> sessions) {
-    final durations = sessions
-        .where((s) => s.duration != null)
-        .map((s) => s.duration!)
-        .toList();
-
-    if (durations.isEmpty) return '-';
-
-    final totalDuration = durations.fold<Duration>(
-      Duration.zero,
-      (sum, d) => sum + d,
-    );
-
-    final hours = totalDuration.inHours;
-    final minutes = totalDuration.inMinutes % 60;
-
-    if (hours > 0) {
-      return '${hours}h ${minutes}m';
-    }
-    return '${minutes}m';
-  }
-
-  String _calculateAverageDuration(List<WorkoutSession> sessions) {
-    final durations = sessions
-        .where((s) => s.duration != null)
-        .map((s) => s.duration!)
-        .toList();
-
-    if (durations.isEmpty) return '-';
-
-    final totalMinutes = durations.fold<int>(0, (sum, d) => sum + d.inMinutes);
-    final avgMinutes = totalMinutes ~/ durations.length;
-
-    final hours = avgMinutes ~/ 60;
-    final minutes = avgMinutes % 60;
-
-    if (hours > 0) {
-      return '${hours}h ${minutes}m';
-    }
-    return '${minutes}m';
-  }
-
-  String _formatNumber(double num) {
-    if (num >= 1000000) {
-      return '${(num / 1000000).toStringAsFixed(1).replaceAll('.', ',')}M';
-    } else if (num >= 1000) {
-      return '${(num / 1000).toStringAsFixed(1).replaceAll('.', ',')}k';
-    }
-    return NumberFormat('#,##0.##', 'pt_BR').format(num);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1811,9 +1913,9 @@ class _WorkoutFrequencyCard extends StatelessWidget {
           final count = sessions
               .where(
                 (s) =>
-                    s.workoutDate.year == dayDate.year &&
-                    s.workoutDate.month == dayDate.month &&
-                    s.workoutDate.day == dayDate.day,
+                    s.effectiveDate.year == dayDate.year &&
+                    s.effectiveDate.month == dayDate.month &&
+                    s.effectiveDate.day == dayDate.day,
               )
               .length;
           frequencyData[i] = count;
@@ -1822,32 +1924,27 @@ class _WorkoutFrequencyCard extends StatelessWidget {
 
       case TimePeriod.month:
         // Group by weeks in current month
-        final firstDayOfMonth = DateTime(now.year, now.month, 1);
         final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
 
         title = 'Workout Frequency (${DateFormat('MMMM yyyy').format(now)})';
 
         // Calculate weeks
-        int daysToAdd =
-            firstDayOfMonth.weekday - 1; // Days before Monday of first week
-
-        // Count weeks
-        int totalDays = lastDayOfMonth.day + daysToAdd;
+        int totalDays = lastDayOfMonth.day;
         int weeksCount = (totalDays / 7).ceil();
 
         frequencyData = List.filled(weeksCount, 0);
 
         for (int i = 1; i <= lastDayOfMonth.day; i++) {
           final dayDate = DateTime(now.year, now.month, i);
-          // Determine which week this day belongs to
-          final weekIndex = ((dayDate.weekday - 1 + (i - 1)) / 7).floor();
+          // Simple week bucket: day 1-7 = W1, 8-14 = W2, etc.
+          final weekIndex = (i - 1) ~/ 7;
 
           final count = sessions
               .where(
                 (s) =>
-                    s.workoutDate.year == dayDate.year &&
-                    s.workoutDate.month == dayDate.month &&
-                    s.workoutDate.day == dayDate.day,
+                    s.effectiveDate.year == dayDate.year &&
+                    s.effectiveDate.month == dayDate.month &&
+                    s.effectiveDate.day == dayDate.day,
               )
               .length;
 
@@ -1886,7 +1983,7 @@ class _WorkoutFrequencyCard extends StatelessWidget {
           final count = sessions
               .where(
                 (s) =>
-                    s.workoutDate.month == i && s.workoutDate.year == now.year,
+                    s.effectiveDate.month == i && s.effectiveDate.year == now.year,
               )
               .length;
           frequencyData[i - 1] = count;
@@ -2318,18 +2415,7 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
   }
 
   bool _canNavigatePrevious(DateTime ref, DateTime now) {
-    if (widget.selectedPeriod == TimePeriod.allTime) return false;
-    switch (widget.selectedPeriod) {
-      case TimePeriod.week:
-        // Can always go back for weekly (like monthly)
-        return true;
-      case TimePeriod.month:
-        return true; // Can always go back for month
-      case TimePeriod.year:
-        return true; // Can always go back for year
-      case TimePeriod.allTime:
-        return false;
-    }
+    return widget.selectedPeriod != TimePeriod.allTime;
   }
 
   bool _canNavigateNext(DateTime ref, DateTime now) {
@@ -2461,7 +2547,6 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
     );
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -2654,7 +2739,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
     super.initState();
     _scrollController = ScrollController();
 
-    // Handle cross-year weeks (e.g., Dec 29 - Jan 4)
+    // Handle cross-year weeks (ex: Dec 29 - Jan 4)
     final ref = widget.referenceDate;
     _selectedYear = _determineYearForWeek(ref);
 
@@ -3186,7 +3271,8 @@ class _StickySelectorDelegate extends SliverPersistentHeaderDelegate {
   @override
   double get minExtent => 112;
   @override
-  bool shouldRebuild(covariant _StickySelectorDelegate oldDelegate) => true;
+  bool shouldRebuild(covariant _StickySelectorDelegate oldDelegate) =>
+      child != oldDelegate.child;
 }
 
 class _ExerciseFilterDialog extends StatefulWidget {
@@ -3209,16 +3295,6 @@ class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
   final TextEditingController _searchController = TextEditingController();
   int _currentPage = 0;
   final int _itemsPerPage = 10;
-
-  String _formatCompactNumber(double number) {
-    if (number >= 1000000) {
-      return '${(number / 1000000).toStringAsFixed(1)}M';
-    } else if (number >= 1000) {
-      return '${(number / 1000).toStringAsFixed(1)}k';
-    } else {
-      return number.toInt().toString();
-    }
-  }
 
   @override
   void initState() {
@@ -3381,18 +3457,30 @@ class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
 
                         return CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            exercise,
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            'Heavy: ${weight.maxWeight.toStringAsFixed(1)}kg x ${weight.maxWeightReps} • Vol: ${_formatCompactNumber(weight.maxVolume)} ${weight.maxVolumeBreakdown}',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                            ),
+                          title: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                weight.exerciseName,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w500),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              // Show variation if exists and not empty
+                              if (weight.variation.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    weight.variation,
+                                    style: TextStyle(
+                                      color: AppColors.accent,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           value: isSelected,
                           activeColor: AppColors.accent,
@@ -3477,297 +3565,335 @@ class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
   }
 }
 
+/// Tappable option tile used in the PR metric picker bottom sheet
+class _PRMetricOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String sublabel;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _PRMetricOption({
+    required this.icon,
+    required this.label,
+    required this.sublabel,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: color.withValues(alpha: 0.25),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color, size: 26),
+              const SizedBox(height: 10),
+              Text(
+                label,
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                sublabel,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PRSharePreview extends StatelessWidget {
   final Map<String, PersonalRecord> records;
+  final _PRMetric metric;
 
-  const _PRSharePreview({required this.records});
+  const _PRSharePreview({required this.records, required this.metric});
 
-  String _formatNumber(double num) {
-    if (num >= 1000000) {
-      return '${(num / 1000000).toStringAsFixed(1).replaceAll('.', ',')}M';
-    } else if (num >= 1000) {
-      return '${(num / 1000).toStringAsFixed(1).replaceAll('.', ',')}k';
+  String _fmtNum(double v) {
+    if (v == v.roundToDouble() && v < 10000) {
+      return v.toInt().toString();
     }
-    return NumberFormat('#,##0.##', 'pt_BR').format(num);
+    return NumberFormat('#,##0.#', 'pt_BR').format(v);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Fixed 9:16 resolution for Instagram Stories
+    final dateLabel =
+        DateFormat('d MMM yyyy').format(DateTime.now()).toUpperCase();
+    final isHeaviest = metric == _PRMetric.heaviest;
+    final accent = isHeaviest ? AppColors.accent : AppColors.success;
+    final label = isHeaviest ? 'HEAVIEST' : 'BEST VOLUME';
+
+    final sorted = records.entries.toList()
+      ..sort((a, b) =>
+          a.value.exerciseName.compareTo(b.value.exerciseName));
+
+    // 3 columns for >8 exercises, 2 otherwise
+    final nCols = sorted.length > 8 ? 3 : 2;
+    final perCol = (sorted.length / nCols).ceil();
+    final cols = <List<MapEntry<String, PersonalRecord>>>[];
+    for (var i = 0; i < nCols; i++) {
+      final s = i * perCol;
+      final e = ((i + 1) * perCol).clamp(0, sorted.length);
+      if (s < sorted.length) cols.add(sorted.sublist(s, e));
+    }
+
     return Container(
-      width: 1080,
-      height: 1920,
+      width: 720,
+      clipBehavior: Clip.hardEdge,
       decoration: const BoxDecoration(color: Color(0xFF0B0F14)),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(60),
-          child: FittedBox(
-            fit: BoxFit.contain,
-            alignment: Alignment.center,
-            child: Container(
-              width: 960, // 1080 - 120 padding
-              padding: const EdgeInsets.all(48),
-              decoration: BoxDecoration(
-                color: const Color(0xFF141A21),
-                borderRadius: BorderRadius.circular(48),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.05),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    blurRadius: 60,
-                    offset: const Offset(0, 30),
-                  ),
-                ],
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          clipBehavior: Clip.hardEdge,
+          decoration: BoxDecoration(
+            color: const Color(0xFF141A21),
+            borderRadius: BorderRadius.circular(16),
+            border:
+                Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ===== HEADER =====
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // ===== HEADER / BRANDING =====
-                  Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: AppColors.accent.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.accent.withValues(alpha: 0.2),
-                              width: 2,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.emoji_events,
-                            color: AppColors.accent,
-                            size: 64,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'LIFTLY',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 8,
-                                fontSize: 32,
-                              ),
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.accent.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(
-                              color: AppColors.accent.withValues(alpha: 0.2),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Text(
-                            'PERSONAL RECORDS',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelMedium
-                                ?.copyWith(
-                                  color: AppColors.accent,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 2.0,
-                                  fontSize: 14,
-                                ),
-                          ),
-                        ),
-                      ],
+                  Icon(Icons.emoji_events_rounded,
+                      color: accent, size: 16),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'PERSONAL RECORDS',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
-
-                  const SizedBox(height: 64),
-
-                  // ===== RECORDS GRID =====
-                  Wrap(
-                    spacing: 24,
-                    runSpacing: 24,
-                    alignment: WrapAlignment.center,
-                    children: records.entries.map((entry) {
-                      return Container(
-                        width: 400, // Fits 2 columns (400*2 + 24 = 824 < 960)
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: AppColors.cardBg,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: AppColors.accent.withValues(alpha: 0.15),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              entry.key.toUpperCase(),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.5,
-                                    fontSize: 16,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildCompactRow(
-                              context,
-                              'Heaviest',
-                              entry.value.maxWeight,
-                              'kg',
-                              reps: entry.value.maxWeightReps,
-                            ),
-                            const SizedBox(height: 8),
-                            _buildCompactRow(
-                              context,
-                              'Best Vol',
-                              entry.value.maxVolume,
-                              'kg',
-                              details: entry.value.maxVolumeBreakdown,
-                              maxLines: 1,
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-
-                  const SizedBox(height: 48),
-                  Divider(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    thickness: 1.5,
-                  ),
-                  const SizedBox(height: 32),
-                  Center(
-                    child: Column(
-                      children: [
-                        Text(
-                          'Track your progress with Liftly',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 14,
-                                    letterSpacing: 1,
-                                  ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'liftly.app',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: AppColors.accent.withValues(alpha: 0.8),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                        ),
-                      ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: accent.withValues(alpha: 0.25)),
+                    ),
+                    child: Text(
+                      '$label · $dateLabel',
+                      style: TextStyle(
+                        color: accent,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 9,
+                        letterSpacing: 0.3,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
+
+              const SizedBox(height: 10),
+              Divider(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  height: 1),
+              const SizedBox(height: 4),
+
+              // ===== 3-COLUMN TABLE =====
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var i = 0; i < cols.length; i++) ...[
+                      if (i > 0) ...[
+                        const SizedBox(width: 3),
+                        VerticalDivider(
+                          width: 1,
+                          thickness: 1,
+                          color:
+                              Colors.white.withValues(alpha: 0.05),
+                        ),
+                        const SizedBox(width: 3),
+                      ],
+                      Expanded(
+                        child: _buildColumn(
+                            cols[i], accent, isHeaviest),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 6),
+              Divider(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  height: 1),
+              const SizedBox(height: 8),
+
+              // ===== FOOTER =====
+              Text(
+                'Track your progress with Liftly',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 10,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'liftly.app',
+                style: TextStyle(
+                  color: AppColors.accent.withValues(alpha: 0.7),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCompactRow(
-    BuildContext context,
-    String label,
-    double value,
-    String unit, {
-    int? reps,
-    String? details,
-    int maxLines = 1,
-  }) {
-    final repsStr = reps != null ? 'x $reps' : '';
+  Widget _buildColumn(
+    List<MapEntry<String, PersonalRecord>> entries,
+    Color accent,
+    bool isHeaviest,
+  ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-                fontSize: 12,
-              ),
-        ),
-        const SizedBox(height: 2),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Flexible(
-              child: Text(
-                _formatNumber(value),
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 22,
-                    ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+        for (var i = 0; i < entries.length; i++) ...[
+          _buildEntry(entries[i], accent, isHeaviest),
+          if (i < entries.length - 1)
+            Divider(
+              color: Colors.white.withValues(alpha: 0.04),
+              height: 1,
+              indent: 4,
+              endIndent: 4,
             ),
-            const SizedBox(width: 4),
-            Text(
-              unit,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.accent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            if (repsStr.isNotEmpty) ...[
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  repsStr,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                      ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-            if (details != null) ...[
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  '($details)',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                  maxLines: maxLines,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ],
-        ),
+        ],
       ],
     );
   }
+
+  Widget _buildEntry(
+    MapEntry<String, PersonalRecord> entry,
+    Color accent,
+    bool isHeaviest,
+  ) {
+    final name = entry.value.exerciseName;
+    final variation = entry.value.variation;
+
+    // Both metrics: show "weight kg ×reps"
+    final weight = isHeaviest
+        ? entry.value.maxWeight
+        : entry.value.maxVolumeWeight;
+    final reps = isHeaviest
+        ? entry.value.maxWeightReps
+        : entry.value.maxVolumeReps;
+
+    final valueStr = '${_fmtNum(weight)} kg';
+    final repsStr = '×$reps';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Exercise name + variation as note
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
+                if (variation.isNotEmpty)
+                  Text(
+                    variation,
+                    style: TextStyle(
+                      color: AppColors.textSecondary
+                          .withValues(alpha: 0.5),
+                      fontSize: 7.5,
+                      fontWeight: FontWeight.w400,
+                      fontStyle: FontStyle.italic,
+                      height: 1.2,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          // Value + reps
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                valueStr,
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  height: 1.3,
+                ),
+              ),
+              Text(
+                repsStr,
+                style: TextStyle(
+                  color: AppColors.textSecondary
+                      .withValues(alpha: 0.5),
+                  fontSize: 8,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
+

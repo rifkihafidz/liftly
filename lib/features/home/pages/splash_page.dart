@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../core/constants/colors.dart';
 import 'main_navigation_wrapper.dart';
-import '../../../../core/utils/page_transitions.dart';
-import '../../../../core/services/hive_service.dart';
+import '../../../core/utils/page_transitions.dart';
+import '../../../core/services/hive_service.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -76,7 +76,7 @@ class _SplashPageState extends State<SplashPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.darkBg,
+      backgroundColor: Colors.black, // Use pure black for perfect consistency
       body: Center(
         child: AnimatedBuilder(
           animation: _controller,
@@ -96,9 +96,10 @@ class _SplashPageState extends State<SplashPage>
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.accent.withValues(alpha: 0.3),
-                              blurRadius: 30,
-                              spreadRadius: 10,
+                              color: AppColors.accent
+                                  .withValues(alpha: 0.2), // Subtle glow
+                              blurRadius: 40,
+                              spreadRadius: 2,
                             ),
                           ],
                         ),

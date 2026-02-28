@@ -9,6 +9,7 @@ class PlanRepository {
     required String name,
     String? description,
     required List<String> exercises,
+    List<String>? exerciseVariations,
   }) async {
     try {
       // Generate local ID (timestamp based)
@@ -18,11 +19,18 @@ class PlanRepository {
       final planExercises = exercises
           .asMap()
           .entries
-          .map((entry) => PlanExercise(
-                id: '${id}_${entry.key}',
-                name: entry.value,
-                order: entry.key,
-              ))
+          .map((entry) {
+            final variation = (exerciseVariations != null &&
+                    entry.key < exerciseVariations.length)
+                ? exerciseVariations[entry.key]
+                : '';
+            return PlanExercise(
+              id: '${id}_${entry.key}',
+              name: entry.value,
+              order: entry.key,
+              variation: variation,
+            );
+          })
           .toList();
 
       // Save to local database
@@ -69,17 +77,25 @@ class PlanRepository {
     required String name,
     String? description,
     required List<String> exercises,
+    List<String>? exerciseVariations,
   }) async {
     try {
       // Convert exercise strings to PlanExercise objects with order
       final planExercises = exercises
           .asMap()
           .entries
-          .map((entry) => PlanExercise(
-                id: '${planId}_${entry.key}',
-                name: entry.value,
-                order: entry.key,
-              ))
+          .map((entry) {
+            final variation = (exerciseVariations != null &&
+                    entry.key < exerciseVariations.length)
+                ? exerciseVariations[entry.key]
+                : '';
+            return PlanExercise(
+              id: '${planId}_${entry.key}',
+              name: entry.value,
+              order: entry.key,
+              variation: variation,
+            );
+          })
           .toList();
 
       // Update in local database

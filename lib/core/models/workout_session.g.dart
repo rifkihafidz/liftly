@@ -109,16 +109,18 @@ class SessionExerciseAdapter extends TypeAdapter<SessionExercise> {
       id: fields[0] as String,
       name: fields[1] as String,
       order: fields[2] as int,
-      skipped: fields[3] as bool,
-      isTemplate: fields[4] as bool,
+      skipped: fields[3] == null ? false : fields[3] as bool,
+      isTemplate: fields[4] == null ? false : fields[4] as bool,
       sets: (fields[5] as List).cast<ExerciseSet>(),
+      notes: fields[6] == null ? '' : fields[6] as String,
+      variation: fields[7] == null ? '' : fields[7] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, SessionExercise obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -130,7 +132,11 @@ class SessionExerciseAdapter extends TypeAdapter<SessionExercise> {
       ..writeByte(4)
       ..write(obj.isTemplate)
       ..writeByte(5)
-      ..write(obj.sets);
+      ..write(obj.sets)
+      ..writeByte(6)
+      ..write(obj.notes)
+      ..writeByte(7)
+      ..write(obj.variation);
   }
 
   @override
@@ -165,7 +171,7 @@ class WorkoutSessionAdapter extends TypeAdapter<WorkoutSession> {
       exercises: (fields[7] as List).cast<SessionExercise>(),
       createdAt: fields[8] as DateTime,
       updatedAt: fields[9] as DateTime,
-      isDraft: fields[10] as bool,
+      isDraft: fields[10] == null ? false : fields[10] as bool,
     );
   }
 

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:liftly/core/constants/app_constants.dart';
 
 abstract class WorkoutEvent extends Equatable {
   const WorkoutEvent();
@@ -47,7 +48,7 @@ class WorkoutsFetched extends WorkoutEvent {
   final int limit;
   final int offset;
 
-  const WorkoutsFetched({this.userId = '1', this.limit = 10, this.offset = 0});
+  const WorkoutsFetched({this.userId = AppConstants.defaultUserId, this.limit = 10, this.offset = 0});
 
   @override
   List<Object?> get props => [userId, limit, offset];

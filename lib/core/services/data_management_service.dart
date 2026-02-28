@@ -10,6 +10,7 @@ import 'package:liftly/core/models/workout_session.dart';
 import 'package:liftly/core/services/hive_service.dart';
 import 'package:liftly/core/constants/app_constants.dart';
 import 'package:share_plus/share_plus.dart';
+import '../utils/app_logger.dart';
 
 class DataManagementService {
   /// Generate Excel file bytes from Isar data (maintaining legacy tabular format)
@@ -50,10 +51,12 @@ class DataManagementService {
 
       for (final ex in w.exercises) {
         // Exercise ID in SQL was UUID. Here it acts same.
+        AppLogger.debug('DataMgmt', 'EXPORT: Exercise: ${ex.name}, Variation: "${ex.variation}"');
         exerciseRows.add({
           'id': ex.id,
           'workout_id': w.id,
           'name': ex.name,
+          'variation': ex.variation,
           'exercise_order': ex.order, // SQL column was exercise_order
           'skipped': ex.skipped ? 1 : 0,
           'is_template': ex.isTemplate ? 1 : 0,
@@ -102,6 +105,7 @@ class DataManagementService {
           'id': ex.id,
           'plan_id': p.id,
           'name': ex.name,
+          'variation': ex.variation,
           'exercise_order': ex.order,
         });
       }
@@ -150,10 +154,22 @@ class DataManagementService {
   /// Export all data if auto-export is enabled in preferences
 
   /// Export all data to an Excel file and prompt user to share/save it
-  static Future<void> exportData({bool exportOnlyPlans = false}) async {
+  static Future<String> exportData({
+    bool exportOnlyPlans = false,
+    Function(double progress, String message)? onProgress,
+  }) async {
     try {
+      onProgress?.call(0.1, 'Preparing data...');
       final fileBytes =
           await generateExcelBytes(exportOnlyPlans: exportOnlyPlans);
+
+      onProgress?.call(0.7, 'Generating Excel file...');
+      // Fetch counts for success message
+      final allData = await HiveService.getAllDataForExport();
+      final workoutCount =
+          exportOnlyPlans ? 0 : (allData['workouts'] as List).length;
+      final planCount = (allData['plans'] as List).length;
+
       final dateStr = DateFormat('ddMMyyyy_HHmmss').format(DateTime.now());
       final prefix = exportOnlyPlans ? 'plans' : 'backup';
       final fileName = '${prefix}_liftly_$dateStr.xlsx';
@@ -165,6 +181,7 @@ class DataManagementService {
         mimeType: AppConstants.excelMimeType,
       );
 
+      onProgress?.call(0.9, 'Saving file...');
       if (kIsWeb) {
         // Direct download on web to avoid noisy Share API logs on desktop browsers
         await xFile.saveTo('');
@@ -173,8 +190,16 @@ class DataManagementService {
         // ignore: deprecated_member_use
         await Share.shareXFiles([xFile], subject: 'Liftly Backup $dateStr');
       }
+
+      onProgress?.call(1.0, 'Done!');
+      // Return success message with counts
+      if (exportOnlyPlans) {
+        return 'Successfully exported $planCount plans to Excel.';
+      } else {
+        return 'Successfully exported $workoutCount workouts and $planCount plans to Excel.';
+      }
     } catch (e) {
-      if (kDebugMode) print('Export error: $e');
+      AppLogger.error('DataMgmt', 'Export error', e);
       rethrow;
     }
   }
@@ -192,7 +217,7 @@ class DataManagementService {
       }
       return result.files.single;
     } catch (e) {
-      if (kDebugMode) print('Pick file error: $e');
+      AppLogger.error('DataMgmt', 'Pick file error', e);
       return null;
     }
   }
@@ -385,173 +410,25 @@ class DataManagementService {
       onProgress?.call(1.0, 'Done!');
       final message =
           'Successfully imported ${parsedWorkouts.length} workouts and ${parsedPlans.length} plans.';
-      _log('Import: $message');
+      AppLogger.info('DataMgmt', 'Import: $message');
       return message;
     } catch (e) {
-      _log('Import error: $e');
+      AppLogger.error('DataMgmt', 'Import error', e);
       rethrow;
     }
   }
 
-  /// Isolate entry point for heavy parsing
+  /// Isolate entry point for heavy parsing.
+  /// Delegates to the shared import logic to avoid code duplication.
   static Future<Map<String, dynamic>> _processImportIsolate(
       Map<String, dynamic> params) async {
     final bytes = params['bytes'] as Uint8List;
     final userId = params['userId'] as String;
 
-    final excel = Excel.decodeBytes(bytes);
-
-    // Parse all sheets
-    final workoutsMap =
-        DataManagementService._parseSheetRaw(excel, AppConstants.sheetWorkouts);
-    final workoutExercisesMap = DataManagementService._parseSheetRaw(
-        excel, AppConstants.sheetWorkoutExercises);
-    final workoutSetsMap = DataManagementService._parseSheetRaw(
-        excel, AppConstants.sheetWorkoutSets);
-    final setSegmentsMap = DataManagementService._parseSheetRaw(
-        excel, AppConstants.sheetSetSegments);
-
-    final plansMap =
-        DataManagementService._parseSheetRaw(excel, AppConstants.sheetPlans);
-    final planExercisesMap = DataManagementService._parseSheetRaw(
-        excel, AppConstants.sheetPlanExercises);
-
-    // Grouping
-    final exercisesByWorkout = DataManagementService._groupByInternal(
-        workoutExercisesMap, 'workout_id');
-    final setsByExercise =
-        DataManagementService._groupByInternal(workoutSetsMap, 'exercise_id');
-    final segmentsBySet =
-        DataManagementService._groupByInternal(setSegmentsMap, 'set_id');
-    final planExByPlan =
-        DataManagementService._groupByInternal(planExercisesMap, 'plan_id');
-
-    // Reconstruct Workouts
-    final workouts = <Map<String, dynamic>>[];
-    for (final wRow in workoutsMap) {
-      final wId = wRow['id']?.toString();
-      if (wId == null) continue;
-
-      final exercises = <Map<String, dynamic>>[];
-      final wExercises = exercisesByWorkout[wId] ?? [];
-
-      // Sort exercises by order
-      wExercises.sort((a, b) =>
-          (int.tryParse(a['exercise_order']?.toString() ?? '0') ?? 0).compareTo(
-              int.tryParse(b['exercise_order']?.toString() ?? '0') ?? 0));
-
-      for (final exRow in wExercises) {
-        final exId = exRow['id']?.toString();
-        if (exId == null) continue;
-
-        final sets = <Map<String, dynamic>>[];
-        final exSets = setsByExercise[exId] ?? [];
-
-        // Sort sets
-        exSets.sort((a, b) =>
-            (int.tryParse(a['set_number']?.toString() ?? '0') ?? 0).compareTo(
-                int.tryParse(b['set_number']?.toString() ?? '0') ?? 0));
-
-        for (final sRow in exSets) {
-          final sId = sRow['id']?.toString();
-          if (sId == null) continue;
-
-          final segments = <Map<String, dynamic>>[];
-          final sSegments = segmentsBySet[sId] ?? [];
-
-          // Sort segments
-          sSegments.sort((a, b) =>
-              (int.tryParse(a['segment_order']?.toString() ?? '0') ?? 0)
-                  .compareTo(
-                      int.tryParse(b['segment_order']?.toString() ?? '0') ??
-                          0));
-
-          for (final segRow in sSegments) {
-            segments.add({
-              'id': segRow['id'],
-              'weight':
-                  double.tryParse(segRow['weight']?.toString() ?? '0.0') ?? 0.0,
-              'reps_from':
-                  int.tryParse(segRow['reps_from']?.toString() ?? '0') ?? 0,
-              'reps_to':
-                  int.tryParse(segRow['reps_to']?.toString() ?? '0') ?? 0,
-              'segment_order':
-                  int.tryParse(segRow['segment_order']?.toString() ?? '0') ?? 0,
-              'notes': segRow['notes']?.toString(),
-            });
-          }
-
-          sets.add({
-            'id': sId,
-            'set_number':
-                int.tryParse(sRow['set_number']?.toString() ?? '0') ?? 0,
-            'segments': segments,
-          });
-        }
-
-        exercises.add({
-          'id': exId,
-          'name': exRow['name']?.toString() ?? 'Unknown Exercise',
-          'order':
-              int.tryParse(exRow['exercise_order']?.toString() ?? '0') ?? 0,
-          'skipped': (exRow['skipped']?.toString() == '1'),
-          'is_template': (exRow['is_template']?.toString() == '1'),
-          'sets': sets,
-        });
-      }
-
-      workouts.add({
-        'id': wId,
-        'user_id': userId,
-        'plan_id': wRow['plan_id']?.toString(),
-        'plan_name': wRow['plan_name']?.toString(),
-        'workout_date': wRow['workout_date']?.toString(),
-        'started_at': wRow['started_at']?.toString(),
-        'ended_at': wRow['ended_at']?.toString(),
-        'is_draft': (wRow['is_draft']?.toString() == '1'),
-        'created_at': wRow['created_at']?.toString(),
-        'updated_at': wRow['updated_at']?.toString(),
-        'exercises': exercises,
-      });
-    }
-
-    // Reconstruct Plans
-    final plans = <Map<String, dynamic>>[];
-    for (final pRow in plansMap) {
-      final pId = pRow['id']?.toString();
-      if (pId == null) continue;
-
-      final exercises = <Map<String, dynamic>>[];
-      final pExercises = planExByPlan[pId] ?? [];
-
-      pExercises.sort((a, b) =>
-          (int.tryParse(a['exercise_order']?.toString() ?? '0') ?? 0).compareTo(
-              int.tryParse(b['exercise_order']?.toString() ?? '0') ?? 0));
-
-      for (final exRow in pExercises) {
-        exercises.add({
-          'id': exRow['id']?.toString(),
-          'name': exRow['name']?.toString(),
-          'order':
-              int.tryParse(exRow['exercise_order']?.toString() ?? '0') ?? 0,
-        });
-      }
-
-      plans.add({
-        'id': pId,
-        'user_id': userId,
-        'name': pRow['name']?.toString(),
-        'description': pRow['description']?.toString(),
-        'created_at': pRow['created_at']?.toString(),
-        'updated_at': pRow['updated_at']?.toString(),
-        'exercises': exercises,
-      });
-    }
-
-    return {
-      'workouts': workouts,
-      'plans': plans,
-    };
+    return _processImportShared(
+      userId: userId,
+      bytes: bytes,
+    );
   }
 
   /// Clear all data from the database
@@ -564,9 +441,7 @@ class DataManagementService {
   }
 
   static void _log(String message) {
-    if (kDebugMode) {
-      print('[ImportDebug] $message');
-    }
+    AppLogger.debug('DataMgmt', message);
   }
 
   /// Internal helper for grouping within isolate
@@ -804,9 +679,26 @@ class DataManagementService {
           isTemplate = templateVal == '1';
         }
 
+        final exerciseName = eRow['name']?.toString() ?? '';
+        final nameLower = exerciseName.toLowerCase();
+
+        // If variation is empty but name indicates unilateral, auto-fill variation
+        var variation = eRow['variation']?.toString() ?? '';
+        AppLogger.debug('DataMgmt', 'IMPORT WORKOUT: Before: Name="$exerciseName", Variation="$variation"');
+
+        if (variation.isEmpty &&
+            (nameLower.contains('single') ||
+                nameLower.contains('unilateral'))) {
+          variation = 'Single';
+          AppLogger.debug('DataMgmt', 'IMPORT WORKOUT: Auto-filled variation to "Single"');
+        }
+
+        AppLogger.debug('DataMgmt', 'IMPORT WORKOUT: Final: Name="$exerciseName", Variation="$variation"');
+
         return {
           'id': exId,
-          'name': eRow['name']?.toString() ?? '',
+          'name': exerciseName,
+          'variation': variation,
           'order': (eRow['exercise_order'] as num?)?.toInt() ?? 0,
           'skipped': skipped,
           'isTemplate': isTemplate,
@@ -855,13 +747,29 @@ class DataManagementService {
       pExData.sort((a, b) => ((a['exercise_order'] as num?)?.toInt() ?? 0)
           .compareTo((b['exercise_order'] as num?)?.toInt() ?? 0));
 
-      final planExercises = pExData
-          .map((eRow) => {
-                'id': eRow['id']?.toString() ?? '',
-                'name': eRow['name']?.toString() ?? '',
-                'order': (eRow['exercise_order'] as num?)?.toInt() ?? 0,
-              })
-          .toList();
+      final planExercises = pExData.map((eRow) {
+        final exerciseName = eRow['name']?.toString() ?? '';
+        final nameLower = exerciseName.toLowerCase();
+
+        // If variation is empty but name indicates unilateral, auto-fill variation
+        var variation = eRow['variation']?.toString() ?? '';
+        AppLogger.debug('DataMgmt', 'IMPORT PLAN: Before: Name="$exerciseName", Variation="$variation"');
+
+        if (variation.isEmpty &&
+            (nameLower.contains('single') ||
+                nameLower.contains('unilateral'))) {
+          variation = 'Single';
+          AppLogger.debug('DataMgmt', 'IMPORT PLAN: Auto-filled variation to "Single"');
+        }
+
+        AppLogger.debug('DataMgmt', 'IMPORT PLAN: Final: Name="$exerciseName", Variation="$variation"');
+        return {
+          'id': eRow['id']?.toString() ?? '',
+          'name': exerciseName,
+          'variation': variation,
+          'order': (eRow['exercise_order'] as num?)?.toInt() ?? 0,
+        };
+      }).toList();
 
       plans.add({
         'id': pId,

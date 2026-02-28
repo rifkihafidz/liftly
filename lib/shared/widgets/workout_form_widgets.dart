@@ -350,7 +350,7 @@ class WeightFieldState extends State<WeightField> {
       final normalizedText = text.replaceAll(',', '.');
       final val = double.tryParse(normalizedText);
       if (val != null) {
-        // Standardize to double string (e.g. "50.0") if integer, to match BLoC
+        // Standardize to double string (ex: "50.0") if integer, to match BLoC
         final formatted = val.toString();
 
         // Update local controller immediately to avoid jump later
@@ -379,7 +379,7 @@ class WeightFieldState extends State<WeightField> {
     if (widget.initialValue != controller.text) {
       if (!_focusNode.hasFocus) {
         // Only update if value is mathematically different to avoid jumping
-        // e.g. "50" vs "50.0"
+        // ex: "50" vs "50.0"
         final d1 =
             double.tryParse(widget.initialValue.replaceAll(',', '.')) ?? 0;
         final d2 = double.tryParse(controller.text.replaceAll(',', '.')) ?? 0;
@@ -780,7 +780,7 @@ class _NotesFieldState extends State<NotesField> {
             });
           },
           decoration: InputDecoration(
-            hintText: 'Wide grip, feels good, etc.',
+            hintText: 'Personal notes, form tips, etc.',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 8,
@@ -950,7 +950,7 @@ class DecimalInputFormatter extends TextInputFormatter {
   ) {
     if (newValue.text.isEmpty) return newValue;
 
-    // 1. Block consecutive separators (e.g., .., ,, ,. .,)
+    // 1. Block consecutive separators (ex: .., ,, ,. .,)
     if (newValue.text.contains('..') ||
         newValue.text.contains(',,') ||
         newValue.text.contains('.,') ||

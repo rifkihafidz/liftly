@@ -13,8 +13,6 @@ class AppColors {
 
   // Accent colors
   static const Color accent = Color(0xFF1E88E5); // Blue
-  static const Color accentLight = Color(0xFF42A5F5);
-  static const Color accentDark = Color(0xFF1565C0);
 
   // Status colors
   static const Color success = Color(0xFF4CAF50);

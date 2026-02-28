@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 
@@ -89,16 +90,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
     final exercises = workout.exercises;
     final nonSkippedExercises = exercises.where((ex) => !ex.skipped).length;
 
-    double calculateTotalVolume(List<SessionExercise> exercises) {
-      double totalVolume = 0;
-      for (final exercise in exercises) {
-        if (exercise.skipped) continue;
-        totalVolume += exercise.totalVolume;
-      }
-      return totalVolume;
-    }
-
-    final totalVolume = calculateTotalVolume(exercises);
+    final totalVolume = workout.totalVolume;
     final totalSets = exercises.fold<int>(
       0,
       (sum, ex) => sum + (ex.skipped ? 0 : ex.sets.length),
@@ -196,12 +188,19 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                           color: AppColors.textPrimary,
                         ),
                         onPressed: () async {
-                          await Navigator.push<bool>(
+                          final navigator = Navigator.of(context);
+                          final result = await Navigator.push<bool>(
                             context,
                             SmoothPageRoute(
                               page: WorkoutEditPage(workout: _currentWorkout),
                             ),
                           );
+                          // Check mounted immediately after async gap
+                          if (!mounted) return;
+                          // If workout was deleted (result == true), navigate back to history
+                          if (result == true) {
+                            navigator.pop(true);
+                          }
                         },
                       ),
                       IconButton(
@@ -236,16 +235,43 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                         children: [
                           Row(
                             children: [
-                              Text(
-                                '${DateFormat('EEEE, dd MMMM yyyy').format(workoutDate)} ${startedAt != null && endedAt != null ? '(${DateFormat('HH:mm').format(startedAt)} - ${DateFormat('HH:mm').format(endedAt)})' : ''}',
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                              Expanded(
+                                child: Text(
+                                  '${DateFormat('EEEE, dd MMMM yyyy').format(workoutDate)} ${startedAt != null && endedAt != null ? '(${DateFormat('HH:mm').format(startedAt)} - ${DateFormat('HH:mm').format(endedAt)})' : ''}',
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
+                          if (workout.planName != null &&
+                              workout.planName!.isNotEmpty) ...
+                            [
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.bookmark_rounded,
+                                    size: 14,
+                                    color: AppColors.accent.withValues(
+                                        alpha: 0.7),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    workout.planName!,
+                                    style: TextStyle(
+                                      color: AppColors.accent
+                                          .withValues(alpha: 0.7),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           const SizedBox(height: 24),
                           // Row 1: Duration & Exercises
                           Row(
@@ -341,12 +367,15 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
 
   void _deleteWorkout(BuildContext context) {
     _isDeleting = true;
-    const userId = '1';
+    const userId = AppConstants.defaultUserId;
     final workoutId = _currentWorkout.id.toString();
+    
+    // Extract everything from context upfront, before any async gaps
     final bloc = context.read<WorkoutBloc>();
+    final scaffoldContext = context;
 
     showDialog(
-      context: context,
+      context: scaffoldContext,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.cardBg,

@@ -6,12 +6,14 @@ import '../../../core/models/personal_record.dart';
 
 class SessionExerciseHistorySheet extends StatelessWidget {
   final String exerciseName;
+  final String exerciseVariation;
   final WorkoutSession? history;
   final PersonalRecord? pr;
 
   const SessionExerciseHistorySheet({
     super.key,
     required this.exerciseName,
+    this.exerciseVariation = '',
     this.history,
     this.pr,
   });
@@ -30,16 +32,34 @@ class SessionExerciseHistorySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Find the specific exercise in the history session
+    // Find the specific exercise in the history session by variation
     final historyExercise = history?.exercises
-        .where((e) => e.name.toLowerCase() == exerciseName.toLowerCase())
+        .where((e) =>
+            e.name.toLowerCase() == exerciseName.toLowerCase() &&
+            e.variation.toLowerCase() == exerciseVariation.toLowerCase())
         .firstOrNull;
 
     final showHistory = history != null && historyExercise != null;
 
-    final showBestSessionSection = pr != null &&
-        pr!.bestSessionSets != null &&
-        (pr!.bestSessionVolume > 0 || pr!.bestSessionReps > 0);
+    // Resolve Best Session sets for the active variation
+    List<ExerciseSet>? bestSets;
+    String? bestSessionDate;
+    double bestSessionVol = 0;
+
+    if (pr?.bestSessionSets != null) {
+      // PR data is already filtered by variation at the Hive level
+      bestSets = pr!.bestSessionSets;
+      bestSessionDate = pr!.bestSessionDate;
+      bestSessionVol = pr!.bestSessionVolume;
+    } else if (historyExercise != null && history != null) {
+      // No PR yet — use last session as the best reference
+      bestSets = historyExercise.sets;
+      bestSessionDate = history!.workoutDate.toIso8601String();
+      bestSessionVol = historyExercise.totalVolume;
+    }
+
+    final showBestSessionSection =
+        bestSets != null && bestSets.isNotEmpty && bestSessionVol > 0;
 
     return SingleChildScrollView(
       child: Padding(
@@ -53,6 +73,17 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
+            if (exerciseVariation.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  exerciseVariation,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
             const SizedBox(height: 24),
             if (showHistory) ...[
               Row(
@@ -77,20 +108,31 @@ class SessionExerciseHistorySheet extends StatelessWidget {
               const SizedBox(height: 12),
               ..._renderSets(context, historyExercise.sets),
               const SizedBox(height: 24),
-            ],
+            ] else
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text(
+                    'No previous sessions yet',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                ),
+              ),
             if (showBestSessionSection) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Best Session${pr!.bestSessionDate != null ? " (${_formatDate(DateTime.parse(pr!.bestSessionDate!))})" : ""}',
+                    'Best Session${bestSessionDate != null ? " (${_formatDate(DateTime.parse(bestSessionDate))})" : ""}',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: AppColors.accent,
                         ),
                   ),
                   Text(
-                    'Total Volume: ${_formatNumber(pr!.bestSessionVolume)} kg',
+                    'Total Volume: ${_formatNumber(bestSessionVol)} kg',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.accent,
@@ -99,7 +141,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              ..._renderSets(context, pr!.bestSessionSets!),
+              ..._renderSets(context, bestSets),
               const SizedBox(height: 24),
             ],
             if (pr != null) ...[
@@ -120,6 +162,9 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                       value: '${_formatNumber(pr!.maxWeight)} kg',
                       details: '${pr!.maxWeightReps} reps',
                       icon: Icons.fitness_center_rounded,
+                      notes: exerciseVariation.isNotEmpty
+                          ? exerciseVariation
+                          : null,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -132,6 +177,9 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                           ? pr!.maxVolumeBreakdown
                           : '${_formatNumber(pr!.maxVolumeWeight)} kg x ${pr!.maxVolumeReps}',
                       icon: Icons.auto_graph_rounded,
+                      notes: exerciseVariation.isNotEmpty
+                          ? exerciseVariation
+                          : null,
                     ),
                   ),
                 ],
@@ -240,6 +288,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
     required String details,
     required IconData icon,
     bool isFullWidth = false,
+    String? notes,
   }) {
     return Container(
       width: isFullWidth ? double.infinity : null,
@@ -302,6 +351,19 @@ class SessionExerciseHistorySheet extends StatelessWidget {
               fontSize: 11,
             ),
           ),
+          if (notes != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              notes,
+              style: TextStyle(
+                color: AppColors.accent.withValues(alpha: 0.7),
+                fontSize: 10,
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ],
       ),
     );

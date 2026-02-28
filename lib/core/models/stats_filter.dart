@@ -1,13 +1,12 @@
 enum TimePeriod {
-  week('This Week', 'W'),
-  month('This Month', 'M'),
-  year('This Year', 'Y'),
-  allTime('All Time', 'A');
+  week('This Week'),
+  month('This Month'),
+  year('This Year'),
+  allTime('All Time');
 
   final String label;
-  final String shortCode;
 
-  const TimePeriod(this.label, this.shortCode);
+  const TimePeriod(this.label);
 }
 
 class StatsFilter {

@@ -34,17 +34,34 @@ class ExerciseViewHeader extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  exercise.name,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: exercise.skipped
-                            ? AppColors.textSecondary
-                            : AppColors.textPrimary,
-                        decoration: exercise.skipped
-                            ? TextDecoration.lineThrough
-                            : null,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      exercise.name,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: exercise.skipped
+                                ? AppColors.textSecondary
+                                : AppColors.textPrimary,
+                            decoration: exercise.skipped
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                    ),
+                    if (exercise.variation.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          exercise.variation,
+                          style: const TextStyle(
+                            color: AppColors.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
+                  ],
                 ),
               ),
               if (history != null || pr != null)
@@ -128,7 +145,7 @@ class ExerciseViewHeader extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '${pr!.maxWeight == pr!.maxWeight.toInt() ? pr!.maxWeight.toInt() : pr!.maxWeight} kg',
+                        '${NumberFormat('#,##0.##', 'pt_BR').format(pr!.maxWeight)} kg',
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 14,
@@ -158,7 +175,7 @@ class ExerciseViewHeader extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '${pr!.maxVolume == pr!.maxVolume.toInt() ? pr!.maxVolume.toInt() : pr!.maxVolume} kg',
+                        '${NumberFormat('#,##0.##', 'pt_BR').format(pr!.maxVolume)} kg',
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 14,
@@ -168,7 +185,7 @@ class ExerciseViewHeader extends StatelessWidget {
                       Text(
                         pr!.maxVolumeBreakdown.isNotEmpty
                             ? pr!.maxVolumeBreakdown
-                            : '${pr!.maxVolumeWeight == pr!.maxVolumeWeight.toInt() ? pr!.maxVolumeWeight.toInt() : pr!.maxVolumeWeight} kg x ${pr!.maxVolumeReps}',
+                            : '${NumberFormat('#,##0.##', 'pt_BR').format(pr!.maxVolumeWeight)} kg x ${pr!.maxVolumeReps}',
                         style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 11,
@@ -359,87 +376,6 @@ class ViewSetRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Header for edit mode - simplified with skip and action buttons
-class EditModeHeader extends StatelessWidget {
-  final SessionExercise exercise;
-  final VoidCallback? onSkipToggle;
-  final VoidCallback? onEditName;
-  final VoidCallback? onDelete;
-
-  const EditModeHeader({
-    super.key,
-    required this.exercise,
-    this.onSkipToggle,
-    this.onEditName,
-    this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              exercise.name,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: exercise.skipped
-                        ? AppColors.textSecondary
-                        : AppColors.textPrimary,
-                    decoration:
-                        exercise.skipped ? TextDecoration.lineThrough : null,
-                  ),
-            ),
-          ),
-          TextButton(
-            onPressed: onSkipToggle,
-            child: Text(
-              exercise.skipped ? 'Unskip' : 'Skip',
-              style: TextStyle(
-                color: exercise.skipped
-                    ? AppColors.accent
-                    : AppColors.textSecondary,
-              ),
-            ),
-          ),
-          if (onEditName != null || onDelete != null)
-            PopupMenuButton<String>(
-              icon: const Icon(
-                Icons.more_vert,
-                size: 20,
-                color: AppColors.textSecondary,
-              ),
-              onSelected: (value) {
-                if (value == 'edit') onEditName?.call();
-                if (value == 'delete') onDelete?.call();
-              },
-              itemBuilder: (context) => [
-                if (onEditName != null)
-                  const PopupMenuItem(value: 'edit', child: Text('Rename')),
-                if (onDelete != null)
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text(
-                      'Remove',
-                      style: TextStyle(color: AppColors.error),
-                    ),
-                  ),
-              ],
-            ),
-        ],
-      ),
     );
   }
 }

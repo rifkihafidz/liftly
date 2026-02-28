@@ -1,5 +1,5 @@
 import 'dart:js_interop';
-import 'package:flutter/foundation.dart';
+import 'package:liftly/core/utils/app_logger.dart';
 
 @JS('navigator.storage.persist')
 external JSPromise<JSBoolean> _persist();
@@ -11,17 +11,17 @@ Future<void> requestPersistence() async {
   try {
     final isPersisted = await _persisted().toDart;
     if (isPersisted.toDart) {
-      debugPrint('Persistence: Storage is already persisted');
+      AppLogger.debug('Persistence', 'Storage is already persisted');
       return;
     }
 
     final result = await _persist().toDart;
     if (result.toDart) {
-      debugPrint('Persistence: Storage successfully persisted');
+      AppLogger.debug('Persistence', 'Storage successfully persisted');
     } else {
-      debugPrint('Persistence: Storage persistence denied by browser');
+      AppLogger.warning('Persistence', 'Storage persistence denied by browser');
     }
   } catch (e) {
-    debugPrint('Persistence: Error requesting storage persistence: $e');
+    AppLogger.error('Persistence', 'Error requesting storage persistence', e);
   }
 }

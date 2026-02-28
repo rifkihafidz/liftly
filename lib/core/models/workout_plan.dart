@@ -11,21 +11,25 @@ class PlanExercise extends Equatable {
   final String name;
   @HiveField(2)
   final int order;
+  @HiveField(3, defaultValue: '')
+  final String variation;
 
   const PlanExercise({
     required this.id,
     required this.name,
     required this.order,
+    this.variation = '',
   });
 
   @override
-  List<Object?> get props => [id, name, order];
+  List<Object?> get props => [id, name, order, variation];
 
   factory PlanExercise.fromMap(Map<String, dynamic> map) {
     return PlanExercise(
       id: map['id'] as String,
       name: map['name'] as String,
       order: map['order'] as int,
+      variation: map['variation'] as String? ?? '',
     );
   }
 
@@ -34,7 +38,22 @@ class PlanExercise extends Equatable {
       'id': id,
       'name': name,
       'order': order,
+      'variation': variation,
     };
+  }
+
+  PlanExercise copyWith({
+    String? id,
+    String? name,
+    int? order,
+    String? variation,
+  }) {
+    return PlanExercise(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      order: order ?? this.order,
+      variation: variation ?? this.variation,
+    );
   }
 }
 
@@ -100,5 +119,25 @@ class WorkoutPlan extends Equatable {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
+  }
+
+  WorkoutPlan copyWith({
+    String? id,
+    String? userId,
+    String? name,
+    String? description,
+    List<PlanExercise>? exercises,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return WorkoutPlan(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      exercises: exercises ?? this.exercises,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }

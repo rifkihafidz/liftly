@@ -8,8 +8,10 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/services/backup_service.dart';
 import '../../../core/services/data_management_service.dart';
 import '../../../core/services/hive_service.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
+import '../../../shared/widgets/navigation/active_tab_scope.dart';
 import '../../../shared/widgets/cards/menu_list_item.dart';
 import '../../../shared/widgets/text/section_header.dart';
 import '../../plans/bloc/plan_bloc.dart';
@@ -31,12 +33,36 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isAutoBackupEnabled = false;
   bool _isLoading = false;
   StreamSubscription<GoogleSignInAccount?>? _authSubscription;
+  late ScrollController _scrollController;
+  int? _lastActiveTab;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final activeTab = ActiveTabScope.maybeOf(context);
+    if (activeTab != null &&
+        _lastActiveTab != null &&
+        activeTab != _lastActiveTab &&
+        activeTab == 4 &&
+        _scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+    _lastActiveTab = activeTab;
+  }
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
     _loadBackupState();
     _setupAuthListener();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   void _setupAuthListener() {
@@ -47,12 +73,6 @@ class _SettingsPageState extends State<SettingsPage> {
         });
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _authSubscription?.cancel();
-    super.dispose();
   }
 
   bool get _isCheckingStatus {
@@ -80,7 +100,7 @@ class _SettingsPageState extends State<SettingsPage> {
         });
       }
     } catch (e) {
-      debugPrint('SettingsPage: Failed to load backup state: $e');
+      AppLogger.error('SettingsPage', 'Failed to load backup state', e);
     }
   }
 
@@ -93,34 +113,34 @@ class _SettingsPageState extends State<SettingsPage> {
 
     Object? error;
     try {
-      debugPrint('SettingsPage: Starting Google Sign-In...');
+      AppLogger.debug('SettingsPage', 'Starting Google Sign-In...');
       final user = await BackupService().signIn();
       if (mounted) {
         if (user == null) {
-          debugPrint('SettingsPage: Sign-In cancelled by user');
+          AppLogger.debug('SettingsPage', 'Sign-In cancelled by user');
           return;
         }
-        debugPrint('SettingsPage: Sign-In successful: ${user.email}');
+        AppLogger.debug('SettingsPage', 'Sign-In successful: ${user.email}');
         setState(() {
           _currentUser = user;
         });
       }
     } catch (e) {
-      debugPrint('SettingsPage: Sign-In error caught: $e');
+      AppLogger.error('SettingsPage', 'Sign-In error caught', e);
       error = e;
     } finally {
       if (mounted) {
-        debugPrint('SettingsPage: Hiding loading dialog...');
+        AppLogger.debug('SettingsPage', 'Hiding loading dialog...');
         try {
           AppDialogs.hideLoadingDialog(context);
         } catch (e) {
-          debugPrint('SettingsPage: Error hiding dialog: $e');
+          AppLogger.error('SettingsPage', 'Error hiding dialog', e);
         }
 
         setState(() => _isLoading = false);
 
         if (error != null) {
-          debugPrint('SettingsPage: Showing error dialog...');
+          AppLogger.debug('SettingsPage', 'Showing error dialog...');
           // Small delay to ensure loading dialog is fully gone
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
@@ -153,33 +173,46 @@ class _SettingsPageState extends State<SettingsPage> {
 
     if (!mounted) return;
     setState(() => _isLoading = true);
-    AppDialogs.showLoadingDialog(context, 'Backing up your data...');
+
+    final progressNotifier = ValueNotifier<double>(0.0);
+    final statusNotifier = ValueNotifier<String>('Starting...');
+    AppDialogs.showProgressDialog(
+      context,
+      title: 'Cloud Backup',
+      progress: progressNotifier,
+      status: statusNotifier,
+    );
+
     try {
       await BackupService().backupDatabase(
         exportOnlyPlans: exportType == 'plans',
+        onProgress: (p, msg) {
+          progressNotifier.value = p;
+          statusNotifier.value = msg;
+        },
       );
       if (mounted) {
-        AppDialogs.hideLoadingDialog(context);
+        Navigator.of(context, rootNavigator: true).pop();
         AppDialogs.showSuccessDialog(
           context: context,
-          title: 'Backup Successful',
+          title: 'Cloud Backup Successful',
           message:
-              'Your data has been safely backed up (Liftly Backup folder).',
+              'Your data has been safely backed up to Google Drive (Liftly Backup folder).',
         );
       }
     } catch (e) {
       if (mounted) {
-        AppDialogs.hideLoadingDialog(context);
+        Navigator.of(context, rootNavigator: true).pop();
         AppDialogs.showErrorDialog(
           context: context,
-          title: 'Backup Failed',
+          title: 'Cloud Backup Failed',
           message: e.toString(),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      progressNotifier.dispose();
+      statusNotifier.dispose();
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -202,24 +235,45 @@ class _SettingsPageState extends State<SettingsPage> {
     if (exportType == null) return;
 
     setState(() => _isLoading = true);
-
     if (!context.mounted) return;
-    AppDialogs.showLoadingDialog(context, 'Exporting to Excel...');
+
+    final progressNotifier = ValueNotifier<double>(0.0);
+    final statusNotifier = ValueNotifier<String>('Starting...');
+    AppDialogs.showProgressDialog(
+      context,
+      title: 'Exporting to Excel',
+      progress: progressNotifier,
+      status: statusNotifier,
+    );
+
     try {
-      await DataManagementService.exportData(
+      final message = await DataManagementService.exportData(
         exportOnlyPlans: exportType == 'plans',
+        onProgress: (p, msg) {
+          progressNotifier.value = p;
+          statusNotifier.value = msg;
+        },
       );
-      if (context.mounted) AppDialogs.hideLoadingDialog(context);
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        AppDialogs.showSuccessDialog(
+          context: context,
+          title: 'Excel Export Successful',
+          message: message,
+        );
+      }
     } catch (e) {
       if (context.mounted) {
-        AppDialogs.hideLoadingDialog(context);
+        Navigator.of(context, rootNavigator: true).pop();
         await AppDialogs.showErrorDialog(
           context: context,
-          title: 'Export Failed',
+          title: 'Excel Export Failed',
           message: e.toString(),
         );
       }
     } finally {
+      progressNotifier.dispose();
+      statusNotifier.dispose();
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -360,15 +414,15 @@ class _SettingsPageState extends State<SettingsPage> {
           Navigator.pop(context); // Close progress dialog
 
           // Refresh Blocs so UI updates immediately
-          context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
-          context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: '1'));
-          context.read<StatsBloc>().add(const StatsFetched(userId: '1'));
+          context.read<PlanBloc>().add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
+          context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: AppConstants.defaultUserId));
+          context.read<StatsBloc>().add(const StatsFetched(userId: AppConstants.defaultUserId));
 
           AppDialogs.showSuccessDialog(
             context: context,
-            title: 'Restore Successful',
+            title: 'Cloud Restore Successful',
             message:
-                'Application data has been successfully restored from Cloud.',
+                'Application data has been successfully restored from Google Drive.',
           );
         }
       }
@@ -382,7 +436,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
         AppDialogs.showErrorDialog(
           context: context,
-          title: 'Restore Failed',
+          title: 'Cloud Restore Failed',
           message: e.toString(),
         );
       }
@@ -467,13 +521,13 @@ class _SettingsPageState extends State<SettingsPage> {
         Navigator.pop(context); // Close progress dialog
 
         // Refresh Blocs so UI updates immediately
-        context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
-        context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: '1'));
-        context.read<StatsBloc>().add(const StatsFetched(userId: '1'));
+        context.read<PlanBloc>().add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
+        context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: AppConstants.defaultUserId));
+        context.read<StatsBloc>().add(const StatsFetched(userId: AppConstants.defaultUserId));
 
         await AppDialogs.showSuccessDialog(
           context: context,
-          title: 'Import Successful',
+          title: 'Excel Import Successful',
           message: importResult,
         );
       }
@@ -484,7 +538,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
         await AppDialogs.showErrorDialog(
           context: context,
-          title: 'Import Failed',
+          title: 'Excel Import Failed',
           message: e.toString(),
         );
       }
@@ -513,9 +567,9 @@ class _SettingsPageState extends State<SettingsPage> {
       if (context.mounted) {
         AppDialogs.hideLoadingDialog(context);
         if (context.mounted) {
-          context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
-          context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: '1'));
-          context.read<StatsBloc>().add(const StatsFetched(userId: '1'));
+          context.read<PlanBloc>().add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
+          context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: AppConstants.defaultUserId));
+          context.read<StatsBloc>().add(const StatsFetched(userId: AppConstants.defaultUserId));
 
           AppDialogs.showSuccessDialog(
             context: context,
@@ -549,6 +603,7 @@ class _SettingsPageState extends State<SettingsPage> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
           child: CustomScrollView(
+            controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverAppBar(

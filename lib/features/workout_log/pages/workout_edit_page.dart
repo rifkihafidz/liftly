@@ -1,6 +1,8 @@
-import 'dart:developer';
+import '../../../core/utils/app_logger.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/colors.dart';
 
 import '../../../shared/widgets/app_dialogs.dart';
@@ -46,8 +48,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     final exercises = _editedWorkout.exercises;
 
     for (final exercise in exercises) {
-      final name = exercise.name;
-      _loadHistoryAndPRsRecursive(name);
+      _loadHistoryAndPRsRecursive(exercise.name, variation: exercise.variation);
     }
   }
 
@@ -65,14 +66,15 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
       confirmText: 'Save',
     ).then((confirm) {
       if (confirm == true && mounted) {
-        const userId = '1';
+        const userId = AppConstants.defaultUserId;
         final workoutId = _editedWorkout.id;
 
+        final workoutData = _editedWorkout.toMap();
         context.read<WorkoutBloc>().add(
               WorkoutUpdated(
                 userId: userId,
                 workoutId: workoutId,
-                workoutData: _editedWorkout.toMap(),
+                workoutData: workoutData,
               ),
             );
       }
@@ -105,7 +107,9 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
               title: 'Success',
               message: 'Workout updated successfully.',
               onConfirm: () {
-                Navigator.pop(context, true);
+                // Extract context before pop
+                final currentContext = context;
+                Navigator.pop(currentContext);
               },
             );
           } else if (state is WorkoutError) {
@@ -238,11 +242,39 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                         return Padding(
                           key: ValueKey('edit_ex_${exercise.id}'),
                           padding: const EdgeInsets.only(bottom: 16),
-                          child: ExerciseListSummaryCard(
-                            exercise: exercise,
-                            index: exIndex,
-                            onTap: () =>
-                                _showExerciseEditSheet(context, exIndex),
+                          child: Stack(
+                            children: [
+                              ExerciseListSummaryCard(
+                                exercise: exercise,
+                                index: exIndex,
+                                onTap: () =>
+                                    _showExerciseEditSheet(context, exIndex),
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: IconButton(
+                                  icon: const Icon(Icons.delete_rounded),
+                                  color: AppColors.error,
+                                  iconSize: 20,
+                                  padding: const EdgeInsets.all(8),
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () {
+                                    AppDialogs.showConfirmationDialog(
+                                      context: context,
+                                      title: 'Delete Exercise',
+                                      message: 'Are you sure you want to delete "${exercise.name}"?',
+                                      confirmText: 'Delete',
+                                      isDangerous: true,
+                                    ).then((confirmed) {
+                                      if (confirmed == true) {
+                                        _removeExercise(exIndex);
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       }, childCount: exercises.length),
@@ -319,21 +351,23 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
   void _showExerciseEditSheet(BuildContext context, int exerciseIndex) {
     // 1. Get initial data
     final initialExercise = _editedWorkout.exercises[exerciseIndex];
-    final history = _previousSessions[initialExercise.name];
-    final pr = _exercisePRs[initialExercise.name];
+    final statsKey =
+        '${initialExercise.name}:${initialExercise.variation}'.toLowerCase();
+    final history = _previousSessions[statsKey];
+    final pr = _exercisePRs[statsKey];
 
-    showModalBottomSheet(
+    showGeneralDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return _ExerciseEditSheet(
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return _ExerciseEditDialog(
           initialExercise: initialExercise,
           exerciseIndex: exerciseIndex,
           history: history,
           pr: pr,
           onSave: (updatedExercise) {
-            // 2. ONLY Save when confirmed
             setState(() {
               final updatedExercises = List<SessionExercise>.from(
                 _editedWorkout.exercises,
@@ -354,7 +388,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
               exerciseIndex,
               initialExercise.name,
             );
-            // Check if deleted to close sheet
+            // Check if deleted to close dialog
             if (context.mounted &&
                 mounted &&
                 (exerciseIndex >= _editedWorkout.exercises.length ||
@@ -363,77 +397,34 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
               Navigator.pop(context);
             }
           },
-          onEditName: () async {
-            // Note: If name changes, the sheet might need to update.
-            // For now, handling basic dialog show.
-            await _showEditNameDialog(
-              context,
-              exerciseIndex,
-              initialExercise.name,
-            );
+          onRenamed: (newName, variation) {
+            _updateExerciseName(exerciseIndex, newName, variation: variation);
           },
-          onHistoryTap: () {
+          onHistoryTap: (name, variation) {
+            final statsKey = '$name:$variation'.toLowerCase();
             _showExerciseHistory(
               context,
-              initialExercise.name,
-              _previousSessions[initialExercise.name],
-              _exercisePRs[initialExercise.name],
+              name,
+              variation,
+              _previousSessions[statsKey],
+              _exercisePRs[statsKey],
             );
           },
         );
       },
-    );
-  }
-
-  Future<void> _showEditNameDialog(
-    BuildContext context,
-    int index,
-    String currentName,
-  ) async {
-    final WorkoutRepository workoutRepository = WorkoutRepository();
-    List<String> availableExercises = [];
-
-    // Load suggestions
-    try {
-      // 1. Load from history
-      const userId = '1';
-      final historyWorkouts = await workoutRepository.getWorkouts(
-        userId: userId,
-      );
-      final historyNames =
-          historyWorkouts.expand((w) => w.exercises).map((e) => e.name).toSet();
-
-      if (!context.mounted) return;
-
-      // 2. Load from plans
-      final currentPlanState = context.read<PlanBloc>().state;
-      if (currentPlanState is PlansLoaded) {
-        final planNames = currentPlanState.plans
-            .expand((p) => p.exercises)
-            .map((e) => e.name)
-            .toSet();
-        historyNames.addAll(planNames);
-      }
-
-      availableExercises = historyNames.toList()..sort();
-    } catch (e, stackTrace) {
-      log(
-        'Error loading suggestions',
-        name: 'WorkoutEditPage',
-        error: e,
-        stackTrace: stackTrace,
-      );
-    }
-
-    if (!context.mounted) return;
-
-    await AppDialogs.showExerciseEntryDialog(
-      context: context,
-      title: 'Rename Exercise',
-      initialValue: currentName,
-      suggestions: availableExercises,
-      onConfirm: (newName) {
-        _updateExerciseName(index, newName);
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.95, end: 1).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            ),
+            child: child,
+          ),
+        );
       },
     );
   }
@@ -474,24 +465,27 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     });
     context.read<WorkoutBloc>().add(
           WorkoutDeleted(
-            userId: '1',
+            userId: AppConstants.defaultUserId,
             workoutId: _editedWorkout.id,
           ),
         );
     Navigator.pop(context, true);
   }
 
-  void _updateExerciseName(int index, String newName) {
+  void _updateExerciseName(int index, String newName, {String? variation}) {
     setState(() {
       final updatedExercises = List<SessionExercise>.from(
         _editedWorkout.exercises,
       );
       if (index < updatedExercises.length) {
+        final effectiveVariation =
+            variation ?? updatedExercises[index].variation;
         updatedExercises[index] = updatedExercises[index].copyWith(
           name: newName,
+          variation: effectiveVariation,
         );
         _editedWorkout = _editedWorkout.copyWith(exercises: updatedExercises);
-        _loadHistoryAndPRsRecursive(newName);
+        _loadHistoryAndPRsRecursive(newName, variation: effectiveVariation);
       }
     });
   }
@@ -533,6 +527,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
   void _showExerciseHistory(
     BuildContext context,
     String exerciseName,
+    String exerciseVariation,
     WorkoutSession? history,
     PersonalRecord? pr,
   ) {
@@ -545,6 +540,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
       builder: (context) {
         return SessionExerciseHistorySheet(
           exerciseName: exerciseName,
+          exerciseVariation: exerciseVariation,
           history: history,
           pr: pr,
         );
@@ -558,7 +554,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     // Load suggestions
     try {
       // 1. Load from history
-      const userId = '1';
+      const userId = AppConstants.defaultUserId;
       final historyNames = await _workoutRepository.getExerciseNames(
         userId: userId,
       );
@@ -580,28 +576,24 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
 
       availableExercises = uniqueNames.toList()..sort();
     } catch (e, stackTrace) {
-      log(
-        'Error loading suggestions',
-        name: 'WorkoutEditPage',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      AppLogger.error('WorkoutEditPage', 'Error loading suggestions', e, stackTrace);
     }
 
     if (!context.mounted) return;
 
     AppDialogs.showExerciseEntryDialog(
       context: context,
+      userId: AppConstants.defaultUserId,
       title: 'Add Exercise',
-      hintText: 'Exercise Name (e.g. Bench Press)',
+      hintText: 'Exercise Name (ex: Bench Press)',
       suggestions: availableExercises,
-      onConfirm: (exerciseName) {
-        _addExercise(exerciseName);
+      onConfirm: (exerciseName, variation) {
+        _addExercise(exerciseName, variation: variation);
       },
     );
   }
 
-  void _addExercise(String name) {
+  void _addExercise(String name, {String variation = ''}) {
     setState(() {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final newExerciseIndex = _editedWorkout.exercises.length;
@@ -609,6 +601,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
       final newExercise = SessionExercise(
         id: 'ex_${timestamp}_$newExerciseIndex',
         name: name,
+        variation: variation,
         order: newExerciseIndex,
         sets: [
           ExerciseSet(
@@ -635,35 +628,40 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
       _editedWorkout = _editedWorkout.copyWith(exercises: updatedExercises);
 
       // Also load history/PR for this new exercise immediately
-      _loadHistoryAndPRsRecursive(name);
+      _loadHistoryAndPRsRecursive(name, variation: variation);
     });
   }
 
-  Future<void> _loadHistoryAndPRsRecursive(String name) async {
-    const userId = '1';
-    final lastLog = await _workoutRepository.getLastExerciseLog(
-      userId: userId,
-      exerciseName: name,
-    );
-    if (lastLog != null) {
-      if (mounted) {
-        setState(() {
-          _previousSessions[name] = lastLog;
-        });
-      }
-    }
+  Future<void> _loadHistoryAndPRsRecursive(
+    String name, {
+    String variation = '',
+  }) async {
+    const userId = AppConstants.defaultUserId;
+    // Key must match the lookup format used in _showExerciseEditSheet
+    final statsKey = '$name:$variation'.toLowerCase();
 
-    final pr = await _workoutRepository.getExercisePR(
-      userId: userId,
-      exerciseName: name,
-    );
-    if (pr != null) {
-      if (mounted) {
-        setState(() {
-          _exercisePRs[name] = pr;
-        });
+    final results = await Future.wait([
+      _workoutRepository.getLastExerciseLog(
+        userId: userId,
+        exerciseName: name,
+        exerciseVariation: variation,
+      ),
+      _workoutRepository.getExercisePR(
+        userId: userId,
+        exerciseName: name,
+        exerciseVariation: variation,
+      ),
+    ]);
+
+    if (!mounted) return;
+    setState(() {
+      if (results[0] != null) {
+        _previousSessions[statsKey] = results[0] as WorkoutSession;
       }
-    }
+      if (results[1] != null) {
+        _exercisePRs[statsKey] = results[1] as PersonalRecord;
+      }
+    });
   }
 
   void _showReorderExercisesSheet() {
@@ -761,10 +759,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                 color: AppColors.textPrimary,
                               ),
                             ),
-                            trailing: const Icon(
-                              Icons.drag_handle_rounded,
-                              color: AppColors.textSecondary,
-                            ),
                           );
                         },
                       ),
@@ -780,32 +774,32 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
   }
 }
 
-class _ExerciseEditSheet extends StatefulWidget {
+class _ExerciseEditDialog extends StatefulWidget {
   final SessionExercise initialExercise;
   final int exerciseIndex;
   final WorkoutSession? history;
   final PersonalRecord? pr;
   final Function(SessionExercise) onSave;
   final VoidCallback onDelete;
-  final VoidCallback? onEditName;
-  final VoidCallback? onHistoryTap;
+  final Function(String name, String variation)? onRenamed;
+  final Function(String name, String variation)? onHistoryTap;
 
-  const _ExerciseEditSheet({
+  const _ExerciseEditDialog({
     required this.initialExercise,
     required this.exerciseIndex,
     this.history,
     this.pr,
     required this.onSave,
     required this.onDelete,
-    this.onEditName,
+    this.onRenamed,
     this.onHistoryTap,
   });
 
   @override
-  State<_ExerciseEditSheet> createState() => _ExerciseEditSheetState();
+  State<_ExerciseEditDialog> createState() => _ExerciseEditDialogState();
 }
 
-class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
+class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
   late SessionExercise _currentExercise;
   bool _isEditing = false; // Start in view mode for smooth initial load
   final ScrollController _scrollController = ScrollController();
@@ -818,6 +812,51 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
   }
 
   @override
+  void didUpdateWidget(_ExerciseEditDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If stats updated in parent (e.g. after rename), update local state
+    // to keep _currentExercise in sync with parent's initialExercise
+    if (oldWidget.initialExercise != widget.initialExercise) {
+      setState(() {
+        _currentExercise = widget.initialExercise;
+      });
+    }
+  }
+
+  Future<void> _showRenameDialog() async {
+    final workoutRepository = WorkoutRepository();
+
+    // 1. Get suggestions
+    List<String> suggestions = [];
+    try {
+      final names = await workoutRepository.getExerciseNames(userId: AppConstants.defaultUserId);
+      suggestions = names.toSet().toList()..sort();
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    AppDialogs.showExerciseEntryDialog(
+      context: context,
+      userId: AppConstants.defaultUserId,
+      title: 'Edit Exercise',
+      initialValue: _currentExercise.name,
+      initialVariation: _currentExercise.variation,
+      suggestions: suggestions,
+      onConfirm: (newName, variation) {
+        if (mounted) {
+          setState(() {
+            _currentExercise = _currentExercise.copyWith(
+              name: newName,
+              variation: variation,
+            );
+          });
+          widget.onRenamed?.call(newName, variation);
+        }
+      },
+    );
+  }
+
+  @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
@@ -825,32 +864,42 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: AppColors.darkBg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Stack(
-        children: [
-          Column(
-            children: [
-              // Handle
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.textSecondary.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
+    return Dialog(
+      backgroundColor: AppColors.darkBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+      insetPadding: EdgeInsets.zero,
+      child: Scaffold(
+        backgroundColor: AppColors.darkBg,
+        appBar: AppBar(
+          backgroundColor: AppColors.darkBg,
+          elevation: 0,
+          title: Text(_currentExercise.name),
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+          actions: [
+            if (_isEditing)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: IconButton(
+                  icon: const Icon(Icons.save_rounded),
+                  onPressed: () {
+                    widget.onSave(_currentExercise);
+                  },
                 ),
               ),
-
-              // Content
-              Expanded(child: _isEditing ? _buildEditMode() : _buildViewMode()),
-            ],
-          ),
-        ],
+          ],
+        ),
+        body: Column(
+          children: [
+            // Content
+            Expanded(
+              child: _isEditing ? _buildEditMode() : _buildViewMode(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -873,13 +922,22 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
           exercise: _currentExercise,
           history: widget.history,
           pr: widget.pr,
-          onHistoryTap: widget.onHistoryTap,
-        ),
-        if (!_currentExercise.skipped)
-          ...sets.map(
-            (set) => ViewSetRow(key: ValueKey('view_set_${set.id}'), set: set),
+          onHistoryTap: () => widget.onHistoryTap?.call(
+            _currentExercise.name,
+            _currentExercise.variation,
           ),
+        ),
         const SizedBox(height: 16),
+        if (!_currentExercise.skipped)
+          ...sets.asMap().entries.map((entry) {
+            final index = entry.key;
+            final set = entry.value;
+            return Padding(
+              padding: EdgeInsets.only(bottom: index < sets.length - 1 ? 12 : 0),
+              child: ViewSetRow(key: ValueKey('view_set_${set.id}'), set: set),
+            );
+          }),
+        const SizedBox(height: 10),
         FilledButton.icon(
           onPressed: () => setState(() => _isEditing = true),
           icon: const Icon(Icons.edit_rounded),
@@ -910,6 +968,10 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
             history: widget.history,
             pr: widget.pr,
             isAlwaysExpanded: true,
+            onHistoryTap: () => widget.onHistoryTap?.call(
+              _currentExercise.name,
+              _currentExercise.variation,
+            ),
             onSkipToggle: () {
               setState(() {
                 _currentExercise = _currentExercise.copyWith(
@@ -942,7 +1004,6 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
                 _currentExercise = _currentExercise.copyWith(sets: currentSets);
               });
             },
-            onHistoryTap: widget.onHistoryTap ?? () {},
             onAddSet: () {
               setState(() {
                 final currentSets = List<ExerciseSet>.from(
@@ -1060,8 +1121,8 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
                 }
               });
             },
-            onEditName: widget.onEditName ??
-                (_currentExercise.isTemplate ? null : () {}),
+            onEditName: _showRenameDialog,
+            onEditVariation: _showRenameDialog,
             onDelete: widget.onDelete,
             isLastExercise: true,
           ),
@@ -1070,7 +1131,7 @@ class _ExerciseEditSheetState extends State<_ExerciseEditSheet> {
           Padding(
             key: _saveButtonKey,
             padding: EdgeInsets.only(
-              top: 24,
+              top: 12,
               bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 300 : 40,
             ),
             child: SizedBox(

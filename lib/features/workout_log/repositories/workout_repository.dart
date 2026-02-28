@@ -1,22 +1,19 @@
-import 'package:flutter/material.dart';
-
 import '../../../core/models/workout_session.dart';
 import '../data_sources/workout_local_data_source.dart';
 import '../../../core/models/personal_record.dart';
+import '../../../core/utils/app_logger.dart';
 
 class WorkoutRepository {
   final WorkoutLocalDataSource _localDataSource = WorkoutLocalDataSource();
 
-  void _log(String message) {
-    debugPrint('[WorkoutRepository] $message');
-  }
+  static const String _tag = 'WorkoutRepository';
 
   Future<WorkoutSession> createWorkout({
     required String userId,
     required WorkoutSession workout,
   }) async {
     try {
-      _log('createWorkout: planName=${workout.planName}');
+      AppLogger.debug(_tag, 'createWorkout: planName=${workout.planName}');
       return await _localDataSource.createWorkout(workout);
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
@@ -41,11 +38,7 @@ class WorkoutRepository {
   }
 
   Future<WorkoutSession> getWorkout({required String workoutId}) async {
-    try {
-      return await _localDataSource.getWorkout(workoutId);
-    } catch (e) {
-      rethrow;
-    }
+    return await _localDataSource.getWorkout(workoutId);
   }
 
   Future<WorkoutSession> updateWorkout({
@@ -54,7 +47,8 @@ class WorkoutRepository {
     required WorkoutSession workout,
   }) async {
     try {
-      return await _localDataSource.updateWorkout(workout);
+      final result = await _localDataSource.updateWorkout(workout);
+      return result;
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
     }
@@ -74,11 +68,12 @@ class WorkoutRepository {
   Future<WorkoutSession?> getLastExerciseLog({
     required String userId,
     required String exerciseName,
+    String exerciseVariation = '',
   }) async {
     try {
-      return await _localDataSource.getLastExerciseLog(userId, exerciseName);
+      return await _localDataSource.getLastExerciseLog(
+          userId, exerciseName, exerciseVariation);
     } catch (e) {
-      // Don't throw for stats, just return null
       return null;
     }
   }
@@ -86,9 +81,11 @@ class WorkoutRepository {
   Future<PersonalRecord?> getExercisePR({
     required String userId,
     required String exerciseName,
+    String exerciseVariation = '',
   }) async {
     try {
-      return await _localDataSource.getExercisePR(userId, exerciseName);
+      return await _localDataSource.getExercisePR(
+          userId, exerciseName, exerciseVariation);
     } catch (e) {
       return null;
     }
@@ -105,7 +102,7 @@ class WorkoutRepository {
   Future<WorkoutSession?> getDraftWorkout({required String userId}) async {
     try {
       final draft = await _localDataSource.getDraftWorkout(userId);
-      _log('getDraftWorkout: draft?.planName=${draft?.planName}');
+      AppLogger.debug(_tag, 'getDraftWorkout: draft?.planName=${draft?.planName}');
       return draft;
     } catch (e) {
       return null;
@@ -115,6 +112,17 @@ class WorkoutRepository {
   Future<List<String>> getExerciseNames({required String userId}) async {
     try {
       return await _localDataSource.getExerciseNames(userId);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<String>> getExerciseVariations({
+    required String userId,
+    required String exerciseName,
+  }) async {
+    try {
+      return await _localDataSource.getExerciseVariations(userId, exerciseName);
     } catch (e) {
       return [];
     }

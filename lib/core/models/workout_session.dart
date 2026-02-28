@@ -142,12 +142,16 @@ class SessionExercise extends Equatable {
   final String name;
   @HiveField(2)
   final int order;
-  @HiveField(3)
+  @HiveField(3, defaultValue: false)
   final bool skipped;
-  @HiveField(4)
+  @HiveField(4, defaultValue: false)
   final bool isTemplate;
   @HiveField(5)
   final List<ExerciseSet> sets;
+  @HiveField(6, defaultValue: '')
+  final String notes;
+  @HiveField(7, defaultValue: '')
+  final String variation;
 
   const SessionExercise({
     required this.id,
@@ -156,13 +160,16 @@ class SessionExercise extends Equatable {
     this.skipped = false,
     this.isTemplate = false,
     required this.sets,
+    this.notes = '',
+    this.variation = '',
   });
 
   @override
-  List<Object?> get props => [id, name, order, skipped, isTemplate, sets];
+  List<Object?> get props =>
+      [id, name, order, skipped, isTemplate, sets, notes, variation];
 
   /// Calculates total volume for this exercise.
-  /// If name contains 'single' (case-insensitive), assumes unilateral exercise
+  /// If name or variation contains 'single' (case-insensitive), assumes unilateral exercise
   /// and doubles the volume (left + right).
   double get totalVolume {
     double vol = 0;
@@ -172,10 +179,15 @@ class SessionExercise extends Equatable {
       }
     }
 
-    // Assumptions: if name contains 'single' or 'unilateral', it's a unilateral exercise
-    // and the volume should be doubled to account for both sides.
+    // Check both name and variation for unilateral indicators.
+    // Variation field is more reliable (e.g., "Single Arm", "Right Leg")
     final nameLower = name.toLowerCase();
-    if (nameLower.contains('single') || nameLower.contains('unilateral')) {
+    final variationLower = variation.toLowerCase();
+    
+    if (nameLower.contains('single') || 
+        nameLower.contains('unilateral') ||
+        variationLower.contains('single') ||
+        variationLower.contains('unilateral')) {
       vol *= 2;
     }
 
@@ -189,6 +201,8 @@ class SessionExercise extends Equatable {
     bool? skipped,
     bool? isTemplate,
     List<ExerciseSet>? sets,
+    String? notes,
+    String? variation,
   }) {
     return SessionExercise(
       id: id ?? this.id,
@@ -197,6 +211,8 @@ class SessionExercise extends Equatable {
       skipped: skipped ?? this.skipped,
       isTemplate: isTemplate ?? this.isTemplate,
       sets: sets ?? this.sets,
+      notes: notes ?? this.notes,
+      variation: variation ?? this.variation,
     );
   }
 
@@ -208,6 +224,8 @@ class SessionExercise extends Equatable {
       'skipped': skipped,
       'isTemplate': isTemplate,
       'sets': sets.map((set) => set.toMap()).toList(),
+      'notes': notes,
+      'variation': variation,
     };
   }
 
@@ -222,6 +240,8 @@ class SessionExercise extends Equatable {
               ?.map((set) => ExerciseSet.fromMap(set as Map<String, dynamic>))
               .toList() ??
           [],
+      notes: map['notes'] as String? ?? '',
+      variation: map['variation'] as String? ?? '',
     );
   }
 }
@@ -248,7 +268,7 @@ class WorkoutSession extends Equatable {
   final DateTime createdAt;
   @HiveField(9)
   final DateTime updatedAt;
-  @HiveField(10)
+  @HiveField(10, defaultValue: false)
   final bool isDraft;
 
   const WorkoutSession({
@@ -302,14 +322,17 @@ class WorkoutSession extends Equatable {
     return vol;
   }
 
+  // Sentinel to distinguish "not provided" from "explicitly null" in copyWith.
+  static const Object _absent = Object();
+
   WorkoutSession copyWith({
     String? id,
     String? userId,
-    String? planId,
-    String? planName,
+    Object? planId = _absent,
+    Object? planName = _absent,
     DateTime? workoutDate,
-    DateTime? startedAt,
-    DateTime? endedAt,
+    Object? startedAt = _absent,
+    Object? endedAt = _absent,
     List<SessionExercise>? exercises,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -318,11 +341,11 @@ class WorkoutSession extends Equatable {
     return WorkoutSession(
       id: id ?? this.id,
       userId: userId ?? this.userId,
-      planId: planId ?? this.planId,
-      planName: planName ?? this.planName,
+      planId: identical(planId, _absent) ? this.planId : planId as String?,
+      planName: identical(planName, _absent) ? this.planName : planName as String?,
       workoutDate: workoutDate ?? this.workoutDate,
-      startedAt: startedAt ?? this.startedAt,
-      endedAt: endedAt ?? this.endedAt,
+      startedAt: identical(startedAt, _absent) ? this.startedAt : startedAt as DateTime?,
+      endedAt: identical(endedAt, _absent) ? this.endedAt : endedAt as DateTime?,
       exercises: exercises ?? this.exercises,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

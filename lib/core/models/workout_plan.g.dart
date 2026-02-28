@@ -20,19 +20,22 @@ class PlanExerciseAdapter extends TypeAdapter<PlanExercise> {
       id: fields[0] as String,
       name: fields[1] as String,
       order: fields[2] as int,
+      variation: fields[3] == null ? '' : fields[3] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, PlanExercise obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.name)
       ..writeByte(2)
-      ..write(obj.order);
+      ..write(obj.order)
+      ..writeByte(3)
+      ..write(obj.variation);
   }
 
   @override

@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class AppConstants {
   // --- General ---
   static const String appVersion = '1.8.4';
@@ -7,8 +5,10 @@ class AppConstants {
   static const String defaultUserId = '1';
 
   // --- Backup & Cloud ---
-  static const String googleClientId =
-      '640418928410-gi91t91l20sn2roq14r7snvpptlff6mq.apps.googleusercontent.com';
+  static const String googleClientId = String.fromEnvironment(
+    'GOOGLE_CLIENT_ID',
+    defaultValue: '',
+  );
   static const String backupFolderName = 'Liftly Backup';
   static const String backupMimeFolder = 'application/vnd.google-apps.folder';
   static const String excelMimeType =
@@ -42,9 +42,4 @@ class AppConstants {
   static const double itemSpacing = 12.0;
   static const double subSectionSpacing = 16.0;
   static const double sectionSpacing = 32.0;
-
-  static const TextStyle versionStyle = TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w400,
-  );
 }

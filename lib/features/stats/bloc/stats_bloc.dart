@@ -1,10 +1,11 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/models/workout_session.dart';
-import 'package:flutter/foundation.dart'; // for kDebugMode
+import 'package:flutter/foundation.dart'; // for compute()
 import '../../../core/models/personal_record.dart'; // Assuming this exists, I will verify
 import '../../../core/models/stats_filter.dart';
 import '../../../core/services/statistics_service.dart';
 import '../../workout_log/repositories/workout_repository.dart';
+import '../../../core/utils/app_logger.dart';
 import 'stats_event.dart';
 import 'stats_state.dart';
 
@@ -25,35 +26,31 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
     StatsFetched event,
     Emitter<StatsState> emit,
   ) async {
-    if (state is StatsInitial) {
-      emit(StatsLoading());
-    }
+    // Always show loading and reset to default period (Week).
+    // This ensures no flash of stale state when returning to the page.
+    emit(StatsLoading());
     try {
-      // 1. Fetch ALL sessions for Volume/Frequency/Consistency charts
-      //    We still need full objects for these complex local calculations for now (tuning phase).
-      //    This is expensive but acceptable for <1000 workouts.
-      //    For >1000 workouts, we'd need SQL aggregation for these too.
       final allSessions = await _workoutRepository.getWorkouts(
         userId: event.userId,
-        limit: null, // Fetch ALL
+        limit: null,
       );
 
-      // Default to week view
       final now = DateTime.now();
-      const defaultPeriod = TimePeriod.week;
+      const period = TimePeriod.week;
+      final refDate = now;
 
       final results = await compute(_calculateStatsIsolate, {
         'sessions': allSessions,
-        'period': defaultPeriod,
-        'refDate': now,
+        'period': period,
+        'refDate': refDate,
       });
 
       emit(
         StatsLoaded(
           allSessions: allSessions,
           filteredSessions: results['filtered'] as List<WorkoutSession>,
-          timePeriod: defaultPeriod,
-          referenceDate: now,
+          timePeriod: period,
+          referenceDate: refDate,
           personalRecords: results['prs'] as Map<String, PersonalRecord>,
           prFilter: null,
           sortOrder: PrSortOrder.az,
@@ -90,7 +87,7 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
       );
     } catch (e) {
       // Handle error gently, maybe keep old state or show snackbar?
-      if (kDebugMode) print('Stats recalc error: $e');
+      AppLogger.error('StatsBloc', 'Stats recalc error', e);
     }
   }
 
@@ -116,7 +113,7 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
         ),
       );
     } catch (e) {
-      if (kDebugMode) print('Stats recalc error: $e');
+      AppLogger.error('StatsBloc', 'Stats recalc error', e);
     }
   }
 
@@ -158,13 +155,20 @@ Future<Map<String, dynamic>> _calculateStatsIsolate(
   }
 
   final exerciseStats = <String, List<Map<String, dynamic>>>{};
+  final originalExerciseData = <String, (String name, String variation)>{};
 
   for (final workout in filtered) {
     for (final exercise in workout.exercises) {
       if (exercise.skipped) continue;
 
-      final exName = exercise.name;
-      exerciseStats.putIfAbsent(exName, () => []);
+      // Use format: exercise:variation for key (consistent with HiveService)
+      final exName = exercise.name.toLowerCase();
+      final variation = exercise.variation.toLowerCase();
+      final key = '$exName:$variation';
+      
+      exerciseStats.putIfAbsent(key, () => []);
+      // Store original case for later display
+      originalExerciseData[key] = (exercise.name, exercise.variation);
 
       final metrics = StatisticsService.calculateSessionMetrics(
         exercise,
@@ -172,13 +176,22 @@ Future<Map<String, dynamic>> _calculateStatsIsolate(
         exercise.sets,
       );
 
-      exerciseStats[exName]!.add(metrics);
+      exerciseStats[key]!.add(metrics);
     }
   }
 
   // Convert collected stats to PersonalRecord objects
   for (final entry in exerciseStats.entries) {
-    final pr = StatisticsService.calculatePRFromHistory(entry.key, entry.value);
+    // Extract exercise name from key (format: exerciseName:variation)
+    final originalData = originalExerciseData[entry.key];
+    final originalExerciseName = originalData?.$1 ?? entry.key.split(':').first;
+    final originalVariation = originalData?.$2 ?? '';
+    
+    final pr = StatisticsService.calculatePRFromHistory(
+      originalExerciseName,
+      entry.value,
+      variation: originalVariation,
+    );
     if (pr != null) {
       prs[entry.key] = pr;
     }

@@ -66,6 +66,26 @@ class SessionInProgress extends SessionState {
         focusedSegmentIndex,
         timestamp,
       ];
+
+  SessionInProgress copyWith({
+    WorkoutSession? session,
+    Map<String, WorkoutSession>? previousSessions,
+    Map<String, PersonalRecord>? exercisePRs,
+    int? focusedExerciseIndex,
+    int? focusedSetIndex,
+    int? focusedSegmentIndex,
+    int? timestamp,
+  }) {
+    return SessionInProgress.withFocus(
+      session: session ?? this.session,
+      previousSessions: previousSessions ?? this.previousSessions,
+      exercisePRs: exercisePRs ?? this.exercisePRs,
+      focusedExerciseIndex: focusedExerciseIndex ?? this.focusedExerciseIndex,
+      focusedSetIndex: focusedSetIndex ?? this.focusedSetIndex,
+      focusedSegmentIndex: focusedSegmentIndex ?? this.focusedSegmentIndex,
+      timestamp: timestamp ?? this.timestamp,
+    );
+  }
 }
 
 class SessionSaved extends SessionState {

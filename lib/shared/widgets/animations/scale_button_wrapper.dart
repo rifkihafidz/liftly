@@ -19,7 +19,6 @@ class ScaleButtonWrapper extends StatefulWidget {
 class _ScaleButtonWrapperState extends State<ScaleButtonWrapper>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
@@ -30,10 +29,6 @@ class _ScaleButtonWrapperState extends State<ScaleButtonWrapper>
       upperBound: 1.0,
       lowerBound: widget.scaleAmount,
       value: 1.0,
-    );
-    _scaleAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
     );
   }
 
@@ -51,7 +46,7 @@ class _ScaleButtonWrapperState extends State<ScaleButtonWrapper>
       onPointerUp: (_) => _controller.animateTo(1.0, curve: Curves.easeInOut),
       onPointerCancel: (_) =>
           _controller.animateTo(1.0, curve: Curves.easeInOut),
-      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
+      child: ScaleTransition(scale: _controller, child: widget.child),
     );
   }
 }

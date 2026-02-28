@@ -1,8 +1,9 @@
-import 'dart:developer';
+import '../../../core/utils/app_logger.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/workout_plan.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../shared/widgets/app_dialogs.dart';
@@ -41,7 +42,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
   @override
   void initState() {
     super.initState();
-    context.read<PlanBloc>().add(const PlansFetchRequested(userId: '1'));
+    context.read<PlanBloc>().add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
     _loadAvailableExercises();
   }
 
@@ -56,19 +57,14 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
       }
     }
     try {
-      final workouts = await _workoutRepository.getWorkouts(userId: '1');
+      final workouts = await _workoutRepository.getWorkouts(userId: AppConstants.defaultUserId);
       for (var w in workouts) {
         for (var e in w.exercises) {
           names.add(e.name);
         }
       }
     } catch (e, stackTrace) {
-      log(
-        'Error loading suggestions',
-        name: 'StartWorkoutPage',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      AppLogger.error('StartWorkoutPage', 'Error loading suggestions', e, stackTrace);
     }
 
     if (mounted) {
@@ -96,7 +92,6 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
       }
       setState(() {
         _sortedPlans = plans;
-        _sortedPlans = plans;
       });
     }
   }
@@ -122,20 +117,55 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
 
     AppDialogs.showExerciseEntryDialog(
       context: context,
+      userId: AppConstants.defaultUserId,
       title: 'Add Exercise',
-      hintText: 'Exercise Name (e.g. Bench Press)',
+      hintText: 'Exercise Name (ex: Bench Press)',
       suggestions: _availableExercises,
-      onConfirm: (name) {
+      onConfirm: (name, variation) {
         if (name.isNotEmpty) {
-          _sessionQueue.add(
-            SessionExercise(
-              id: UniqueKey().toString(),
+          setState(() {
+            _sessionQueue.add(
+              SessionExercise(
+                id: UniqueKey().toString(),
+                name: name,
+                variation: variation,
+                order: _sessionQueue.length,
+                sets: const [],
+                isTemplate: false,
+              ),
+            );
+          });
+        }
+      },
+    );
+  }
+
+  Future<void> _showEditExerciseDialog(int index) async {
+    final exercise = _sessionQueue[index];
+
+    // Ensure suggestions are loaded
+    if (_availableExercises.isEmpty) {
+      await _loadAvailableExercises();
+    }
+
+    if (!mounted) return;
+
+    AppDialogs.showExerciseEntryDialog(
+      context: context,
+      userId: AppConstants.defaultUserId,
+      title: 'Edit Exercise',
+      initialValue: exercise.name,
+      initialVariation: exercise.variation,
+      hintText: 'Exercise Name (ex: Bench Press)',
+      suggestions: _availableExercises,
+      onConfirm: (name, variation) {
+        if (name.isNotEmpty) {
+          setState(() {
+            _sessionQueue[index] = exercise.copyWith(
               name: name,
-              order: _sessionQueue.length,
-              sets: const [],
-              isTemplate: false,
-            ),
-          );
+              variation: variation,
+            );
+          });
         }
       },
     );
@@ -336,6 +366,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                             .map((e) => SessionExercise(
                                                   id: e.id,
                                                   name: e.name,
+                                                  variation: e.variation,
                                                   order: e.order,
                                                   isTemplate: true,
                                                   sets: const [],
@@ -464,7 +495,9 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                 padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
                 sliver: SliverToBoxAdapter(
                   child: Text(
-                    'EXERCISES',
+                    _sessionQueue.isEmpty
+                        ? 'EXERCISES'
+                        : 'EXERCISES (${_sessionQueue.length})',
                     style: TextStyle(
                       color: AppColors.accent,
                       fontSize: 12,
@@ -613,14 +646,40 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
-                                    child: Text(
-                                      exercise.name,
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14,
-                                      ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          exercise.name,
+                                          style: const TextStyle(
+                                            color: AppColors.textPrimary,
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        if (exercise.variation.isNotEmpty)
+                                          Text(
+                                            exercise.variation,
+                                            style: TextStyle(
+                                              color: AppColors.accent
+                                                  .withValues(alpha: 0.7),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                      ],
                                     ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit_rounded,
+                                      color: AppColors.accent,
+                                      size: 16,
+                                    ),
+                                    constraints: const BoxConstraints(),
+                                    padding: const EdgeInsets.all(8),
+                                    onPressed: () =>
+                                        _showEditExerciseDialog(index),
                                   ),
                                   IconButton(
                                     icon: const Icon(

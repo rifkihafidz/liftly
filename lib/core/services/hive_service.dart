@@ -7,6 +7,7 @@ import 'package:liftly/core/models/workout_plan.dart';
 import 'package:liftly/core/models/workout_session.dart';
 import 'package:liftly/core/models/personal_record.dart';
 import 'package:liftly/core/services/statistics_service.dart';
+import 'package:liftly/core/utils/app_logger.dart';
 import 'package:liftly/core/utils/persistence_helper.dart';
 import 'package:liftly/core/constants/app_constants.dart';
 import 'package:path_provider/path_provider.dart';
@@ -41,6 +42,10 @@ class HiveService {
   // Key: userId, Value: List of (id, date) sorted by date DESC.
   static final Map<String, List<({String id, DateTime date, bool isDraft})>>
       _workoutIndexCache = {};
+
+  // Cache for getLastExerciseLog to avoid a full scan per exercise on every call.
+  // Key: "userId:exerciseName:variation", Value: last WorkoutSession (nullable).
+  static final Map<String, WorkoutSession?> _lastExerciseLogCache = {};
 
   // Initialize Hive
   static Future<void> init() async {
@@ -94,6 +99,9 @@ class HiveService {
       // Startup Integrity Check
       await _checkMetadataIntegrity();
 
+      // Data Migration: notes -> variation
+      await _migrateVariationField();
+
       _isInitialized = true;
       _initCompleter!.complete();
     } catch (e) {
@@ -106,9 +114,13 @@ class HiveService {
     }
   }
 
-  static void _invalidatePRCache({String? userId, String? exerciseName}) {
+  static void _invalidatePRCache(
+      {String? userId, String? exerciseName, String? exerciseVariation}) {
     if (userId != null && exerciseName != null) {
-      _prCache.remove('$userId:${exerciseName.toLowerCase()}');
+      final variation = exerciseVariation ?? '';
+      final key =
+          '$userId:${exerciseName.toLowerCase()}:${variation.toLowerCase()}';
+      _prCache.remove(key);
     } else if (userId != null) {
       _prCache.removeWhere((key, _) => key.startsWith('$userId:'));
     } else {
@@ -117,9 +129,12 @@ class HiveService {
   }
 
   static void _invalidateExerciseHistoryCache(
-      {String? userId, String? exerciseName}) {
+      {String? userId, String? exerciseName, String? exerciseVariation}) {
     if (userId != null && exerciseName != null) {
-      _exerciseHistoryCache.remove('$userId:${exerciseName.toLowerCase()}');
+      final variation = exerciseVariation ?? '';
+      final key =
+          '$userId:${exerciseName.toLowerCase()}:${variation.toLowerCase()}';
+      _exerciseHistoryCache.remove(key);
     } else if (userId != null) {
       _exerciseHistoryCache.removeWhere((key, _) => key.startsWith('$userId:'));
     } else {
@@ -143,9 +158,23 @@ class HiveService {
     }
   }
 
+  static void _invalidateLastExerciseLogCache(
+      {String? userId, String? exerciseName, String? exerciseVariation}) {
+    if (userId != null && exerciseName != null) {
+      final variation = exerciseVariation ?? '';
+      final key =
+          '$userId:${exerciseName.toLowerCase()}:${variation.toLowerCase()}';
+      _lastExerciseLogCache.remove(key);
+    } else if (userId != null) {
+      _lastExerciseLogCache.removeWhere((key, _) => key.startsWith('$userId:'));
+    } else {
+      _lastExerciseLogCache.clear();
+    }
+  }
+
   static Future<void> _checkMetadataIntegrity() async {
     if (_metaBox.isEmpty && _workoutBox.isNotEmpty) {
-      debugPrint('[HiveService] Meta box empty, rebuilding index...');
+      AppLogger.debug('HiveService', 'Meta box empty, rebuilding index...');
       final metaMap = <String, WorkoutMetadata>{};
       for (final w in _workoutBox.values) {
         metaMap[w.id] = WorkoutMetadata(
@@ -156,8 +185,19 @@ class HiveService {
         );
       }
       await _metaBox.putAll(metaMap);
-      debugPrint('[HiveService] Index rebuilt with ${metaMap.length} items.');
+      AppLogger.debug('HiveService', 'Index rebuilt with ${metaMap.length} items.');
     }
+  }
+
+  static Future<void> _migrateVariationField() async {
+    final migrationKey = 'variation_migration_complete';
+    final isComplete = _settingsBox.get(migrationKey) == 'true';
+
+    if (isComplete) return;
+
+    // The notes→variation field migration was applied in-place at the Hive
+    // adapter level. Writing this marker prevents re-running on future launches.
+    await _settingsBox.put(migrationKey, 'true');
   }
 
   // ================= Workouts =================
@@ -176,9 +216,18 @@ class HiveService {
 
     // Invalidate caches for affected exercises
     for (final exercise in workout.exercises) {
-      _invalidatePRCache(userId: workout.userId, exerciseName: exercise.name);
+      _invalidatePRCache(
+          userId: workout.userId,
+          exerciseName: exercise.name,
+          exerciseVariation: exercise.variation);
       _invalidateExerciseHistoryCache(
-          userId: workout.userId, exerciseName: exercise.name);
+          userId: workout.userId,
+          exerciseName: exercise.name,
+          exerciseVariation: exercise.variation);
+      _invalidateLastExerciseLogCache(
+          userId: workout.userId,
+          exerciseName: exercise.name,
+          exerciseVariation: exercise.variation);
     }
     _invalidateWorkoutCache(userId: workout.userId);
     _invalidateExerciseNamesCache(userId: workout.userId);
@@ -204,6 +253,7 @@ class HiveService {
     _invalidatePRCache();
     _invalidateWorkoutCache();
     _invalidateExerciseHistoryCache();
+    _invalidateLastExerciseLogCache();
     _invalidateExerciseNamesCache();
   }
 
@@ -260,9 +310,18 @@ class HiveService {
 
     if (workout != null) {
       for (final exercise in workout.exercises) {
-        _invalidatePRCache(userId: workout.userId, exerciseName: exercise.name);
+        _invalidatePRCache(
+            userId: workout.userId,
+            exerciseName: exercise.name,
+            exerciseVariation: exercise.variation);
         _invalidateExerciseHistoryCache(
-            userId: workout.userId, exerciseName: exercise.name);
+            userId: workout.userId,
+            exerciseName: exercise.name,
+            exerciseVariation: exercise.variation);
+        _invalidateLastExerciseLogCache(
+            userId: workout.userId,
+            exerciseName: exercise.name,
+            exerciseVariation: exercise.variation);
       }
       _invalidateWorkoutCache(userId: workout.userId);
       _invalidateExerciseNamesCache(userId: workout.userId);
@@ -272,6 +331,7 @@ class HiveService {
   static Future<void> updateWorkout(WorkoutSession workout) async {
     await init();
     await _workoutBox.put(workout.id, workout);
+    
     await _metaBox.put(
         workout.id,
         WorkoutMetadata(
@@ -281,9 +341,18 @@ class HiveService {
           isDraft: workout.isDraft,
         ));
     for (final exercise in workout.exercises) {
-      _invalidatePRCache(userId: workout.userId, exerciseName: exercise.name);
+      _invalidatePRCache(
+          userId: workout.userId,
+          exerciseName: exercise.name,
+          exerciseVariation: exercise.variation);
       _invalidateExerciseHistoryCache(
-          userId: workout.userId, exerciseName: exercise.name);
+          userId: workout.userId,
+          exerciseName: exercise.name,
+          exerciseVariation: exercise.variation);
+      _invalidateLastExerciseLogCache(
+          userId: workout.userId,
+          exerciseName: exercise.name,
+          exerciseVariation: exercise.variation);
     }
     _invalidateWorkoutCache(userId: workout.userId);
     _invalidateExerciseNamesCache(userId: workout.userId);
@@ -314,18 +383,6 @@ class HiveService {
     for (final draft in drafts) {
       await deleteWorkout(draft.id);
     }
-  }
-
-  static Future<void> cleanDrafts(String userId) async {
-    await init();
-    final drafts = _workoutBox.values
-        .where((w) => w.userId == userId && w.isDraft)
-        .map((w) => w.id)
-        .toList();
-
-    await _workoutBox.deleteAll(drafts);
-    await _metaBox.deleteAll(drafts);
-    _invalidateWorkoutCache(userId: userId);
   }
 
   // ================= Plans =================
@@ -377,11 +434,13 @@ class HiveService {
   // ================= Statistics / Analytics =================
 
   static Future<List<Map<String, dynamic>>> getExerciseHistory(
-      String userId, String exerciseName) async {
+      String userId, String exerciseName,
+      {String exerciseVariation = ''}) async {
     await init();
 
     // Check cache first
-    final cacheKey = '$userId:${exerciseName.toLowerCase()}';
+    final cacheKey =
+        '$userId:${exerciseName.toLowerCase()}:${exerciseVariation.toLowerCase()}';
     if (_exerciseHistoryCache.containsKey(cacheKey)) {
       return _exerciseHistoryCache[cacheKey]!;
     }
@@ -395,6 +454,7 @@ class HiveService {
     for (final w in workouts) {
       for (final ex in w.exercises) {
         if (ex.name.toLowerCase() == exerciseName.toLowerCase() &&
+            ex.variation.toLowerCase() == exerciseVariation.toLowerCase() &&
             !ex.skipped) {
           final metrics = StatisticsService.calculateSessionMetrics(
             ex,
@@ -412,8 +472,15 @@ class HiveService {
   }
 
   static Future<WorkoutSession?> getLastExerciseLog(
-      String userId, String exerciseName) async {
+      String userId, String exerciseName,
+      {String exerciseVariation = ''}) async {
     await init();
+    final cacheKey =
+        '$userId:${exerciseName.toLowerCase()}:${exerciseVariation.toLowerCase()}';
+    if (_lastExerciseLogCache.containsKey(cacheKey)) {
+      return _lastExerciseLogCache[cacheKey];
+    }
+
     final workouts = _workoutBox.values
         .where((w) => w.userId == userId && !w.isDraft)
         .toList()
@@ -422,11 +489,14 @@ class HiveService {
     for (final w in workouts) {
       for (final ex in w.exercises) {
         if (ex.name.toLowerCase() == exerciseName.toLowerCase() &&
+            ex.variation.toLowerCase() == exerciseVariation.toLowerCase() &&
             !ex.skipped) {
+          _lastExerciseLogCache[cacheKey] = w;
           return w;
         }
       }
     }
+    _lastExerciseLogCache[cacheKey] = null;
     return null;
   }
 
@@ -452,18 +522,55 @@ class HiveService {
     return names.toList()..sort();
   }
 
+  static Future<List<String>> getExerciseVariations(
+    String userId,
+    String exerciseName,
+  ) async {
+    await init();
+    final variations = <String>{};
+    final lowerName = exerciseName.toLowerCase();
+
+    // Scan workout history
+    for (final w in _workoutBox.values) {
+      if (w.userId == userId) {
+        for (final ex in w.exercises) {
+          if (ex.name.toLowerCase() == lowerName && ex.variation.isNotEmpty) {
+            variations.add(ex.variation);
+          }
+        }
+      }
+    }
+
+    // Scan workout plans
+    for (final p in _planBox.values) {
+      if (p.userId == userId) {
+        for (final ex in p.exercises) {
+          if (ex.name.toLowerCase() == lowerName && ex.variation.isNotEmpty) {
+            variations.add(ex.variation);
+          }
+        }
+      }
+    }
+
+    return variations.toList()..sort();
+  }
+
   static Future<PersonalRecord?> getExercisePR(
       String userId, String exerciseName,
-      {DateTime? startDate, DateTime? endDate}) async {
+      {DateTime? startDate,
+      DateTime? endDate,
+      String exerciseVariation = ''}) async {
     // Check cache
     if (startDate == null && endDate == null) {
-      final cacheKey = '$userId:${exerciseName.toLowerCase()}';
+      final cacheKey =
+          '$userId:${exerciseName.toLowerCase()}:${exerciseVariation.toLowerCase()}';
       if (_prCache.containsKey(cacheKey)) {
         return _prCache[cacheKey];
       }
     }
 
-    final history = await getExerciseHistory(userId, exerciseName);
+    final history = await getExerciseHistory(userId, exerciseName,
+        exerciseVariation: exerciseVariation);
 
     if (history.isEmpty) return null;
 
@@ -474,12 +581,14 @@ class HiveService {
       return true;
     }).toList();
 
-    final pr =
-        StatisticsService.calculatePRFromHistory(exerciseName, filteredHistory);
+    final pr = StatisticsService.calculatePRFromHistory(
+        exerciseName, filteredHistory,
+        variation: exerciseVariation);
 
     // Cache
     if (startDate == null && endDate == null && pr != null) {
-      final cacheKey = '$userId:${exerciseName.toLowerCase()}';
+      final cacheKey =
+          '$userId:${exerciseName.toLowerCase()}:${exerciseVariation.toLowerCase()}';
       _prCache[cacheKey] = pr;
     }
 
@@ -491,9 +600,6 @@ class HiveService {
       {DateTime? startDate,
       DateTime? endDate}) async {
     await init();
-
-    // Single-pass optimization: collect all exercise data in one iteration
-    final exerciseHistories = <String, List<Map<String, dynamic>>>{};
 
     final workouts = _workoutBox.values
         .where((w) => w.userId == userId && !w.isDraft)
@@ -508,12 +614,21 @@ class HiveService {
       ..sort((a, b) => a.workoutDate.compareTo(b.workoutDate));
 
     // Single pass: collect all exercise session data
+    // Also track original exercise names and variations for display
+    final exerciseHistories = <String, List<Map<String, dynamic>>>{};
+    final originalExerciseData = <String, (String name, String variation)>{};
+    
     for (final w in filteredWorkouts) {
       for (final ex in w.exercises) {
         if (ex.skipped) continue;
 
         final exerciseNameLower = ex.name.toLowerCase();
-        exerciseHistories.putIfAbsent(exerciseNameLower, () => []);
+        final variationLower = ex.variation.toLowerCase();
+        final key = '$exerciseNameLower:$variationLower';
+        
+        exerciseHistories.putIfAbsent(key, () => []);
+        // Store original case for later display
+        originalExerciseData[key] = (ex.name, ex.variation);
 
         final metrics = StatisticsService.calculateSessionMetrics(
           ex,
@@ -521,15 +636,23 @@ class HiveService {
           ex.sets,
         );
 
-        exerciseHistories[exerciseNameLower]!.add(metrics);
+        exerciseHistories[key]!.add(metrics);
       }
     }
 
     // Calculate PRs from collected data
     final results = <String, PersonalRecord>{};
     for (final entry in exerciseHistories.entries) {
-      final pr =
-          StatisticsService.calculatePRFromHistory(entry.key, entry.value);
+      // Extract exercise name from key (format: exerciseName:variation)
+      final originalData = originalExerciseData[entry.key];
+      final originalExerciseName = originalData?.$1 ?? entry.key.split(':').first;
+      final originalVariation = originalData?.$2 ?? '';
+      
+      final pr = StatisticsService.calculatePRFromHistory(
+        originalExerciseName,
+        entry.value,
+        variation: originalVariation,
+      );
       if (pr != null) {
         results[entry.key] = pr;
       }
@@ -548,6 +671,7 @@ class HiveService {
     await _metaBox.clear();
     _prCache.clear();
     _exerciseHistoryCache.clear();
+    _lastExerciseLogCache.clear();
     _exerciseNamesCache.clear();
     _invalidateWorkoutCache();
   }

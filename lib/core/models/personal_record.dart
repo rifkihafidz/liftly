@@ -10,7 +10,7 @@ class PersonalRecord extends Equatable {
   final double maxVolume;
   final double maxVolumeWeight;
   final int maxVolumeReps;
-  final String maxVolumeBreakdown; // e.g., "(10 kg x 10 + 5 kg x 2)"
+  final String maxVolumeBreakdown; // ex: "(10 kg x 10 + 5 kg x 2)"
 
   // Metric 3: Best Session (Highest total volume in one workout)
   final double bestSessionVolume;
@@ -27,9 +27,11 @@ class PersonalRecord extends Equatable {
   // Let's keep it but make sure it's transferable (it is, distinct from HiveObject issues).
 
   final String exerciseName;
+  final String variation; // Original case variation (e.g., "Flat Barbell")
 
   const PersonalRecord({
     this.exerciseName = '',
+    this.variation = '',
     this.maxWeight = 0,
     this.maxWeightReps = 0,
     this.maxVolume = 0,
@@ -45,6 +47,7 @@ class PersonalRecord extends Equatable {
   @override
   List<Object?> get props => [
         exerciseName,
+        variation,
         maxWeight,
         maxWeightReps,
         maxVolume,

@@ -19,6 +19,7 @@ import 'core/services/hive_service.dart';
 import 'core/services/backup_service.dart';
 import 'features/home/pages/main_navigation_wrapper.dart';
 import 'core/constants/app_constants.dart';
+import 'core/utils/app_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,10 +50,7 @@ void main() async {
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
-    if (kDebugMode) {
-      print('Caught async error: $error');
-      print(stack);
-    }
+    AppLogger.error('AsyncError', 'Caught async error', error, stack);
     return true;
   };
 
@@ -67,6 +65,9 @@ class Liftly extends StatefulWidget {
 }
 
 class _LiftlyState extends State<Liftly> with WidgetsBindingObserver {
+  late final WorkoutRepository _workoutRepository = WorkoutRepository();
+  late final PlanRepository _planRepository = PlanRepository();
+
   @override
   void initState() {
     super.initState();
@@ -88,24 +89,21 @@ class _LiftlyState extends State<Liftly> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final workoutRepository = WorkoutRepository();
-    final planRepository = PlanRepository();
-
     return MultiBlocProvider(
       providers: [
         BlocProvider(
           create: (context) =>
-              SessionBloc(workoutRepository: workoutRepository),
+              SessionBloc(workoutRepository: _workoutRepository),
         ),
         BlocProvider(
-          create: (context) => PlanBloc(planRepository: planRepository),
+          create: (context) => PlanBloc(planRepository: _planRepository),
         ),
         BlocProvider(
           create: (context) =>
-              WorkoutBloc(workoutRepository: workoutRepository),
+              WorkoutBloc(workoutRepository: _workoutRepository),
         ),
         BlocProvider(
-          create: (context) => StatsBloc(workoutRepository: workoutRepository)
+          create: (context) => StatsBloc(workoutRepository: _workoutRepository)
             ..add(const StatsFetched(userId: AppConstants.defaultUserId)),
         ),
       ],

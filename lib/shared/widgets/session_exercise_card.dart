@@ -20,6 +20,7 @@ class SessionExerciseCard extends StatefulWidget {
   final Function(int setIndex, int segmentIndex, String field, dynamic value)
       onUpdateSegment;
   final VoidCallback? onEditName;
+  final VoidCallback? onEditVariation;
   final VoidCallback? onDelete;
   final int? focusedSetIndex;
   final int? focusedSegmentIndex;
@@ -40,6 +41,7 @@ class SessionExerciseCard extends StatefulWidget {
     required this.onRemoveDropSet,
     required this.onUpdateSegment,
     this.onEditName,
+    this.onEditVariation,
     this.onDelete,
     this.focusedSetIndex,
     this.focusedSegmentIndex,
@@ -204,13 +206,26 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                 child: Column(
                   children: [
                     const Divider(height: 1),
+                    const SizedBox(height: 12),
                     if (widget.pr != null) ...[
-                      const SizedBox(height: 12),
                       _buildPRSummary(context),
-                      const SizedBox(height: 12),
-                      const Divider(height: 1),
+                      const SizedBox(height: 12)
                     ],
-                    const SizedBox(height: 16),
+                    if (widget.pr != null) const Divider(height: 1),
+                    if (widget.pr != null) const SizedBox(height: 16),
+                    if (widget.pr == null)
+                      Center(
+                        child: Text(
+                          'No previous sessions yet',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                        ),
+                      ),
+                    if (widget.pr == null) const SizedBox(height: 12),
+                    if (widget.pr == null) const Divider(height: 1),
+                    if (widget.pr == null) const SizedBox(height: 16),
                     for (int setIndex = 0; setIndex < sets.length; setIndex++)
                       _SetRow(
                         key: ValueKey('set_row_${sets[setIndex].id}'),
@@ -218,6 +233,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                         setIndex: setIndex,
                         totalSets: sets.length,
                         exerciseName: widget.exercise.name,
+                        exerciseVariation: widget.exercise.variation,
                         scrollTargetKey: setIndex == _scrollToSetIndex
                             ? _scrollTargetKey
                             : null,
@@ -242,13 +258,28 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                         child: Column(
                           children: [
                             const Divider(height: 1),
+                            const SizedBox(height: 12),
                             if (widget.pr != null) ...[
-                              const SizedBox(height: 12),
                               _buildPRSummary(context),
-                              const SizedBox(height: 12),
-                              const Divider(height: 1),
+                              const SizedBox(height: 12)
                             ],
-                            const SizedBox(height: 16),
+                            if (widget.pr != null) const Divider(height: 1),
+                            if (widget.pr != null) const SizedBox(height: 16),
+                            if (widget.pr == null)
+                              Center(
+                                child: Text(
+                                  'No previous sessions yet',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                ),
+                              ),
+                            if (widget.pr == null) const SizedBox(height: 12),
+                            if (widget.pr == null) const Divider(height: 1),
+                            if (widget.pr == null) const SizedBox(height: 16),
                             for (int setIndex = 0;
                                 setIndex < sets.length;
                                 setIndex++)
@@ -258,6 +289,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                                 setIndex: setIndex,
                                 totalSets: sets.length,
                                 exerciseName: widget.exercise.name,
+                                exerciseVariation: widget.exercise.variation,
                                 scrollTargetKey: setIndex == _scrollToSetIndex
                                     ? _scrollTargetKey
                                     : null,
@@ -330,23 +362,78 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                       decoration: isSkipped ? TextDecoration.lineThrough : null,
                     ),
               ),
+              // Variation display with edit icon
+              if (widget.exercise.variation.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: GestureDetector(
+                    onTap: widget.onEditVariation,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.exercise.variation,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.accent,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                        if (widget.onEditVariation != null) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.edit,
+                            size: 12,
+                            color: AppColors.accent,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                )
+              else if (widget.onEditVariation != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: GestureDetector(
+                    onTap: widget.onEditVariation,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.add,
+                          size: 14,
+                          color: AppColors.textSecondary.withValues(alpha: 0.6),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Variation',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary
+                                        .withValues(alpha: 0.6),
+                                    fontSize: 12,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
 
         // Actions
-        if (widget.history != null || widget.pr != null)
-          IconButton(
-            icon: const Icon(
-              Icons.history,
-              size: 20,
-              color: AppColors.textSecondary,
-            ),
-            tooltip: 'View History & PR',
-            constraints: const BoxConstraints(),
-            padding: const EdgeInsets.all(8),
-            onPressed: widget.onHistoryTap,
+        IconButton(
+          icon: const Icon(
+            Icons.history,
+            size: 20,
+            color: AppColors.textSecondary,
           ),
+          tooltip: 'View History & PR',
+          constraints: const BoxConstraints(),
+          padding: const EdgeInsets.all(8),
+          onPressed: widget.onHistoryTap,
+        ),
 
         // Skip Button (Compact Chip)
         Material(
@@ -400,49 +487,6 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
             ),
           ),
         ),
-
-        // Menu
-        if (widget.onEditName != null || widget.onDelete != null)
-          PopupMenuButton<String>(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            icon: const Icon(
-              Icons.more_vert,
-              size: 20,
-              color: AppColors.textSecondary,
-            ),
-            onSelected: (value) {
-              if (value == 'edit' && widget.onEditName != null) {
-                widget.onEditName!();
-              } else if (value == 'delete' && widget.onDelete != null) {
-                widget.onDelete!();
-              }
-            },
-            itemBuilder: (context) => [
-              if (widget.onEditName != null)
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit, size: 20),
-                      SizedBox(width: 8),
-                      Text('Rename'),
-                    ],
-                  ),
-                ),
-              if (widget.onDelete != null)
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete, color: AppColors.error, size: 20),
-                      SizedBox(width: 8),
-                      Text('Remove', style: TextStyle(color: AppColors.error)),
-                    ],
-                  ),
-                ),
-            ],
-          ),
 
         // Expand/Collapse Chevron
         const SizedBox(width: 4),
@@ -536,6 +580,7 @@ class _SetRow extends StatelessWidget {
   final int setIndex;
   final int totalSets;
   final String exerciseName;
+  final String exerciseVariation;
   final GlobalKey? scrollTargetKey;
   final Function(int setIndex, int segmentIndex, String field, dynamic value)
       onUpdateSegment;
@@ -551,6 +596,7 @@ class _SetRow extends StatelessWidget {
     required this.setIndex,
     required this.totalSets,
     required this.exerciseName,
+    required this.exerciseVariation,
     this.scrollTargetKey,
     required this.onUpdateSegment,
     required this.onRemoveSet,
@@ -575,6 +621,7 @@ class _SetRow extends StatelessWidget {
             set: set,
             setIndex: setIndex,
             exerciseName: exerciseName,
+            exerciseVariation: exerciseVariation,
             isDropSet: isDropSet,
             onRemoveSet: onRemoveSet,
           ),
@@ -622,6 +669,7 @@ class _SetHeader extends StatelessWidget {
   final ExerciseSet set;
   final int setIndex;
   final String exerciseName;
+  final String exerciseVariation;
   final bool isDropSet;
   final Function(int setIndex) onRemoveSet;
 
@@ -629,6 +677,7 @@ class _SetHeader extends StatelessWidget {
     required this.set,
     required this.setIndex,
     required this.exerciseName,
+    this.exerciseVariation = '',
     required this.isDropSet,
     required this.onRemoveSet,
   });
@@ -652,13 +701,26 @@ class _SetHeader extends StatelessWidget {
                 color: AppColors.textSecondary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text(
-                exerciseName.toUpperCase(),
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.8,
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                  ),
+                  children: [
+                    TextSpan(text: exerciseName.toUpperCase()),
+                    if (exerciseVariation.trim().isNotEmpty) ...[
+                      const TextSpan(text: ': '),
+                      TextSpan(
+                        text: exerciseVariation.toUpperCase(),
+                        style: TextStyle(
+                          color: AppColors.accent.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),

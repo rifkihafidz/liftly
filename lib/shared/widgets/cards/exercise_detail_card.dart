@@ -102,6 +102,21 @@ class _ExerciseDetailCardState extends State<ExerciseDetailCard> {
                                 ],
                               ],
                             ),
+                            if (widget.exercise.variation.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  widget.exercise.variation,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: AppColors.accent,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                              ),
                             if (!isSkipped)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
