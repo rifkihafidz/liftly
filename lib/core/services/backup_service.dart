@@ -53,7 +53,7 @@ class BackupService {
 
   String? get lastError => _lastError;
 
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
+  GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: kIsWeb && AppConstants.googleClientId.isNotEmpty
         ? AppConstants.googleClientId
         : null,
@@ -63,6 +63,27 @@ class BackupService {
       drive.DriveApi.driveFileScope,
     ],
   );
+
+  // Track if background silent sign-in is in-flight or timed out (FedCM stuck)
+  bool _silentSignInTimedOut = false;
+  bool _backgroundSignInInFlight = false;
+  Completer<void>? _backgroundSignInCompleter;
+
+  // Cached email for instant UI restore on web (FedCM may be slow/unavailable)
+  String? _cachedEmail;
+  String? get cachedEmail => _cachedEmail;
+
+  // Cached access token for web session restore (avoids FedCM cooldown issues)
+  String? _cachedAccessToken;
+  DateTime? _cachedTokenExpiry;
+  bool get _hasValidCachedToken =>
+      _cachedAccessToken != null &&
+      _cachedTokenExpiry != null &&
+      DateTime.now().isBefore(_cachedTokenExpiry!);
+
+  /// True if we have a cached session but no live auth and no valid token
+  bool get needsReauth =>
+      kIsWeb && _cachedEmail != null && _currentUser == null && !_hasValidCachedToken;
 
   GoogleSignInAccount? _currentUser;
   GoogleSignInAccount? get currentUser => _currentUser;
@@ -90,10 +111,33 @@ class BackupService {
   Future<void> _initInternal() async {
     _initState = InitializationState.pending;
     try {
-      // On web, skip auto sign-in to require manual login after reload
       if (kIsWeb) {
-        AppLogger.debug('BackupService', 'Skipping auto sign-in on web platform');
-        _initState = InitializationState.completedNoUser;
+        // Check if user was previously signed in
+        final wasSignedIn = await HiveService.getPreference('gdrive_signed_in');
+        AppLogger.debug('BackupService', '[Web] Previous sign-in state: $wasSignedIn');
+
+        if (wasSignedIn == 'true') {
+          // Load cached email for instant UI restore
+          _cachedEmail = await HiveService.getPreference('gdrive_email');
+          // Load cached access token for API calls without re-auth
+          _cachedAccessToken = await HiveService.getPreference('gdrive_access_token');
+          final expiryStr = await HiveService.getPreference('gdrive_token_expiry');
+          if (expiryStr != null && expiryStr.isNotEmpty) {
+            _cachedTokenExpiry = DateTime.tryParse(expiryStr);
+          }
+          AppLogger.debug('BackupService', '[Web] Cached email: $_cachedEmail, token valid: $_hasValidCachedToken');
+
+          // Complete init immediately so the app doesn't block.
+          // Show logged-in UI from cache; silent sign-in runs in background.
+          _initState = _cachedEmail != null
+              ? InitializationState.completedWithUser
+              : InitializationState.completedNoUser;
+          AppLogger.debug('BackupService', '[Web] Init complete (cached), attempting silent sign-in in background...');
+          _attemptWebSilentSignIn();
+        } else {
+          AppLogger.debug('BackupService', '[Web] No previous session, skipping auto sign-in');
+          _initState = InitializationState.completedNoUser;
+        }
         return;
       }
 
@@ -137,6 +181,49 @@ class BackupService {
     }
   }
 
+  /// Non-blocking silent sign-in for web.
+  /// Runs in background — updates _currentUser and _initState via stream.
+  /// The Completer allows _ensureSignedIn to wait for this to finish.
+  void _attemptWebSilentSignIn() {
+    _backgroundSignInInFlight = true;
+    _backgroundSignInCompleter = Completer<void>();
+    _googleSignIn
+        .signInSilently()
+        .timeout(const Duration(seconds: 8))
+        .then((user) {
+      _backgroundSignInInFlight = false;
+      if (user != null) {
+        _currentUser = user;
+        _initState = InitializationState.completedWithUser;
+        _cacheAuthToken(); // fire-and-forget
+        AppLogger.debug('BackupService',
+            '[Web] Background silent sign-in successful: ${user.email}');
+      } else if (_googleSignIn.currentUser != null) {
+        _currentUser = _googleSignIn.currentUser;
+        _initState = InitializationState.completedWithUser;
+        AppLogger.debug('BackupService',
+            '[Web] Background: currentUser found: ${_currentUser?.email}');
+      } else {
+        AppLogger.debug('BackupService',
+            '[Web] Background silent sign-in returned null');
+      }
+      _backgroundSignInCompleter?.complete();
+      _backgroundSignInCompleter = null;
+    }).catchError((e) {
+      _backgroundSignInInFlight = false;
+      if (e is TimeoutException) {
+        AppLogger.debug('BackupService',
+            '[Web] Background silent sign-in timed out (FedCM cooldown)');
+        _silentSignInTimedOut = true;
+      } else {
+        AppLogger.debug('BackupService',
+            '[Web] Background silent sign-in error: $e');
+      }
+      _backgroundSignInCompleter?.complete();
+      _backgroundSignInCompleter = null;
+    });
+  }
+
   /// Sign in with Google
   Future<GoogleSignInAccount?> signIn() async {
     // Ensure initialization is at least attempted
@@ -145,9 +232,41 @@ class BackupService {
     }
 
     try {
-      // Add a 5-minute timeout for interactive login (manual entry + 2FA)
+      // If background signInSilently is still in-flight or timed out,
+      // the GoogleSignIn instance is stuck. Create a fresh instance.
+      if (kIsWeb && (_silentSignInTimedOut || _backgroundSignInInFlight)) {
+        AppLogger.debug('BackupService',
+            '[Web] Recreating GoogleSignIn instance (inFlight=$_backgroundSignInInFlight, timedOut=$_silentSignInTimedOut)');
+        _googleSignIn = GoogleSignIn(
+          clientId: AppConstants.googleClientId.isNotEmpty
+              ? AppConstants.googleClientId
+              : null,
+          scopes: [
+            'email',
+            'openid',
+            drive.DriveApi.driveFileScope,
+          ],
+        );
+        _silentSignInTimedOut = false;
+        _backgroundSignInInFlight = false;
+      }
+
+      AppLogger.debug('BackupService', 'Starting interactive sign-in...');
       _currentUser =
           await _googleSignIn.signIn().timeout(const Duration(minutes: 3));
+      
+      if (_currentUser != null) {
+        AppLogger.debug('BackupService', 'Sign-in successful: ${_currentUser?.email}');
+        // Persist sign-in state and email for web session restore
+        _cachedEmail = _currentUser!.email;
+        await HiveService.savePreference('gdrive_signed_in', 'true');
+        await HiveService.savePreference('gdrive_email', _currentUser!.email);
+        // Cache access token so reload doesn't need FedCM
+        await _cacheAuthToken();
+      } else {
+        AppLogger.debug('BackupService', 'Sign-in returned null (cancelled?)');
+      }
+      
       return _currentUser;
     } catch (e) {
       AppLogger.error('BackupService', 'Sign in failed or timed out', e);
@@ -158,11 +277,67 @@ class BackupService {
   /// Sign out
   Future<void> signOut() async {
     try {
+      AppLogger.debug('BackupService', 'Signing out...');
       await _googleSignIn.disconnect();
       _currentUser = null;
+      _cachedEmail = null;
+      _cachedAccessToken = null;
+      _cachedTokenExpiry = null;
+      // Clear persisted sign-in state
+      await HiveService.savePreference('gdrive_signed_in', 'false');
+      await HiveService.savePreference('gdrive_email', '');
+      await HiveService.savePreference('gdrive_access_token', '');
+      await HiveService.savePreference('gdrive_token_expiry', '');
+      AppLogger.debug('BackupService', 'Sign out complete');
     } catch (e) {
       AppLogger.error('BackupService', 'Sign out failed', e);
     }
+  }
+
+  /// Cache the current user's access token to Hive for web session restore.
+  Future<void> _cacheAuthToken() async {
+    if (_currentUser == null || !kIsWeb) return;
+    try {
+      final auth = await _currentUser!.authentication;
+      _cachedAccessToken = auth.accessToken;
+      _cachedTokenExpiry = DateTime.now().add(const Duration(minutes: 55));
+      await HiveService.savePreference('gdrive_access_token', _cachedAccessToken!);
+      await HiveService.savePreference(
+          'gdrive_token_expiry', _cachedTokenExpiry!.toIso8601String());
+      AppLogger.debug('BackupService',
+          '[Web] Auth token cached (expires: $_cachedTokenExpiry)');
+    } catch (e) {
+      AppLogger.error('BackupService', 'Failed to cache auth token', e);
+    }
+  }
+
+  /// Get auth headers — uses live user or falls back to cached token.
+  Future<Map<String, String>> _getAuthHeaders() async {
+    if (_currentUser != null) {
+      final headers = await _currentUser!.authHeaders;
+      // Refresh cached token on each successful call
+      if (kIsWeb) {
+        final token = headers['Authorization']?.replaceFirst('Bearer ', '');
+        if (token != null && token.isNotEmpty) {
+          _cachedAccessToken = token;
+          _cachedTokenExpiry = DateTime.now().add(const Duration(minutes: 55));
+          // Fire-and-forget save
+          HiveService.savePreference('gdrive_access_token', token);
+          HiveService.savePreference(
+              'gdrive_token_expiry', _cachedTokenExpiry!.toIso8601String());
+        }
+      }
+      return headers;
+    }
+    if (_hasValidCachedToken) {
+      AppLogger.debug('BackupService',
+          '[Web] Using cached access token (expires: $_cachedTokenExpiry)');
+      return {
+        'Authorization': 'Bearer $_cachedAccessToken',
+        'X-Goog-AuthUser': '0',
+      };
+    }
+    throw BackupException('No valid authentication available');
   }
 
   /// Helper to trigger backup only if auto-backup setting is enabled
@@ -183,6 +358,33 @@ class BackupService {
     }
   }
 
+  /// Re-authenticate if we have a cached session but no live user.
+  /// Waits for background sign-in first; only triggers popup if that fails.
+  Future<bool> _ensureSignedIn({bool silent = false}) async {
+    if (_currentUser != null) return true;
+    if (_hasValidCachedToken) return true;
+    if (_cachedEmail == null) return false;
+
+    // If background silent sign-in is still running, wait for it first
+    if (_backgroundSignInCompleter != null) {
+      AppLogger.debug('BackupService',
+          'Lazy re-auth: waiting for background sign-in to finish...');
+      await _backgroundSignInCompleter!.future;
+      // Background sign-in may have succeeded
+      if (_currentUser != null) {
+        AppLogger.debug('BackupService',
+            'Lazy re-auth: background sign-in succeeded, no popup needed');
+        return true;
+      }
+    }
+
+    // Background sign-in failed or timed out — need interactive sign-in
+    AppLogger.debug('BackupService',
+        'Lazy re-auth: triggering interactive sign-in');
+    await signIn();
+    return _currentUser != null;
+  }
+
   /// Backup database to Google Drive (now in .xlsx format)
   Future<String?> backupDatabase({
     bool silent = false,
@@ -190,18 +392,23 @@ class BackupService {
     Function(double progress, String message)? onProgress,
   }) async {
     if (_currentUser == null) {
-      if (!silent) throw BackupException('User not signed in');
-      return null;
+      final reauthed = await _ensureSignedIn(silent: silent);
+      if (!reauthed) {
+        if (!silent) throw BackupException('User not signed in');
+        return null;
+      }
     }
 
-    // Ensure we have the required scopes (especially important on Web)
+    // Ensure we have the required scopes (skip if using cached token — scopes already granted)
     AppLogger.debug('BackupService', 'Verifying Drive scope before backup...');
     onProgress?.call(0.05, 'Connecting to Google Drive...');
-    await _ensureDriveScope(silent: silent);
+    if (_currentUser != null) {
+      await _ensureDriveScope(silent: silent);
+    }
 
     try {
       AppLogger.debug('BackupService', 'Retrieving auth headers...');
-      final headers = await _currentUser!.authHeaders;
+      final headers = await _getAuthHeaders();
       AppLogger.debug('BackupService',
           'Headers retrieved successfully. Initializing client...');
       final client = _GoogleAuthClient(headers);
@@ -273,12 +480,17 @@ class BackupService {
 
   /// List available backups (.xlsx files)
   Future<List<drive.File>> listBackups() async {
-    if (_currentUser == null) throw BackupException('User not signed in');
+    if (_currentUser == null) {
+      final reauthed = await _ensureSignedIn();
+      if (!reauthed) throw BackupException('User not signed in');
+    }
 
-    await _ensureDriveScope();
+    if (_currentUser != null) {
+      await _ensureDriveScope();
+    }
 
     try {
-      final headers = await _currentUser!.authHeaders;
+      final headers = await _getAuthHeaders();
       final client = _GoogleAuthClient(headers);
       final driveApi = drive.DriveApi(client);
 
@@ -302,12 +514,17 @@ class BackupService {
     String fileId, {
     Function(double progress, String message)? onProgress,
   }) async {
-    if (_currentUser == null) throw RestoreException('User not signed in');
+    if (_currentUser == null) {
+      final reauthed = await _ensureSignedIn();
+      if (!reauthed) throw RestoreException('User not signed in');
+    }
 
-    await _ensureDriveScope();
+    if (_currentUser != null) {
+      await _ensureDriveScope();
+    }
 
     try {
-      final headers = await _currentUser!.authHeaders;
+      final headers = await _getAuthHeaders();
       final client = _GoogleAuthClient(headers);
       final driveApi = drive.DriveApi(client);
 

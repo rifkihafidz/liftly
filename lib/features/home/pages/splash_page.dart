@@ -1,11 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'dart:async';
 import '../../../core/constants/colors.dart';
 import 'main_navigation_wrapper.dart';
 import '../../../core/utils/page_transitions.dart';
 import '../../../core/services/hive_service.dart';
-import '../../../core/utils/app_logger.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -52,45 +50,22 @@ class _SplashPageState extends State<SplashPage>
   }
 
   Future<void> _initializeApp() async {
-    try {
-      AppLogger.debug('Splash', 'Starting app initialization');
-      
-      // Wait for both animation (min duration) and Hive init (critical data)
-      // No artificial delay on web since it has a native splash
-      final minDuration =
-          kIsWeb ? Duration.zero : const Duration(milliseconds: 1800);
+    // Ensure at least one frame is rendered before starting the timer,
+    // so the splash screen is always visible.
+    await Future.delayed(Duration.zero);
 
-      AppLogger.debug('Splash', 'Waiting for Hive init...');
-      await Future.wait([
-        Future.delayed(minDuration),
-        HiveService.init().timeout(
-          const Duration(seconds: 15),
-          onTimeout: () {
-            AppLogger.error('Splash', 'Hive init timeout after 15s');
-            throw TimeoutException('Hive initialization timeout');
-          },
-        ),
-      ]);
+    final minDuration =
+        kIsWeb ? const Duration(milliseconds: 800) : const Duration(milliseconds: 1800);
 
-      AppLogger.debug('Splash', 'Initialization complete, navigating...');
+    await Future.wait([
+      Future.delayed(minDuration),
+      HiveService.init(),
+    ]);
 
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          SimpleFadePageRoute(page: const MainNavigationWrapper()),
-        );
-      }
-    } catch (e, stackTrace) {
-      AppLogger.error('Splash', 'Initialization error', e, stackTrace);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Init error: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        SimpleFadePageRoute(page: const MainNavigationWrapper()),
+      );
     }
   }
 

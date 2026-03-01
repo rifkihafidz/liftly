@@ -78,8 +78,24 @@ class UpdateService {
   }
 
   static bool _isUpdateRequired(String serverVersion, String appVersion) {
-    // Trigger update if server version differs from app version.
-    // This supports both upgrades and rollbacks (downgrades).
-    return serverVersion != appVersion;
+    // Only trigger update when server version is NEWER than app version.
+    // This prevents infinite reload loops when running a newer local version
+    // that hasn't been deployed yet.
+    final serverParts = serverVersion.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final appParts = appVersion.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+
+    // Pad to equal length
+    while (serverParts.length < appParts.length) {
+      serverParts.add(0);
+    }
+    while (appParts.length < serverParts.length) {
+      appParts.add(0);
+    }
+
+    for (int i = 0; i < serverParts.length; i++) {
+      if (serverParts[i] > appParts[i]) return true;
+      if (serverParts[i] < appParts[i]) return false;
+    }
+    return false; // equal
   }
 }

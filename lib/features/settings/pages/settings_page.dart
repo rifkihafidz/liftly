@@ -79,6 +79,10 @@ class _SettingsPageState extends State<SettingsPage> {
     return BackupService().isInitializing;
   }
 
+  bool get _isLoggedInCached {
+    return BackupService().cachedEmail != null;
+  }
+
   Future<void> _loadBackupState() async {
     try {
       final backupService = BackupService();
@@ -635,7 +639,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           isLoading: true,
                         ),
                       )
-                    else if (_currentUser == null)
+                    else if (_currentUser == null && !_isLoggedInCached)
                       FadeInSlide(
                         index: 1,
                         child: MenuListItem(
@@ -651,7 +655,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         index: 1,
                         child: MenuListItem(
                           title: 'Google Account',
-                          subtitle: _currentUser?.email ?? 'Connected',
+                          subtitle: _currentUser?.email ?? BackupService().cachedEmail ?? 'Connected',
                           icon: Icons.account_circle_outlined,
                           color: AppColors.accent,
                           onTap: () {},
