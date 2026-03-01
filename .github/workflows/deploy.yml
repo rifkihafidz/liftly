@@ -49,7 +49,11 @@ jobs:
         run: flutter config --enable-web
 
       - name: Build Web
-        run: flutter build web --release --base-href /liftly/
+        run: |
+          flutter build web \
+            --dart-define=GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+            --release \
+            --base-href /liftly/
 
       - name: Generate Version JSON
         run: |
