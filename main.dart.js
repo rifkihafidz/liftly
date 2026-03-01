@@ -33346,7 +33346,7 @@ if(l.b===200){g=l
 k=B.dC.dU(0,A.bao(A.b9R(g.e)).dU(0,g.w))
 j=A.an(J.b8(k,"version"))
 if(j!=null){i=j.split("+")[0]
-h="2.0.1".split("+")[0]
+h="2.0.2".split("+")[0]
 if(i!==h){A.n(h)
 A.n(i)
 g=$.bgN
@@ -118695,7 +118695,7 @@ n=t.p
 o=A.ai(A.b([q,B.aE,r,B.aE,A.em(A.O(p,m,m,m,m,o==null?m:o.jL(B.r,16),m,m,m),2),B.cR,A.em(new A.a8l("Start Workout","Log a new session manually",B.wz,new A.aQB(a),m),3),B.b1],n),B.C,m,B.h,B.i,0,B.p)
 p=A.bg_(new A.aQC())
 r=A.y(a).ok.Q
-return A.iL(m,B.am,A.v3(m,A.j6(0,m,m,B.F,l,B.S,m,m,B.cW,m,m,!1,B.a2,!1,A.b([new A.ea(new A.a8(24,s.r.b+16,24,0),new A.ep(o,m),m),new A.ea(B.fv,p,m),new A.ep(new A.ac(B.pn,A.cT(A.O("2.0.1",m,m,m,m,r==null?m:r.a6h(B.r.a0(0.5),12,1),m,m,m),m,m),m),m)],n)),m,new A.aQD(),t.Q,t.CK),m,m)}}
+return A.iL(m,B.am,A.v3(m,A.j6(0,m,m,B.F,l,B.S,m,m,B.cW,m,m,!1,B.a2,!1,A.b([new A.ea(new A.a8(24,s.r.b+16,24,0),new A.ep(o,m),m),new A.ea(B.fv,p,m),new A.ep(new A.ac(B.pn,A.cT(A.O("2.0.2",m,m,m,m,r==null?m:r.a6h(B.r.a0(0.5),12,1),m,m,m),m,m),m),m)],n)),m,new A.aQD(),t.Q,t.CK),m,m)}}
 A.aQD.prototype={
 $2(a,b){return this.abs(a,b)},
 abs(a,b){var s=0,r=A.t(t.H),q,p,o,n
