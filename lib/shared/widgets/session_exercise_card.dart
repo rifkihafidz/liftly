@@ -115,13 +115,12 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
 
           double alignment;
           if (isKeyboardOpen) {
-            // Alignment 0.55 pulls the buttons higher into the visible viewport
-            // to prevent them from being covered by the keyboard or Safari bars.
-            alignment = 0.55;
+            // Alignment 0.5 pulls the buttons into the visible viewport
+            // without scrolling too aggressively.
+            alignment = 0.5;
           } else {
-            // Center/top-ish when keyboard is off.
-            // For Safari iOS, we use 0.4 as requested (it's safe with 160px padding).
-            alignment = 0.4;
+            // Gentle scroll when keyboard is off.
+            alignment = 0.35;
           }
 
           Scrollable.ensureVisible(

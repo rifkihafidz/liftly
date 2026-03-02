@@ -44,6 +44,55 @@ class SessionPage extends StatefulWidget {
 
 class _SessionPageState extends State<SessionPage> {
   late SessionBloc _sessionBloc;
+  final Map<int, GlobalKey> _exerciseKeys = {};
+  final ScrollController _scrollController = ScrollController();
+
+  GlobalKey _getKeyForExercise(int index) {
+    return _exerciseKeys.putIfAbsent(index, () => GlobalKey());
+  }
+
+  void _jumpToExercise(int index) {
+    if (!mounted) return;
+    // Unfocus any active focus node first (fixes web browser issues)
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final key = _exerciseKeys[index];
+      if (key?.currentContext != null) {
+        Scrollable.ensureVisible(
+          key!.currentContext!,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+          alignment: 0.05,
+        );
+      } else {
+        // Fallback: estimate scroll position for items not yet rendered
+        final estimatedOffset = 200.0 + (index * 350.0);
+        final maxScroll = _scrollController.position.maxScrollExtent;
+        _scrollController
+            .animateTo(
+          estimatedOffset.clamp(0.0, maxScroll),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+        )
+            .then((_) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final retryKey = _exerciseKeys[index];
+            if (retryKey?.currentContext != null) {
+              Scrollable.ensureVisible(
+                retryKey!.currentContext!,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                alignment: 0.05,
+              );
+            }
+          });
+        });
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -71,6 +120,7 @@ class _SessionPageState extends State<SessionPage> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     // Safety net: If page is closed but session is still in progress (not saved/drafted), discard it.
     if (_sessionBloc.state is SessionInProgress) {
       _sessionBloc.add(const SessionDiscarded());
@@ -89,6 +139,33 @@ class _SessionPageState extends State<SessionPage> {
       child: Scaffold(
         resizeToAvoidBottomInset: true,
         backgroundColor: AppColors.darkBg,
+        floatingActionButton: BlocBuilder<SessionBloc, SessionState>(
+          builder: (context, state) {
+            if (state is SessionInProgress && state.session.exercises.length > 1) {
+              final exercises = state.session.exercises;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: FloatingActionButton.small(
+                  onPressed: () => _showExerciseJumpSheet(context, exercises),
+                  backgroundColor: AppColors.cardBg,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(
+                      color: AppColors.accent.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  elevation: 4,
+                  child: Icon(
+                    Icons.format_list_bulleted_rounded,
+                    color: AppColors.accent,
+                    size: 20,
+                  ),
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
         body: BlocListener<SessionBloc, SessionState>(
           listenWhen: (previous, current) =>
               current is SessionSaved || current is SessionDraftSaved,
@@ -145,6 +222,7 @@ class _SessionPageState extends State<SessionPage> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 800),
                     child: CustomScrollView(
+                      controller: _scrollController,
                       physics: const BouncingScrollPhysics(),
                       slivers: [
                         SliverAppBar(
@@ -297,6 +375,7 @@ class _SessionPageState extends State<SessionPage> {
                                           ),
                                         ),
                                       RepaintBoundary(
+                                        key: _getKeyForExercise(exIndex),
                                         child: SessionExerciseCard(
                                           key: ValueKey(exercise.id),
                                           exercise: exercise,
@@ -738,6 +817,115 @@ class _SessionPageState extends State<SessionPage> {
             context.read<SessionBloc>().add(const SessionSaveRequested());
           }
         });
+      }
+    });
+  }
+
+  void _showExerciseJumpSheet(BuildContext context, List<SessionExercise> exercises) {
+    showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: AppColors.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Jump to Exercise',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.45,
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: exercises.length,
+                  itemBuilder: (context, index) {
+                    final ex = exercises[index];
+                    return ListTile(
+                      onTap: () {
+                        Navigator.pop(sheetContext, index);
+                      },
+                      leading: Container(
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: ex.skipped
+                              ? AppColors.textSecondary.withValues(alpha: 0.1)
+                              : AppColors.accent.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color: ex.skipped
+                                ? AppColors.textSecondary
+                                : AppColors.accent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        ex.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: ex.skipped
+                              ? AppColors.textSecondary
+                              : AppColors.textPrimary,
+                          decoration:
+                              ex.skipped ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      subtitle: ex.variation.isNotEmpty
+                          ? Text(
+                              ex.variation,
+                              style: TextStyle(
+                                color: ex.skipped
+                                    ? AppColors.textSecondary.withValues(alpha: 0.5)
+                                    : AppColors.accent.withValues(alpha: 0.7),
+                                fontSize: 12,
+                              ),
+                            )
+                          : null,
+                      trailing: Text(
+                        '${ex.sets.length} sets',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ).then((selectedIndex) {
+      if (selectedIndex != null) {
+        _jumpToExercise(selectedIndex);
       }
     });
   }

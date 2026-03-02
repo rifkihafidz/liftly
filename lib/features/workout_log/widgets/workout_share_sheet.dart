@@ -1,5 +1,6 @@
 import '../../../core/utils/app_logger.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/colors.dart';
@@ -19,11 +20,23 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   bool _isTransparent = false;
   bool _isGenerating = false;
 
-  String _formatDuration(Duration duration) {
+
+  String _formatDateWithTimeRange(DateTime date) {
+    return DateFormat('dd MMMM yyyy').format(date);
+  }
+
+  String _formatTimeRange(DateTime? startedAt, DateTime? endedAt) {
+    if (startedAt == null || endedAt == null) {
+      return '-';
+    }
+    final duration = endedAt.difference(startedAt);
     final h = duration.inHours;
     final m = duration.inMinutes % 60;
-    if (h > 0) return '${h}h ${m}m';
-    return '${m}m';
+    final durationStr = h > 0 ? '${h}h ${m}m' : '${m}m';
+    
+    final startTimeStr = DateFormat('HH:mm').format(startedAt);
+    final endTimeStr = DateFormat('HH:mm').format(endedAt);
+    return '$durationStr ($startTimeStr - $endTimeStr)';
   }
 
   String _formatNumber(double number) {
@@ -71,9 +84,6 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   @override
   Widget build(BuildContext context) {
     final workout = widget.workout;
-    final duration = workout.endedAt != null && workout.startedAt != null
-        ? workout.endedAt!.difference(workout.startedAt!)
-        : Duration.zero;
 
     final totalVolume = workout.exercises.fold<double>(
       0,
@@ -126,7 +136,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                 if (_isTransparent)
                   Container(
                     width: 320,
-                    height: (workout.planName?.isNotEmpty ?? false) ? 440 : 400,
+                    height: (workout.planName?.isNotEmpty ?? false) ? 480 : 440,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -141,7 +151,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                   controller: _screenshotController,
                   child: Container(
                     width: 320,
-                    height: (workout.planName?.isNotEmpty ?? false) ? 440 : 400,
+                    height: (workout.planName?.isNotEmpty ?? false) ? 480 : 440,
                     decoration: BoxDecoration(
                       color: _isTransparent
                           ? Colors.transparent
@@ -153,91 +163,94 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                           : Border.all(color: AppColors.borderLight),
                     ),
                     alignment: Alignment.center,
-                    child: Stack(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              // Badge - Only show if NOT generating (saving)
-                              if (_isTransparent && !_isGenerating)
-                                Align(
-                                  alignment: Alignment.topLeft,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 1.5,
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Text(
-                                      'TRANSPARENT',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Badge - Only show if NOT generating (saving)
+                          if (_isTransparent && !_isGenerating)
+                            Align(
+                              alignment: Alignment.topLeft,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 1.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'TRANSPARENT',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-
-                              const Spacer(),
-
-                              if (workout.planName != null &&
-                                  workout.planName!.isNotEmpty) ...
-                                [
-                                  _buildStatGroup(
-                                      'Plan', workout.planName!),
-                                  const SizedBox(height: 12),
-                                ],
-                              _buildStatGroup('Exercises', '$exerciseCount'),
-                              const SizedBox(height: 12),
-                              _buildStatGroup('Total Sets', '$totalSets'),
-                              const SizedBox(height: 12),
-                              _buildStatGroup(
-                                'Total Volume',
-                                '${_formatNumber(totalVolume)} kg',
                               ),
-                              const SizedBox(height: 12),
+                            ),
+
+                          const Spacer(),
+
+                          _buildStatGroup(
+                            'Date',
+                            _formatDateWithTimeRange(workout.effectiveDate),
+                            isSmall: true,
+                          ),
+                          const SizedBox(height: 10),
+
+                          if (workout.planName != null &&
+                              workout.planName!.isNotEmpty) ...
+                            [
                               _buildStatGroup(
-                                'Duration',
-                                _formatDuration(duration),
+                                  'Plan', workout.planName!),
+                              const SizedBox(height: 8),
+                            ],
+                          _buildStatGroup('Exercises', '$exerciseCount'),
+                          const SizedBox(height: 8),
+                          _buildStatGroup('Total Sets', '$totalSets'),
+                          const SizedBox(height: 8),
+                          _buildStatGroup(
+                            'Total Volume',
+                            '${_formatNumber(totalVolume)} kg',
+                          ),
+                          const SizedBox(height: 8),
+                          _buildStatGroup(
+                            'Duration',
+                            _formatTimeRange(workout.startedAt, workout.endedAt),
+                          ),
+
+                          const Spacer(),
+
+                          // App Logo/Badge
+                          Column(
+                            children: [
+                              Icon(
+                                Icons.fitness_center_rounded,
+                                color: AppColors.accent,
+                                size: 28,
                               ),
-
-                              const Spacer(),
-
-                              // App Logo/Badge
-                              Column(
-                                children: [
-                                  Icon(
-                                    Icons.fitness_center_rounded,
-                                    color: AppColors.accent,
-                                    size: 28,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'LIFTLY',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: AppColors.textPrimary,
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 14,
-                                      letterSpacing: 2,
-                                    ),
-                                  ),
-                                ],
+                              const SizedBox(height: 4),
+                              Text(
+                                'LIFTLY',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                  letterSpacing: 2,
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -310,7 +323,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
     );
   }
 
-  Widget _buildStatGroup(String label, String value) {
+  Widget _buildStatGroup(String label, String value, {bool isSmall = false}) {
     return Column(
       children: [
         Text(
@@ -326,9 +339,9 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
         Text(
           value,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textPrimary,
-            fontSize: 24,
+            fontSize: isSmall ? 16 : 24,
             fontWeight: FontWeight.w900,
           ),
         ),
