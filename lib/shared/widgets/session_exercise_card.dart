@@ -115,12 +115,12 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
 
           double alignment;
           if (isKeyboardOpen) {
-            // Alignment 0.5 pulls the buttons into the visible viewport
+            // Alignment 0.6 pulls the buttons into the visible viewport
             // without scrolling too aggressively.
-            alignment = 0.5;
+            alignment = 0.6;
           } else {
             // Gentle scroll when keyboard is off.
-            alignment = 0.35;
+            alignment = 0.45;
           }
 
           Scrollable.ensureVisible(
