@@ -56,7 +56,7 @@ class _SessionPageState extends State<SessionPage> {
     // Unfocus any active focus node first
     FocusManager.instance.primaryFocus?.unfocus();
 
-    // Determine adjustment based on sets count: > 2 sets needs to land lower
+    // Determine pixel adjustment based on set count
     final state = _sessionBloc.state;
     double adjustmentPx = 0.0;
     if (state is SessionInProgress && index < state.session.exercises.length) {
@@ -65,72 +65,76 @@ class _SessionPageState extends State<SessionPage> {
       }
     }
 
-    // Wait for the bottom sheet dismissal animation to complete and the
-    // layout to settle before attempting to scroll. Without this delay the
-    // GlobalKey contexts can be transiently null or report stale positions.
-    Future.delayed(const Duration(milliseconds: 100), () {
+    // Wait frame-by-frame until this page is the current top route (i.e. the
+    // bottom sheet has fully dismissed) before scrolling. This avoids any
+    // fixed delay assumption about the dismiss animation duration.
+    _scrollWhenReady(index, adjustmentPx, attemptsLeft: 30);
+  }
+
+  void _scrollWhenReady(int index, double adjustmentPx,
+      {required int attemptsLeft}) {
+    if (!mounted || attemptsLeft <= 0) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      // Convert pixel adjustment to alignment (fraction of viewport height)
-      // Base alignment of 0.08 (~64-80px) to clear typical app bars.
+      // Only scroll when this page is the current top route. While a bottom
+      // sheet (or any modal) is animating away, isCurrent is still false.
+      final route = ModalRoute.of(context);
+      if (route == null || !route.isCurrent) {
+        _scrollWhenReady(index, adjustmentPx, attemptsLeft: attemptsLeft - 1);
+        return;
+      }
+
       final viewHeight = MediaQuery.of(context).size.height;
       const baseAlignment = 0.08;
       final targetAlignment = baseAlignment + (adjustmentPx / viewHeight);
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final key = _exerciseKeys[index];
-        if (key?.currentContext != null) {
-          Scrollable.ensureVisible(
-            key!.currentContext!,
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeOutCubic,
-            alignment: targetAlignment,
-          );
-        } else {
-          // Fallback: calculate offset based on actual heights of rendered
-          // exercises above the target, falling back to a generous estimate.
-          double estimatedOffset = 200.0; // header area
-          for (int i = 0; i < index; i++) {
-            final prevKey = _exerciseKeys[i];
-            final renderBox =
-                prevKey?.currentContext?.findRenderObject() as RenderBox?;
-            if (renderBox != null) {
-              estimatedOffset +=
-                  renderBox.size.height + 16; // +16 for bottom padding
-            } else {
-              // Unknown height – use a conservative per-exercise estimate
-              estimatedOffset += 350.0;
-            }
+      final key = _exerciseKeys[index];
+      if (key?.currentContext != null) {
+        Scrollable.ensureVisible(
+          key!.currentContext!,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+          alignment: targetAlignment,
+        );
+      } else {
+        // Fallback: calculate offset from rendered RenderBox heights.
+        double estimatedOffset = 200.0; // header area
+        for (int i = 0; i < index; i++) {
+          final prevKey = _exerciseKeys[i];
+          final renderBox =
+              prevKey?.currentContext?.findRenderObject() as RenderBox?;
+          if (renderBox != null) {
+            estimatedOffset += renderBox.size.height + 16;
+          } else {
+            estimatedOffset += 350.0;
           }
-
-          // Subtract viewport-based alignment and manual adjustment to move item lower
-          final finalOffset =
-              estimatedOffset - (viewHeight * baseAlignment) - adjustmentPx;
-
-          final maxScroll = _scrollController.position.maxScrollExtent;
-          _scrollController
-              .animateTo(
-            finalOffset.clamp(0.0, maxScroll),
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeOutCubic,
-          )
-              .then((_) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              final retryKey = _exerciseKeys[index];
-              if (retryKey?.currentContext != null) {
-                Scrollable.ensureVisible(
-                  retryKey!.currentContext!,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutCubic,
-                  alignment: targetAlignment,
-                );
-              }
-            });
-          });
         }
-      });
+        final finalOffset =
+            estimatedOffset - (viewHeight * baseAlignment) - adjustmentPx;
+        final maxScroll = _scrollController.position.maxScrollExtent;
+        _scrollController
+            .animateTo(
+          finalOffset.clamp(0.0, maxScroll),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+        )
+            .then((_) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final retryKey = _exerciseKeys[index];
+            if (retryKey?.currentContext != null) {
+              Scrollable.ensureVisible(
+                retryKey!.currentContext!,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                alignment: targetAlignment,
+              );
+            }
+          });
+        });
+      }
     });
   }
 
