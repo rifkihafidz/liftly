@@ -78,10 +78,15 @@ class _SessionPageState extends State<SessionPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      // Only scroll when this page is the current top route. While a bottom
-      // sheet (or any modal) is animating away, isCurrent is still false.
+      // Wait until the dismiss animation of the bottom sheet is fully done.
+      // - isCurrent becomes true as soon as pop() is called (the very first
+      //   frame of the dismiss animation) — too early.
+      // - secondaryAnimation.value drops from 1→0 only after the dismiss
+      //   animation fully completes, making it the reliable signal we need.
       final route = ModalRoute.of(context);
-      if (route == null || !route.isCurrent) {
+      if (route == null ||
+          !route.isCurrent ||
+          (route.secondaryAnimation?.value ?? 0.0) > 0.0) {
         _scrollWhenReady(index, adjustmentPx, attemptsLeft: attemptsLeft - 1);
         return;
       }
