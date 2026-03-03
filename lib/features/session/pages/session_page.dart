@@ -53,44 +53,84 @@ class _SessionPageState extends State<SessionPage> {
 
   void _jumpToExercise(int index) {
     if (!mounted) return;
-    // Unfocus any active focus node first (fixes web browser issues)
+    // Unfocus any active focus node first
     FocusManager.instance.primaryFocus?.unfocus();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final key = _exerciseKeys[index];
-      if (key?.currentContext != null) {
-        Scrollable.ensureVisible(
-          key!.currentContext!,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOutCubic,
-          alignment: 0.05,
-        );
-      } else {
-        // Fallback: estimate scroll position for items not yet rendered
-        final estimatedOffset = 200.0 + (index * 350.0);
-        final maxScroll = _scrollController.position.maxScrollExtent;
-        _scrollController
-            .animateTo(
-          estimatedOffset.clamp(0.0, maxScroll),
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOutCubic,
-        )
-            .then((_) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            final retryKey = _exerciseKeys[index];
-            if (retryKey?.currentContext != null) {
-              Scrollable.ensureVisible(
-                retryKey!.currentContext!,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
-                alignment: 0.05,
-              );
-            }
-          });
-        });
+    // Determine adjustment based on sets count: > 2 sets needs to land lower
+    final state = _sessionBloc.state;
+    double adjustmentPx = 0.0;
+    if (state is SessionInProgress && index < state.session.exercises.length) {
+      if (state.session.exercises[index].sets.length > 2) {
+        adjustmentPx = -90;
       }
+    }
+
+    // Wait for the bottom sheet dismissal animation to complete and the
+    // layout to settle before attempting to scroll. Without this delay the
+    // GlobalKey contexts can be transiently null or report stale positions.
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (!mounted) return;
+
+      // Convert pixel adjustment to alignment (fraction of viewport height)
+      // Base alignment of 0.08 (~64-80px) to clear typical app bars.
+      final viewHeight = MediaQuery.of(context).size.height;
+      const baseAlignment = 0.08;
+      final targetAlignment = baseAlignment + (adjustmentPx / viewHeight);
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final key = _exerciseKeys[index];
+        if (key?.currentContext != null) {
+          Scrollable.ensureVisible(
+            key!.currentContext!,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOutCubic,
+            alignment: targetAlignment,
+          );
+        } else {
+          // Fallback: calculate offset based on actual heights of rendered
+          // exercises above the target, falling back to a generous estimate.
+          double estimatedOffset = 200.0; // header area
+          for (int i = 0; i < index; i++) {
+            final prevKey = _exerciseKeys[i];
+            final renderBox =
+                prevKey?.currentContext?.findRenderObject() as RenderBox?;
+            if (renderBox != null) {
+              estimatedOffset +=
+                  renderBox.size.height + 16; // +16 for bottom padding
+            } else {
+              // Unknown height – use a conservative per-exercise estimate
+              estimatedOffset += 350.0;
+            }
+          }
+
+          // Subtract viewport-based alignment and manual adjustment to move item lower
+          final finalOffset =
+              estimatedOffset - (viewHeight * baseAlignment) - adjustmentPx;
+
+          final maxScroll = _scrollController.position.maxScrollExtent;
+          _scrollController
+              .animateTo(
+            finalOffset.clamp(0.0, maxScroll),
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOutCubic,
+          )
+              .then((_) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              final retryKey = _exerciseKeys[index];
+              if (retryKey?.currentContext != null) {
+                Scrollable.ensureVisible(
+                  retryKey!.currentContext!,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  alignment: targetAlignment,
+                );
+              }
+            });
+          });
+        }
+      });
     });
   }
 
@@ -141,7 +181,8 @@ class _SessionPageState extends State<SessionPage> {
         backgroundColor: AppColors.darkBg,
         floatingActionButton: BlocBuilder<SessionBloc, SessionState>(
           builder: (context, state) {
-            if (state is SessionInProgress && state.session.exercises.length > 1) {
+            if (state is SessionInProgress &&
+                state.session.exercises.length > 1) {
               final exercises = state.session.exercises;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
@@ -701,7 +742,8 @@ class _SessionPageState extends State<SessionPage> {
 
       availableExercises = uniqueNames.toList()..sort();
     } catch (e, stackTrace) {
-      AppLogger.error('SessionPage', 'Error loading suggestions', e, stackTrace);
+      AppLogger.error(
+          'SessionPage', 'Error loading suggestions', e, stackTrace);
     }
 
     if (!context.mounted) return;
@@ -767,7 +809,8 @@ class _SessionPageState extends State<SessionPage> {
 
       availableExercises = uniqueNames.toList()..sort();
     } catch (e, stackTrace) {
-      AppLogger.error('SessionPage', 'Error loading suggestions', e, stackTrace);
+      AppLogger.error(
+          'SessionPage', 'Error loading suggestions', e, stackTrace);
     }
 
     if (!context.mounted) return;
@@ -821,7 +864,8 @@ class _SessionPageState extends State<SessionPage> {
     });
   }
 
-  void _showExerciseJumpSheet(BuildContext context, List<SessionExercise> exercises) {
+  void _showExerciseJumpSheet(
+      BuildContext context, List<SessionExercise> exercises) {
     showModalBottomSheet<int>(
       context: context,
       backgroundColor: AppColors.cardBg,
@@ -847,7 +891,8 @@ class _SessionPageState extends State<SessionPage> {
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(sheetContext),
-                      icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                      icon: const Icon(Icons.close,
+                          color: AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -902,7 +947,8 @@ class _SessionPageState extends State<SessionPage> {
                               ex.variation,
                               style: TextStyle(
                                 color: ex.skipped
-                                    ? AppColors.textSecondary.withValues(alpha: 0.5)
+                                    ? AppColors.textSecondary
+                                        .withValues(alpha: 0.5)
                                     : AppColors.accent.withValues(alpha: 0.7),
                                 fontSize: 12,
                               ),
