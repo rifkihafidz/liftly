@@ -125,10 +125,13 @@ class _SessionPageState extends State<SessionPage> {
         }
         final finalOffset =
             estimatedOffset - (viewHeight * baseAlignment) - adjustmentPx;
-        final maxScroll = _scrollController.position.maxScrollExtent;
+
+        // Removed maxScroll clamp here: If we clamp to maxScrollExtent,
+        // SliverList will not build new items beyond what is currently rendered,
+        // making it impossible to scroll to items further down.
         _scrollController
             .animateTo(
-          finalOffset.clamp(0.0, maxScroll),
+          finalOffset > 0 ? finalOffset : 0.0,
           duration: const Duration(milliseconds: 400),
           curve: Curves.easeOutCubic,
         )
