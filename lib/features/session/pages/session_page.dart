@@ -106,6 +106,7 @@ class _SessionPageState extends State<SessionPage> {
       } else {
         // Fallback: calculate offset from rendered RenderBox heights.
         double estimatedOffset = 200.0; // header area
+        final state = _sessionBloc.state;
         for (int i = 0; i < index; i++) {
           final prevKey = _exerciseKeys[i];
           final renderBox =
@@ -113,7 +114,13 @@ class _SessionPageState extends State<SessionPage> {
           if (renderBox != null) {
             estimatedOffset += renderBox.size.height + 16;
           } else {
-            estimatedOffset += 350.0;
+            if (state is SessionInProgress &&
+                i < state.session.exercises.length) {
+              final ex = state.session.exercises[i];
+              estimatedOffset += 160.0 + (ex.sets.length * 170.0);
+            } else {
+              estimatedOffset += 350.0;
+            }
           }
         }
         final finalOffset =
@@ -195,21 +202,52 @@ class _SessionPageState extends State<SessionPage> {
               final exercises = state.session.exercises;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: FloatingActionButton.small(
-                  onPressed: () => _showExerciseJumpSheet(context, exercises),
-                  backgroundColor: AppColors.cardBg,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    side: BorderSide(
-                      color: AppColors.accent.withValues(alpha: 0.3),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FloatingActionButton.small(
+                      heroTag: 'fab_top',
+                      onPressed: () {
+                        _scrollController.animateTo(
+                          0.0,
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeOutCubic,
+                        );
+                      },
+                      backgroundColor: AppColors.cardBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: AppColors.accent.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      elevation: 4,
+                      child: Icon(
+                        Icons.keyboard_arrow_up_rounded,
+                        color: AppColors.accent,
+                        size: 20,
+                      ),
                     ),
-                  ),
-                  elevation: 4,
-                  child: Icon(
-                    Icons.format_list_bulleted_rounded,
-                    color: AppColors.accent,
-                    size: 20,
-                  ),
+                    const SizedBox(height: 12),
+                    FloatingActionButton.small(
+                      heroTag: 'fab_jump',
+                      onPressed: () =>
+                          _showExerciseJumpSheet(context, exercises),
+                      backgroundColor: AppColors.cardBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: AppColors.accent.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      elevation: 4,
+                      child: Icon(
+                        Icons.format_list_bulleted_rounded,
+                        color: AppColors.accent,
+                        size: 20,
+                      ),
+                    ),
+                  ],
                 ),
               );
             }

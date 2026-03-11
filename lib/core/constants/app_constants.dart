@@ -1,6 +1,6 @@
 class AppConstants {
   // --- General ---
-  static const String appVersion = '2.0.9';
+  static const String appVersion = '2.1.0';
   static const String appName = 'Liftly';
   static const String defaultUserId = '1';
 

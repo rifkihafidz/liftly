@@ -242,6 +242,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                         onAddDropSet: widget.onAddDropSet,
                         onRemoveDropSet: widget.onRemoveDropSet,
                         isLastExercise: widget.isLastExercise,
+                        onHistoryTap: widget.onHistoryTap,
                       ),
                   ],
                 ),
@@ -298,6 +299,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                                 onAddDropSet: widget.onAddDropSet,
                                 onRemoveDropSet: widget.onRemoveDropSet,
                                 isLastExercise: widget.isLastExercise,
+                                onHistoryTap: widget.onHistoryTap,
                               ),
                           ],
                         ),
@@ -372,11 +374,12 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                       children: [
                         Text(
                           widget.exercise.variation,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.accent,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.accent,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                         ),
                         if (widget.onEditVariation != null) ...[
                           const SizedBox(width: 4),
@@ -588,6 +591,7 @@ class _SetRow extends StatelessWidget {
   final Function(int setIndex) onAddDropSet;
   final Function(int setIndex, int segmentIndex) onRemoveDropSet;
   final bool isLastExercise;
+  final VoidCallback onHistoryTap;
 
   const _SetRow({
     super.key,
@@ -603,6 +607,7 @@ class _SetRow extends StatelessWidget {
     required this.onAddDropSet,
     required this.onRemoveDropSet,
     required this.isLastExercise,
+    required this.onHistoryTap,
   });
 
   @override
@@ -623,6 +628,7 @@ class _SetRow extends StatelessWidget {
             exerciseVariation: exerciseVariation,
             isDropSet: isDropSet,
             onRemoveSet: onRemoveSet,
+            onHistoryTap: onHistoryTap,
           ),
           const SizedBox(height: 12),
           // Use indexed iteration instead of List.generate
@@ -671,6 +677,7 @@ class _SetHeader extends StatelessWidget {
   final String exerciseVariation;
   final bool isDropSet;
   final Function(int setIndex) onRemoveSet;
+  final VoidCallback onHistoryTap;
 
   const _SetHeader({
     required this.set,
@@ -679,6 +686,7 @@ class _SetHeader extends StatelessWidget {
     this.exerciseVariation = '',
     required this.isDropSet,
     required this.onRemoveSet,
+    required this.onHistoryTap,
   });
 
   @override
@@ -761,6 +769,16 @@ class _SetHeader extends StatelessWidget {
               ),
             const Spacer(),
             const Spacer(),
+            InkWell(
+              onTap: onHistoryTap,
+              borderRadius: BorderRadius.circular(16),
+              child: const Padding(
+                padding: EdgeInsets.all(4.0),
+                child: Icon(Icons.history,
+                    size: 18, color: AppColors.textSecondary),
+              ),
+            ),
+            const SizedBox(width: 4),
             if (setIndex > 0)
               InkWell(
                 onTap: () => onRemoveSet(setIndex),
