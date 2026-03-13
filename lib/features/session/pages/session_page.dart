@@ -65,10 +65,9 @@ class _SessionPageState extends State<SessionPage> {
       }
     }
 
-    // Wait frame-by-frame until this page is the current top route (i.e. the
-    // bottom sheet has fully dismissed) before scrolling. This avoids any
-    // fixed delay assumption about the dismiss animation duration.
-    _scrollWhenReady(index, adjustmentPx, attemptsLeft: 30);
+    // Wait until this page is the current top route and any transitions are
+    // mostly finished before scrolling. This avoids any fixed delay assumption.
+    _scrollWhenReady(index, adjustmentPx, attemptsLeft: 120);
   }
 
   void _scrollWhenReady(int index, double adjustmentPx,
@@ -78,15 +77,12 @@ class _SessionPageState extends State<SessionPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      // Wait until the dismiss animation of the bottom sheet is fully done.
-      // - isCurrent becomes true as soon as pop() is called (the very first
-      //   frame of the dismiss animation) — too early.
-      // - secondaryAnimation.value drops from 1→0 only after the dismiss
-      //   animation fully completes, making it the reliable signal we need.
       final route = ModalRoute.of(context);
+      // Relaxed condition: wait for route to be current and transition to be
+      // almost done (value < 0.02) to avoid jitter or getting stuck.
       if (route == null ||
           !route.isCurrent ||
-          (route.secondaryAnimation?.value ?? 0.0) > 0.0) {
+          (route.secondaryAnimation?.value ?? 0.0) > 0.02) {
         _scrollWhenReady(index, adjustmentPx, attemptsLeft: attemptsLeft - 1);
         return;
       }
@@ -126,9 +122,6 @@ class _SessionPageState extends State<SessionPage> {
         final finalOffset =
             estimatedOffset - (viewHeight * baseAlignment) - adjustmentPx;
 
-        // Removed maxScroll clamp here: If we clamp to maxScrollExtent,
-        // SliverList will not build new items beyond what is currently rendered,
-        // making it impossible to scroll to items further down.
         _scrollController
             .animateTo(
           finalOffset > 0 ? finalOffset : 0.0,
@@ -136,6 +129,8 @@ class _SessionPageState extends State<SessionPage> {
           curve: Curves.easeOutCubic,
         )
             .then((_) {
+          // After fallback scroll, the item should be rendered.
+          // Final adjustment for precision.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             final retryKey = _exerciseKeys[index];
