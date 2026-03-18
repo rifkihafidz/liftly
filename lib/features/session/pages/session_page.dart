@@ -1,5 +1,6 @@
 import '../../../core/utils/app_logger.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
@@ -55,17 +56,27 @@ class _SessionPageState extends State<SessionPage> {
     if (!mounted) return;
     FocusManager.instance.primaryFocus?.unfocus();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Capture the render object synchronously before the async gap.
+    final key = _exerciseKeys[index];
+    final renderBox = key?.currentContext?.findRenderObject() as RenderBox?;
+
+    // Wait for the bottom sheet dismiss animation to finish before scrolling.
+    // Scrolling during the animation gets overridden by ongoing animation frames.
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      final key = _exerciseKeys[index];
-      if (key?.currentContext != null) {
-        Scrollable.ensureVisible(
-          key!.currentContext!,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOutCubic,
-          alignment: 0.0, // Top of widget → top of viewport
-        );
-      }
+      if (renderBox == null || !renderBox.attached) return;
+
+      // getOffsetToReveal(renderBox, 0.0) gives the scroll offset that places
+      // the TOP of the exercise card at the TOP of the viewport (alignment=0.0).
+      final viewport = RenderAbstractViewport.maybeOf(renderBox);
+      if (viewport == null) return;
+      final targetOffset = viewport.getOffsetToReveal(renderBox, 0.0).offset;
+
+      _scrollController.animateTo(
+        targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
+      );
     });
   }
 
