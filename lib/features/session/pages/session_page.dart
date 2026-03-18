@@ -53,97 +53,18 @@ class _SessionPageState extends State<SessionPage> {
 
   void _jumpToExercise(int index) {
     if (!mounted) return;
-    // Unfocus any active focus node first
     FocusManager.instance.primaryFocus?.unfocus();
-
-    // Determine pixel adjustment based on set count
-    final state = _sessionBloc.state;
-    double adjustmentPx = 0.0;
-    if (state is SessionInProgress && index < state.session.exercises.length) {
-      if (state.session.exercises[index].sets.length > 2) {
-        adjustmentPx = -90;
-      }
-    }
-
-    // Wait until this page is the current top route and any transitions are
-    // mostly finished before scrolling. This avoids any fixed delay assumption.
-    _scrollWhenReady(index, adjustmentPx, attemptsLeft: 120);
-  }
-
-  void _scrollWhenReady(int index, double adjustmentPx,
-      {required int attemptsLeft}) {
-    if (!mounted || attemptsLeft <= 0) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-
-      final route = ModalRoute.of(context);
-      // Relaxed condition: wait for route to be current and transition to be
-      // almost done (value < 0.02) to avoid jitter or getting stuck.
-      if (route == null ||
-          !route.isCurrent ||
-          (route.secondaryAnimation?.value ?? 0.0) > 0.02) {
-        _scrollWhenReady(index, adjustmentPx, attemptsLeft: attemptsLeft - 1);
-        return;
-      }
-
-      final viewHeight = MediaQuery.of(context).size.height;
-      const baseAlignment = 0.08;
-      final targetAlignment = baseAlignment + (adjustmentPx / viewHeight);
-
       final key = _exerciseKeys[index];
       if (key?.currentContext != null) {
         Scrollable.ensureVisible(
           key!.currentContext!,
           duration: const Duration(milliseconds: 400),
           curve: Curves.easeOutCubic,
-          alignment: targetAlignment,
+          alignment: 0.0, // Top of widget → top of viewport
         );
-      } else {
-        // Fallback: calculate offset from rendered RenderBox heights.
-        double estimatedOffset = 200.0; // header area
-        final state = _sessionBloc.state;
-        for (int i = 0; i < index; i++) {
-          final prevKey = _exerciseKeys[i];
-          final renderBox =
-              prevKey?.currentContext?.findRenderObject() as RenderBox?;
-          if (renderBox != null) {
-            estimatedOffset += renderBox.size.height + 16;
-          } else {
-            if (state is SessionInProgress &&
-                i < state.session.exercises.length) {
-              final ex = state.session.exercises[i];
-              estimatedOffset += 160.0 + (ex.sets.length * 170.0);
-            } else {
-              estimatedOffset += 350.0;
-            }
-          }
-        }
-        final finalOffset =
-            estimatedOffset - (viewHeight * baseAlignment) - adjustmentPx;
-
-        _scrollController
-            .animateTo(
-          finalOffset > 0 ? finalOffset : 0.0,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOutCubic,
-        )
-            .then((_) {
-          // After fallback scroll, the item should be rendered.
-          // Final adjustment for precision.
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            final retryKey = _exerciseKeys[index];
-            if (retryKey?.currentContext != null) {
-              Scrollable.ensureVisible(
-                retryKey!.currentContext!,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
-                alignment: targetAlignment,
-              );
-            }
-          });
-        });
       }
     });
   }
