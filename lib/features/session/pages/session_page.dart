@@ -1,6 +1,5 @@
 import '../../../core/utils/app_logger.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
@@ -53,30 +52,100 @@ class _SessionPageState extends State<SessionPage> {
   }
 
   void _jumpToExercise(int index) {
+    AppLogger.info('SessionPage', 'Attempting jump to exercise index: $index');
     if (!mounted) return;
     FocusManager.instance.primaryFocus?.unfocus();
 
-    // Capture the render object synchronously before the async gap.
-    final key = _exerciseKeys[index];
-    final renderBox = key?.currentContext?.findRenderObject() as RenderBox?;
-
     // Wait for the bottom sheet dismiss animation to finish before scrolling.
-    // Scrolling during the animation gets overridden by ongoing animation frames.
     Future.delayed(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      if (renderBox == null || !renderBox.attached) return;
 
-      // getOffsetToReveal(renderBox, 0.0) gives the scroll offset that places
-      // the TOP of the exercise card at the TOP of the viewport (alignment=0.0).
-      final viewport = RenderAbstractViewport.maybeOf(renderBox);
-      if (viewport == null) return;
-      final targetOffset = viewport.getOffsetToReveal(renderBox, 0.0).offset;
+      final key = _exerciseKeys[index];
+      final context = key?.currentContext;
 
-      _scrollController.animateTo(
-        targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeOutCubic,
-      );
+      if (context != null && context.mounted) {
+        AppLogger.info(
+            'SessionPage', 'Context found, using Scrollable.ensureVisible');
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+          alignment: 0.0,
+        );
+      } else {
+        // Fallback: Use a layout crawler to find items that aren't rendered yet
+        final state = _sessionBloc.state;
+        if (state is SessionInProgress) {
+          // Find any visible exercise to establish direction and start point
+          int startIdx = 0;
+          for (int i = 0; i < _exerciseKeys.length; i++) {
+            if (_exerciseKeys[i]?.currentContext != null) {
+              startIdx = i;
+              break;
+            }
+          }
+
+          final bool isGoingDown = index > startIdx;
+          int safetyCounter = 0;
+
+          // This crawler jumps step-by-step. If a step isn't visible, it blind-scrolls
+          // to trigger Flutter's Sliver layout until it finds it.
+          void stepJump(int currentIdx) {
+            if (!mounted) return;
+            safetyCounter++;
+            if (safetyCounter > 50) return;
+
+            final stepKey = _exerciseKeys[currentIdx];
+            final stepContext = stepKey?.currentContext;
+
+            if (stepContext != null && stepContext.mounted) {
+              // Context found! Bring it into view
+              Scrollable.ensureVisible(
+                stepContext,
+                duration: const Duration(milliseconds: 50),
+              );
+
+              if (currentIdx == index) {
+                // Reached target! Final precision lock.
+                Future.delayed(const Duration(milliseconds: 150), () {
+                  if (mounted && stepContext.mounted) {
+                    Scrollable.ensureVisible(
+                      stepContext,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                      alignment: 0.0,
+                    );
+                  }
+                });
+                return;
+              }
+
+              // Move to the next target index
+              final nextIdx =
+                  currentIdx < index ? currentIdx + 1 : currentIdx - 1;
+              Future.delayed(
+                  const Duration(milliseconds: 80), () => stepJump(nextIdx));
+            } else {
+              // Context missing! We must blind-jump to force sliver layout
+              double currentOffset = _scrollController.offset;
+              double targetOffset =
+                  currentOffset + (isGoingDown ? 400.0 : -400.0);
+              double clampedOffset = targetOffset.clamp(
+                  0.0, _scrollController.position.maxScrollExtent);
+
+              if ((clampedOffset - currentOffset).abs() < 1.0) return;
+
+              _scrollController.jumpTo(clampedOffset);
+
+              // Retry the SAME index after layout updates
+              Future.delayed(
+                  const Duration(milliseconds: 50), () => stepJump(currentIdx));
+            }
+          }
+
+          stepJump(startIdx);
+        }
+      }
     });
   }
 
@@ -235,6 +304,11 @@ class _SessionPageState extends State<SessionPage> {
                 final session = state.session;
                 final exercises = session.exercises;
 
+                // Ensure keys exist for all exercises to prevent context misses
+                for (int i = 0; i < exercises.length; i++) {
+                  _getKeyForExercise(i);
+                }
+
                 return Align(
                   alignment: Alignment.topCenter,
                   child: ConstrainedBox(
@@ -360,14 +434,10 @@ class _SessionPageState extends State<SessionPage> {
                         else
                           SliverPadding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            sliver: SliverList(
-                              delegate: SliverChildBuilderDelegate((
-                                context,
-                                index,
-                              ) {
-                                final exIndex =
-                                    index; // Direct mapping now since header is separate
-                                final exercise = exercises[exIndex];
+                            sliver: SliverList.list(
+                              children: exercises.asMap().entries.map((entry) {
+                                final exIndex = entry.key;
+                                final exercise = entry.value;
 
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 16),
@@ -522,7 +592,7 @@ class _SessionPageState extends State<SessionPage> {
                                     ],
                                   ),
                                 );
-                              }, childCount: exercises.length),
+                              }).toList(),
                             ),
                           ),
                         // Footer Actions

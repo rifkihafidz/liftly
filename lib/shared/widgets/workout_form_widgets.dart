@@ -774,6 +774,7 @@ class _NotesFieldState extends State<NotesField> {
           maxLines: 2,
           textCapitalization: TextCapitalization.sentences,
           onChanged: (v) {
+            setState(() {}); // Update visibility of clear button
             if (_debounce?.isActive ?? false) _debounce!.cancel();
             _debounce = Timer(const Duration(milliseconds: 500), () {
               widget.onChanged(v);
@@ -786,6 +787,17 @@ class _NotesFieldState extends State<NotesField> {
               horizontal: 8,
               vertical: 8,
             ),
+            suffixIcon: controller.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 18),
+                    onPressed: () {
+                      setState(() {
+                        controller.clear();
+                      });
+                      widget.onChanged('');
+                    },
+                  )
+                : null,
           ),
         ),
       ],
