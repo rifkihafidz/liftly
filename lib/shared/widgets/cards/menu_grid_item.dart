@@ -33,7 +33,6 @@ class MenuGridItem extends StatelessWidget {
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: Colors.white.withValues(alpha: 0.05),
-                width: 1,
               ),
             ),
             child: Column(
@@ -57,12 +56,13 @@ class MenuGridItem extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                          fontSize: 16,
-                          height: 1.2,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                  fontSize: 16,
+                                  height: 1.2,
+                                ),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -70,10 +70,10 @@ class MenuGridItem extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                          height: 1.2,
-                        ),
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              height: 1.2,
+                            ),
                       ),
                     ],
                   ),

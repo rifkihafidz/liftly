@@ -43,7 +43,6 @@ class MenuListItem extends StatelessWidget {
                 color: isDestructive
                     ? color.withValues(alpha: 0.2)
                     : Colors.white.withValues(alpha: 0.05),
-                width: 1,
               ),
             ),
             child: Row(
@@ -65,14 +64,14 @@ class MenuListItem extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: isDestructive
-                                  ? AppColors.error
-                                  : AppColors.textPrimary,
-                              fontSize: 16,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: isDestructive
+                                      ? AppColors.error
+                                      : AppColors.textPrimary,
+                                  fontSize: 16,
+                                ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -80,9 +79,9 @@ class MenuListItem extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
                       ),
                     ],
                   ),

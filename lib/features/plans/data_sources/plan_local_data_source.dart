@@ -1,10 +1,7 @@
 import 'package:liftly/core/services/hive_service.dart';
 import 'package:liftly/core/models/workout_plan.dart';
-import '../../../core/utils/app_logger.dart';
 
 class PlanLocalDataSource {
-  static const String _tag = 'PlanLocalDS';
-
   /// Create a new plan in local database
   Future<WorkoutPlan> createPlan({
     required String id,
@@ -25,7 +22,6 @@ class PlanLocalDataSource {
       );
 
       await HiveService.createPlan(plan);
-      AppLogger.debug(_tag, 'CREATE: Created plan: ${plan.id}');
 
       return plan;
     } catch (e) {
@@ -37,7 +33,6 @@ class PlanLocalDataSource {
   Future<List<WorkoutPlan>> getPlans({required String userId}) async {
     try {
       final plans = await HiveService.getPlans(userId);
-      AppLogger.debug(_tag, 'SELECT: Found ${plans.length} plans for user $userId');
       return plans;
     } catch (e) {
       throw Exception('Failed to get plans: $e');
@@ -79,7 +74,6 @@ class PlanLocalDataSource {
       );
 
       await HiveService.updatePlan(updatedPlan);
-      AppLogger.debug(_tag, 'UPDATE: Updated plan: $planId');
 
       return updatedPlan;
     } catch (e) {
@@ -91,7 +85,6 @@ class PlanLocalDataSource {
   Future<void> deletePlan({required String planId}) async {
     try {
       await HiveService.deletePlan(planId);
-      AppLogger.debug(_tag, 'DELETE: Deleted plan: $planId');
     } catch (e) {
       throw Exception('Failed to delete plan: $e');
     }

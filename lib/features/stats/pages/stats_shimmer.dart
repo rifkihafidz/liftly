@@ -150,8 +150,8 @@ class StatsPageShimmer extends StatelessWidget {
                     const SizedBox(height: 4),
                     // Date navigator – matches Padding(horizontal:4, vertical:2)
                     Padding(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -485,7 +485,6 @@ class StatsContentShimmer extends StatelessWidget {
         highlightColor: AppColors.shimmerHighlight,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             // Exercise name – labelSmall uppercase, line 1
             Container(

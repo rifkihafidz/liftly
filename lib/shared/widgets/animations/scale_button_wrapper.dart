@@ -26,7 +26,6 @@ class _ScaleButtonWrapperState extends State<ScaleButtonWrapper>
     _controller = AnimationController(
       vsync: this,
       duration: widget.duration,
-      upperBound: 1.0,
       lowerBound: widget.scaleAmount,
       value: 1.0,
     );

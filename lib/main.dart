@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -29,7 +30,7 @@ void main() async {
     // Initialize Hive before runApp on Web for a seamless 1x loading experience
     await HiveService.init();
     // Initialize BackupService early (non-blocking)
-    BackupService().init();
+    unawaited(BackupService().init());
   }
 
   if (!kIsWeb) {

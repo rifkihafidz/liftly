@@ -32,6 +32,7 @@ class _StatsPageState extends State<StatsPage> {
   late ScrollController _scrollController;
   int _prCurrentPage = 0; // Pagination for personal records
   late ScreenshotController _sharePreviewController;
+
   /// True until the first fresh StatsLoaded (or StatsError) from OUR
   /// StatsFetched dispatch arrives. Shows shimmer during this period.
   bool _waitingForFreshLoad = true;
@@ -341,7 +342,8 @@ class _StatsPageState extends State<StatsPage> {
                   FilledButton(
                     onPressed: () {
                       context.read<StatsBloc>().add(
-                            const StatsFetched(userId: AppConstants.defaultUserId),
+                            const StatsFetched(
+                                userId: AppConstants.defaultUserId),
                           );
                     },
                     child: const Text('Retry'),
@@ -751,9 +753,8 @@ class _StatsPageState extends State<StatsPage> {
     final totalPages = (prsList.length / itemsPerPage).ceil();
 
     // Clamp current page to valid range (avoids mutation during build)
-    final safePage = totalPages > 0
-        ? _prCurrentPage.clamp(0, totalPages - 1)
-        : 0;
+    final safePage =
+        totalPages > 0 ? _prCurrentPage.clamp(0, totalPages - 1) : 0;
     // Defer actual field update to avoid setState-during-build
     if (safePage != _prCurrentPage) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1037,7 +1038,6 @@ class _StatsPageState extends State<StatsPage> {
       ],
     );
   }
-
 }
 
 // ─── PR share metric selection ───────────────────────────────────────────────
@@ -1983,7 +1983,8 @@ class _WorkoutFrequencyCard extends StatelessWidget {
           final count = sessions
               .where(
                 (s) =>
-                    s.effectiveDate.month == i && s.effectiveDate.year == now.year,
+                    s.effectiveDate.month == i &&
+                    s.effectiveDate.year == now.year,
               )
               .length;
           frequencyData[i - 1] = count;
@@ -2805,7 +2806,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
   /// So year 2025 contains the selected week, but 2026 does not
   bool _yearContainsSelectedWeek(int checkYear, DateTime ref) {
     // Find Monday of the week containing reference date
-    DateTime refMonday = ref.subtract(Duration(days: ref.weekday - 1));
+    final refMonday = ref.subtract(Duration(days: ref.weekday - 1));
     // The year that "owns" this week is the year of the Monday
     return refMonday.year == checkYear;
   }
@@ -3438,7 +3439,7 @@ class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
             // List
             Expanded(
               child: currentItems.isEmpty
-                  ? Center(
+                  ? const Center(
                       child: Text(
                         'No exercises found',
                         style: TextStyle(color: AppColors.textSecondary),
@@ -3605,7 +3606,7 @@ class _PRMetricOption extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
@@ -3614,7 +3615,7 @@ class _PRMetricOption extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 sublabel,
-                style: TextStyle(
+                style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 12,
                 ),
@@ -3649,8 +3650,7 @@ class _PRSharePreview extends StatelessWidget {
     final label = isHeaviest ? 'HEAVIEST' : 'BEST VOLUME';
 
     final sorted = records.entries.toList()
-      ..sort((a, b) =>
-          a.value.exerciseName.compareTo(b.value.exerciseName));
+      ..sort((a, b) => a.value.exerciseName.compareTo(b.value.exerciseName));
 
     // 3 columns for >8 exercises, 2 otherwise
     final nCols = sorted.length > 8 ? 3 : 2;
@@ -3673,8 +3673,7 @@ class _PRSharePreview extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFF141A21),
             borderRadius: BorderRadius.circular(16),
-            border:
-                Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.4),
@@ -3689,12 +3688,10 @@ class _PRSharePreview extends StatelessWidget {
             children: [
               // ===== HEADER =====
               Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Icon(Icons.emoji_events_rounded,
-                      color: accent, size: 16),
+                  Icon(Icons.emoji_events_rounded, color: accent, size: 16),
                   const SizedBox(width: 6),
-                  Expanded(
+                  const Expanded(
                     child: Text(
                       'PERSONAL RECORDS',
                       style: TextStyle(
@@ -3706,13 +3703,12 @@ class _PRSharePreview extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: accent.withValues(alpha: 0.25)),
+                      border: Border.all(color: accent.withValues(alpha: 0.25)),
                     ),
                     child: Text(
                       '$label · $dateLabel',
@@ -3728,9 +3724,7 @@ class _PRSharePreview extends StatelessWidget {
               ),
 
               const SizedBox(height: 10),
-              Divider(
-                  color: Colors.white.withValues(alpha: 0.06),
-                  height: 1),
+              Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
               const SizedBox(height: 4),
 
               // ===== 3-COLUMN TABLE =====
@@ -3744,14 +3738,12 @@ class _PRSharePreview extends StatelessWidget {
                         VerticalDivider(
                           width: 1,
                           thickness: 1,
-                          color:
-                              Colors.white.withValues(alpha: 0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                         ),
                         const SizedBox(width: 3),
                       ],
                       Expanded(
-                        child: _buildColumn(
-                            cols[i], accent, isHeaviest),
+                        child: _buildColumn(cols[i], accent, isHeaviest),
                       ),
                     ],
                   ],
@@ -3759,13 +3751,11 @@ class _PRSharePreview extends StatelessWidget {
               ),
 
               const SizedBox(height: 6),
-              Divider(
-                  color: Colors.white.withValues(alpha: 0.06),
-                  height: 1),
+              Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
               const SizedBox(height: 8),
 
               // ===== FOOTER =====
-              Text(
+              const Text(
                 'Track your progress with Liftly',
                 style: TextStyle(
                   color: AppColors.textSecondary,
@@ -3820,12 +3810,10 @@ class _PRSharePreview extends StatelessWidget {
     final variation = entry.value.variation;
 
     // Both metrics: show "weight kg ×reps"
-    final weight = isHeaviest
-        ? entry.value.maxWeight
-        : entry.value.maxVolumeWeight;
-    final reps = isHeaviest
-        ? entry.value.maxWeightReps
-        : entry.value.maxVolumeReps;
+    final weight =
+        isHeaviest ? entry.value.maxWeight : entry.value.maxVolumeWeight;
+    final reps =
+        isHeaviest ? entry.value.maxWeightReps : entry.value.maxVolumeReps;
 
     final valueStr = '${_fmtNum(weight)} kg';
     final repsStr = '×$reps';
@@ -3854,8 +3842,7 @@ class _PRSharePreview extends StatelessWidget {
                   Text(
                     variation,
                     style: TextStyle(
-                      color: AppColors.textSecondary
-                          .withValues(alpha: 0.5),
+                      color: AppColors.textSecondary.withValues(alpha: 0.5),
                       fontSize: 7.5,
                       fontWeight: FontWeight.w400,
                       fontStyle: FontStyle.italic,
@@ -3883,8 +3870,7 @@ class _PRSharePreview extends StatelessWidget {
               Text(
                 repsStr,
                 style: TextStyle(
-                  color: AppColors.textSecondary
-                      .withValues(alpha: 0.5),
+                  color: AppColors.textSecondary.withValues(alpha: 0.5),
                   fontSize: 8,
                   height: 1.2,
                 ),
@@ -3896,4 +3882,3 @@ class _PRSharePreview extends StatelessWidget {
     );
   }
 }
-

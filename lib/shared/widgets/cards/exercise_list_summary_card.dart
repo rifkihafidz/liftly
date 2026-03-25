@@ -29,7 +29,6 @@ class ExerciseListSummaryCard extends StatelessWidget {
           color: isSkipped
               ? AppColors.borderLight.withValues(alpha: 0.5)
               : AppColors.borderLight,
-          width: 1,
         ),
       ),
       child: InkWell(
@@ -143,7 +142,7 @@ class ExerciseListSummaryCard extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.layers_outlined,
                               size: 16,
                               color: AppColors.accent,
@@ -170,13 +169,14 @@ class ExerciseListSummaryCard extends StatelessWidget {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.textSecondary.withValues(alpha: 0.08),
+                          color:
+                              AppColors.textSecondary.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.fitness_center_outlined,
                               size: 16,
                               color: AppColors.textSecondary,

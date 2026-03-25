@@ -132,8 +132,8 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
   }
 
   OverlayEntry _createOverlayEntry() {
-    RenderBox renderBox = context.findRenderObject() as RenderBox;
-    var size = renderBox.size;
+    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
 
     return OverlayEntry(
       builder: (context) => Positioned(
@@ -150,9 +150,7 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
             clipBehavior: Clip.antiAlias,
             child: Container(
               constraints: const BoxConstraints(maxHeight: 200),
-              decoration: const BoxDecoration(
-                border: null, // Removed border as requested
-              ),
+              decoration: const BoxDecoration(),
               child: ListView.separated(
                 padding: EdgeInsets.zero,
                 shrinkWrap: true,

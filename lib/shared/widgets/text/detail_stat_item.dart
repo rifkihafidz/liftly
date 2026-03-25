@@ -60,7 +60,7 @@ class DetailStatItem extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 2),
                 child: Text(
                   unit!,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,

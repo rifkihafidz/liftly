@@ -51,7 +51,6 @@ class DataManagementService {
 
       for (final ex in w.exercises) {
         // Exercise ID in SQL was UUID. Here it acts same.
-        AppLogger.debug('DataMgmt', 'EXPORT: Exercise: ${ex.name}, Variation: "${ex.variation}"');
         exerciseRows.add({
           'id': ex.id,
           'workout_id': w.id,
@@ -440,10 +439,6 @@ class DataManagementService {
     }
   }
 
-  static void _log(String message) {
-    AppLogger.debug('DataMgmt', message);
-  }
-
   /// Internal helper for grouping within isolate
   static Map<String, List<Map<String, dynamic>>> _groupByInternal(
       List<Map<String, dynamic>> list, String key) {
@@ -461,7 +456,6 @@ class DataManagementService {
   static List<Map<String, dynamic>> _parseSheetRaw(
       Excel excel, String sheetName) {
     if (!excel.tables.keys.contains(sheetName)) {
-      _log('Sheet $sheetName not found');
       return [];
     }
 
@@ -579,12 +573,8 @@ class DataManagementService {
     final planExercisesMap = DataManagementService._parseSheetRaw(
         excel, AppConstants.sheetPlanExercises);
 
-    _log('Import: Found ${workoutsMap.length} workout rows');
-    _log('Import: Found ${plansMap.length} plan rows');
-
     if (plansMap.isEmpty) {
-      _log(
-          'Import WARNING: No plans found in "${AppConstants.sheetPlans}" sheet.');
+      // _log('Import WARNING: No plans found in "${AppConstants.sheetPlans}" sheet.');
     }
 
     if (kIsWeb) await Future.delayed(Duration.zero);
@@ -684,16 +674,12 @@ class DataManagementService {
 
         // If variation is empty but name indicates unilateral, auto-fill variation
         var variation = eRow['variation']?.toString() ?? '';
-        AppLogger.debug('DataMgmt', 'IMPORT WORKOUT: Before: Name="$exerciseName", Variation="$variation"');
 
         if (variation.isEmpty &&
             (nameLower.contains('single') ||
                 nameLower.contains('unilateral'))) {
           variation = 'Single';
-          AppLogger.debug('DataMgmt', 'IMPORT WORKOUT: Auto-filled variation to "Single"');
         }
-
-        AppLogger.debug('DataMgmt', 'IMPORT WORKOUT: Final: Name="$exerciseName", Variation="$variation"');
 
         return {
           'id': exId,
@@ -753,16 +739,13 @@ class DataManagementService {
 
         // If variation is empty but name indicates unilateral, auto-fill variation
         var variation = eRow['variation']?.toString() ?? '';
-        AppLogger.debug('DataMgmt', 'IMPORT PLAN: Before: Name="$exerciseName", Variation="$variation"');
 
         if (variation.isEmpty &&
             (nameLower.contains('single') ||
                 nameLower.contains('unilateral'))) {
           variation = 'Single';
-          AppLogger.debug('DataMgmt', 'IMPORT PLAN: Auto-filled variation to "Single"');
         }
 
-        AppLogger.debug('DataMgmt', 'IMPORT PLAN: Final: Name="$exerciseName", Variation="$variation"');
         return {
           'id': eRow['id']?.toString() ?? '',
           'name': exerciseName,

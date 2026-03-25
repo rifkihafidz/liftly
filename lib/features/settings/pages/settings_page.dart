@@ -117,14 +117,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
     Object? error;
     try {
-      AppLogger.debug('SettingsPage', 'Starting Google Sign-In...');
       final user = await BackupService().signIn();
       if (mounted) {
-        if (user == null) {
-          AppLogger.debug('SettingsPage', 'Sign-In cancelled by user');
-          return;
-        }
-        AppLogger.debug('SettingsPage', 'Sign-In successful: ${user.email}');
         setState(() {
           _currentUser = user;
         });
@@ -134,7 +128,6 @@ class _SettingsPageState extends State<SettingsPage> {
       error = e;
     } finally {
       if (mounted) {
-        AppLogger.debug('SettingsPage', 'Hiding loading dialog...');
         try {
           AppDialogs.hideLoadingDialog(context);
         } catch (e) {
@@ -144,7 +137,6 @@ class _SettingsPageState extends State<SettingsPage> {
         setState(() => _isLoading = false);
 
         if (error != null) {
-          AppLogger.debug('SettingsPage', 'Showing error dialog...');
           // Small delay to ensure loading dialog is fully gone
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
@@ -418,9 +410,14 @@ class _SettingsPageState extends State<SettingsPage> {
           Navigator.pop(context); // Close progress dialog
 
           // Refresh Blocs so UI updates immediately
-          context.read<PlanBloc>().add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
-          context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: AppConstants.defaultUserId));
-          context.read<StatsBloc>().add(const StatsFetched(userId: AppConstants.defaultUserId));
+          context.read<PlanBloc>().add(
+              const PlansFetchRequested(userId: AppConstants.defaultUserId));
+          context
+              .read<WorkoutBloc>()
+              .add(const WorkoutsFetched(userId: AppConstants.defaultUserId));
+          context
+              .read<StatsBloc>()
+              .add(const StatsFetched(userId: AppConstants.defaultUserId));
 
           AppDialogs.showSuccessDialog(
             context: context,
@@ -525,9 +522,15 @@ class _SettingsPageState extends State<SettingsPage> {
         Navigator.pop(context); // Close progress dialog
 
         // Refresh Blocs so UI updates immediately
-        context.read<PlanBloc>().add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
-        context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: AppConstants.defaultUserId));
-        context.read<StatsBloc>().add(const StatsFetched(userId: AppConstants.defaultUserId));
+        context
+            .read<PlanBloc>()
+            .add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
+        context
+            .read<WorkoutBloc>()
+            .add(const WorkoutsFetched(userId: AppConstants.defaultUserId));
+        context
+            .read<StatsBloc>()
+            .add(const StatsFetched(userId: AppConstants.defaultUserId));
 
         await AppDialogs.showSuccessDialog(
           context: context,
@@ -571,9 +574,14 @@ class _SettingsPageState extends State<SettingsPage> {
       if (context.mounted) {
         AppDialogs.hideLoadingDialog(context);
         if (context.mounted) {
-          context.read<PlanBloc>().add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
-          context.read<WorkoutBloc>().add(const WorkoutsFetched(userId: AppConstants.defaultUserId));
-          context.read<StatsBloc>().add(const StatsFetched(userId: AppConstants.defaultUserId));
+          context.read<PlanBloc>().add(
+              const PlansFetchRequested(userId: AppConstants.defaultUserId));
+          context
+              .read<WorkoutBloc>()
+              .add(const WorkoutsFetched(userId: AppConstants.defaultUserId));
+          context
+              .read<StatsBloc>()
+              .add(const StatsFetched(userId: AppConstants.defaultUserId));
 
           AppDialogs.showSuccessDialog(
             context: context,
@@ -623,8 +631,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   delegate: SliverChildListDelegate([
                     FadeInSlide(
                       index: 0,
-                      child:
-                          SectionHeader(title: AppConstants.headerCloudBackup),
+                      child: const SectionHeader(
+                          title: AppConstants.headerCloudBackup),
                     ),
                     const SizedBox(height: 16),
                     if (_isCheckingStatus)
@@ -655,7 +663,9 @@ class _SettingsPageState extends State<SettingsPage> {
                         index: 1,
                         child: MenuListItem(
                           title: 'Google Account',
-                          subtitle: _currentUser?.email ?? BackupService().cachedEmail ?? 'Connected',
+                          subtitle: _currentUser?.email ??
+                              BackupService().cachedEmail ??
+                              'Connected',
                           icon: Icons.account_circle_outlined,
                           color: AppColors.accent,
                           onTap: () {},
@@ -711,7 +721,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     // DATA MANAGEMENT SECTION
                     FadeInSlide(
                       index: 5,
-                      child: SectionHeader(title: AppConstants.headerLocalData),
+                      child: const SectionHeader(
+                          title: AppConstants.headerLocalData),
                     ),
                     const SizedBox(height: AppConstants.subSectionSpacing),
                     FadeInSlide(
@@ -740,8 +751,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     // DANGER ZONE
                     FadeInSlide(
                       index: 8,
-                      child:
-                          SectionHeader(title: AppConstants.headerDangerZone),
+                      child: const SectionHeader(
+                          title: AppConstants.headerDangerZone),
                     ),
                     const SizedBox(height: 16),
                     FadeInSlide(

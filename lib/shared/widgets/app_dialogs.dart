@@ -613,9 +613,8 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
           decoration: BoxDecoration(
             color: AppColors.inputBg,
             borderRadius: BorderRadius.circular(16),
-            border: errorText != null
-                ? Border.all(color: AppColors.error, width: 1)
-                : null,
+            border:
+                errorText != null ? Border.all(color: AppColors.error) : null,
           ),
           child: child,
         ),

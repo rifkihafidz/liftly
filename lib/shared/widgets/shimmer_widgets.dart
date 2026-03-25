@@ -25,7 +25,6 @@ class WorkoutCardShimmer extends StatelessWidget {
           children: [
             // Top section: Date, Time and Plan/Arrow
             Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: Column(
@@ -134,13 +133,11 @@ class WorkoutListShimmer extends StatelessWidget {
     return CustomScrollView(
       physics: const NeverScrollableScrollPhysics(),
       slivers: [
-        SliverAppBar(
+        const SliverAppBar(
           pinned: true,
           centerTitle: false,
           leadingWidth: 56,
-          leading: const SizedBox.shrink(),
-          elevation: 0,
-          scrolledUnderElevation: 0,
+          leading: SizedBox.shrink(),
           backgroundColor: AppColors.darkBg,
           surfaceTintColor: AppColors.darkBg,
           title: Text(
@@ -148,7 +145,7 @@ class WorkoutListShimmer extends StatelessWidget {
             style: TextStyle(
               color: AppColors.textPrimary,
               fontWeight: FontWeight.bold,
-              letterSpacing: -0.5,
+              fontSize: 20,
             ),
           ),
           actions: [
@@ -162,7 +159,7 @@ class WorkoutListShimmer extends StatelessWidget {
                   Icon(Icons.filter_list_rounded, color: AppColors.textPrimary),
               onPressed: null,
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
           ],
         ),
         SliverPadding(
@@ -192,9 +189,9 @@ class WorkoutListShimmer extends StatelessWidget {
                         ),
                       ),
                     ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: const WorkoutCardShimmer(),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: WorkoutCardShimmer(),
                   ),
                 ],
               );

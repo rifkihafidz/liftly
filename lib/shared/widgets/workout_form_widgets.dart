@@ -55,7 +55,6 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
           borderRadius: BorderRadius.circular(24),
           side: BorderSide(
             color: AppColors.borderLight.withValues(alpha: 0.5),
-            width: 1,
           ),
         ),
         child: Container(
@@ -83,7 +82,7 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                       color: AppColors.accent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.event_repeat_rounded,
                       color: AppColors.accent,
                       size: 20,
@@ -903,7 +902,7 @@ class WorkoutDateTimeCard extends StatelessWidget {
                 color: AppColors.accent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.calendar_today_rounded,
                 color: AppColors.accent,
                 size: 20,
@@ -925,7 +924,7 @@ class WorkoutDateTimeCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     timeRange,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,

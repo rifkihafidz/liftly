@@ -17,7 +17,13 @@ class BackupException implements Exception {
   String toString() => message;
 }
 
-enum InitializationState { idle, pending, completedWithUser, completedNoUser, failed }
+enum InitializationState {
+  idle,
+  pending,
+  completedWithUser,
+  completedNoUser,
+  failed
+}
 
 class RestoreException implements Exception {
   final String message;
@@ -83,7 +89,10 @@ class BackupService {
 
   /// True if we have a cached session but no live auth and no valid token
   bool get needsReauth =>
-      kIsWeb && _cachedEmail != null && _currentUser == null && !_hasValidCachedToken;
+      kIsWeb &&
+      _cachedEmail != null &&
+      _currentUser == null &&
+      !_hasValidCachedToken;
 
   GoogleSignInAccount? _currentUser;
   GoogleSignInAccount? get currentUser => _currentUser;
@@ -114,28 +123,26 @@ class BackupService {
       if (kIsWeb) {
         // Check if user was previously signed in
         final wasSignedIn = await HiveService.getPreference('gdrive_signed_in');
-        AppLogger.debug('BackupService', '[Web] Previous sign-in state: $wasSignedIn');
 
         if (wasSignedIn == 'true') {
           // Load cached email for instant UI restore
           _cachedEmail = await HiveService.getPreference('gdrive_email');
           // Load cached access token for API calls without re-auth
-          _cachedAccessToken = await HiveService.getPreference('gdrive_access_token');
-          final expiryStr = await HiveService.getPreference('gdrive_token_expiry');
+          _cachedAccessToken =
+              await HiveService.getPreference('gdrive_access_token');
+          final expiryStr =
+              await HiveService.getPreference('gdrive_token_expiry');
           if (expiryStr != null && expiryStr.isNotEmpty) {
             _cachedTokenExpiry = DateTime.tryParse(expiryStr);
           }
-          AppLogger.debug('BackupService', '[Web] Cached email: $_cachedEmail, token valid: $_hasValidCachedToken');
 
           // Complete init immediately so the app doesn't block.
           // Show logged-in UI from cache; silent sign-in runs in background.
           _initState = _cachedEmail != null
               ? InitializationState.completedWithUser
               : InitializationState.completedNoUser;
-          AppLogger.debug('BackupService', '[Web] Init complete (cached), attempting silent sign-in in background...');
           _attemptWebSilentSignIn();
         } else {
-          AppLogger.debug('BackupService', '[Web] No previous session, skipping auto sign-in');
           _initState = InitializationState.completedNoUser;
         }
         return;
@@ -149,16 +156,11 @@ class BackupService {
       // Fallback: Check if currentUser is already populated in the plugin
       if (_currentUser == null && _googleSignIn.currentUser != null) {
         _currentUser = _googleSignIn.currentUser;
-        AppLogger.debug('BackupService',
-            'signInSilently null, but currentUser found: ${_currentUser?.email}');
       }
 
       if (_currentUser != null) {
-        AppLogger.debug('BackupService',
-            'Silent sign in successful: ${_currentUser?.email}');
         _initState = InitializationState.completedWithUser;
       } else {
-        AppLogger.debug('BackupService', 'Silent sign in returned null (no session)');
         _initState = InitializationState.completedNoUser;
       }
     } catch (e) {
@@ -169,8 +171,6 @@ class BackupService {
       if (_googleSignIn.currentUser != null) {
         _currentUser = _googleSignIn.currentUser;
         _initState = InitializationState.completedWithUser;
-        AppLogger.debug('BackupService',
-            'Recovered user from error: ${_currentUser?.email}');
         return;
       }
 
@@ -201,11 +201,9 @@ class BackupService {
       } else if (_googleSignIn.currentUser != null) {
         _currentUser = _googleSignIn.currentUser;
         _initState = InitializationState.completedWithUser;
-        AppLogger.debug('BackupService',
-            '[Web] Background: currentUser found: ${_currentUser?.email}');
       } else {
-        AppLogger.debug('BackupService',
-            '[Web] Background silent sign-in returned null');
+        AppLogger.debug(
+            'BackupService', '[Web] Background silent sign-in returned null');
       }
       _backgroundSignInCompleter?.complete();
       _backgroundSignInCompleter = null;
@@ -216,8 +214,8 @@ class BackupService {
             '[Web] Background silent sign-in timed out (FedCM cooldown)');
         _silentSignInTimedOut = true;
       } else {
-        AppLogger.debug('BackupService',
-            '[Web] Background silent sign-in error: $e');
+        AppLogger.debug(
+            'BackupService', '[Web] Background silent sign-in error: $e');
       }
       _backgroundSignInCompleter?.complete();
       _backgroundSignInCompleter = null;
@@ -254,19 +252,18 @@ class BackupService {
       AppLogger.debug('BackupService', 'Starting interactive sign-in...');
       _currentUser =
           await _googleSignIn.signIn().timeout(const Duration(minutes: 3));
-      
+
       if (_currentUser != null) {
-        AppLogger.debug('BackupService', 'Sign-in successful: ${_currentUser?.email}');
+        AppLogger.debug(
+            'BackupService', 'Sign-in successful: ${_currentUser?.email}');
         // Persist sign-in state and email for web session restore
         _cachedEmail = _currentUser!.email;
         await HiveService.savePreference('gdrive_signed_in', 'true');
         await HiveService.savePreference('gdrive_email', _currentUser!.email);
         // Cache access token so reload doesn't need FedCM
         await _cacheAuthToken();
-      } else {
-        AppLogger.debug('BackupService', 'Sign-in returned null (cancelled?)');
       }
-      
+
       return _currentUser;
     } catch (e) {
       AppLogger.error('BackupService', 'Sign in failed or timed out', e);
@@ -277,7 +274,6 @@ class BackupService {
   /// Sign out
   Future<void> signOut() async {
     try {
-      AppLogger.debug('BackupService', 'Signing out...');
       await _googleSignIn.disconnect();
       _currentUser = null;
       _cachedEmail = null;
@@ -288,7 +284,6 @@ class BackupService {
       await HiveService.savePreference('gdrive_email', '');
       await HiveService.savePreference('gdrive_access_token', '');
       await HiveService.savePreference('gdrive_token_expiry', '');
-      AppLogger.debug('BackupService', 'Sign out complete');
     } catch (e) {
       AppLogger.error('BackupService', 'Sign out failed', e);
     }
@@ -301,11 +296,10 @@ class BackupService {
       final auth = await _currentUser!.authentication;
       _cachedAccessToken = auth.accessToken;
       _cachedTokenExpiry = DateTime.now().add(const Duration(minutes: 55));
-      await HiveService.savePreference('gdrive_access_token', _cachedAccessToken!);
+      await HiveService.savePreference(
+          'gdrive_access_token', _cachedAccessToken!);
       await HiveService.savePreference(
           'gdrive_token_expiry', _cachedTokenExpiry!.toIso8601String());
-      AppLogger.debug('BackupService',
-          '[Web] Auth token cached (expires: $_cachedTokenExpiry)');
     } catch (e) {
       AppLogger.error('BackupService', 'Failed to cache auth token', e);
     }
@@ -330,8 +324,6 @@ class BackupService {
       return headers;
     }
     if (_hasValidCachedToken) {
-      AppLogger.debug('BackupService',
-          '[Web] Using cached access token (expires: $_cachedTokenExpiry)');
       return {
         'Authorization': 'Bearer $_cachedAccessToken',
         'X-Goog-AuthUser': '0',
@@ -349,7 +341,6 @@ class BackupService {
           await init();
         }
         if (_currentUser != null) {
-          AppLogger.debug('BackupService', 'Starting auto-backup...');
           await backupDatabase(silent: true);
         }
       }
@@ -367,20 +358,14 @@ class BackupService {
 
     // If background silent sign-in is still running, wait for it first
     if (_backgroundSignInCompleter != null) {
-      AppLogger.debug('BackupService',
-          'Lazy re-auth: waiting for background sign-in to finish...');
       await _backgroundSignInCompleter!.future;
       // Background sign-in may have succeeded
       if (_currentUser != null) {
-        AppLogger.debug('BackupService',
-            'Lazy re-auth: background sign-in succeeded, no popup needed');
         return true;
       }
     }
 
     // Background sign-in failed or timed out — need interactive sign-in
-    AppLogger.debug('BackupService',
-        'Lazy re-auth: triggering interactive sign-in');
     await signIn();
     return _currentUser != null;
   }
@@ -400,26 +385,20 @@ class BackupService {
     }
 
     // Ensure we have the required scopes (skip if using cached token — scopes already granted)
-    AppLogger.debug('BackupService', 'Verifying Drive scope before backup...');
     onProgress?.call(0.05, 'Connecting to Google Drive...');
     if (_currentUser != null) {
       await _ensureDriveScope(silent: silent);
     }
 
     try {
-      AppLogger.debug('BackupService', 'Retrieving auth headers...');
       final headers = await _getAuthHeaders();
-      AppLogger.debug('BackupService',
-          'Headers retrieved successfully. Initializing client...');
       final client = _GoogleAuthClient(headers);
       final driveApi = drive.DriveApi(client);
 
-      AppLogger.debug('BackupService', 'Generating Excel bytes...');
       onProgress?.call(0.2, 'Generating backup data...');
       final fileBytes = await DataManagementService.generateExcelBytes(
           exportOnlyPlans: exportOnlyPlans);
 
-      AppLogger.debug('BackupService', 'Accessing backup folder...');
       onProgress?.call(0.6, 'Uploading to Google Drive...');
       final folderId = await _getOrCreateBackupFolder(driveApi);
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
@@ -592,19 +571,14 @@ class _GoogleAuthClient extends http.BaseClient {
 extension on BackupService {
   Future<void> _ensureDriveScope({bool silent = false}) async {
     try {
-      AppLogger.debug('BackupService',
-          'Checking for scope: ${drive.DriveApi.driveFileScope}');
       final hasScope =
           await _googleSignIn.canAccessScopes([drive.DriveApi.driveFileScope]);
 
-      AppLogger.debug('BackupService', 'hasScope result: $hasScope');
-
       if (!hasScope) {
-        AppLogger.debug('BackupService',
-            'Missing Drive scope, requesting via popup...');
         final granted =
             await _googleSignIn.requestScopes([drive.DriveApi.driveFileScope]);
-        AppLogger.debug('BackupService', 'requestScopes granted result: $granted');
+        AppLogger.debug(
+            'BackupService', 'requestScopes granted result: $granted');
         if (!granted && !silent) {
           throw BackupException(
               'Permission denied: Google Drive access is required to use this feature.');

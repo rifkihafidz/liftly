@@ -9,9 +9,7 @@ class WorkoutLocalDataSource {
   /// Create a new workout with exercises, sets, and segments
   Future<WorkoutSession> createWorkout(WorkoutSession workout) async {
     try {
-      AppLogger.debug(_tag, 'CREATE: Workout id=${workout.id}, userId=${workout.userId}');
       await HiveService.createWorkout(workout);
-      AppLogger.debug(_tag, 'CREATE: Workout creation SUCCESSFUL');
       return workout;
     } catch (e) {
       AppLogger.error(_tag, 'CREATE: FAILED', e);
@@ -27,7 +25,6 @@ class WorkoutLocalDataSource {
     bool includeDrafts = false,
   }) async {
     try {
-      AppLogger.debug(_tag, 'SELECT: workouts userId=$userId limit=$limit offset=$offset');
       // Pass pagination params for DB-level optimization
       final workouts = await HiveService.getWorkouts(userId,
           includeDrafts: includeDrafts, limit: limit, offset: offset);
@@ -41,7 +38,6 @@ class WorkoutLocalDataSource {
 
   /// Get a single workout by ID with all related exercises, sets, and segments
   Future<WorkoutSession> getWorkout(String workoutId) async {
-    AppLogger.debug(_tag, 'SELECT: workout id=$workoutId');
     final workout = await HiveService.getWorkout(workoutId);
     if (workout == null) {
       throw Exception('Workout not found');
@@ -52,7 +48,6 @@ class WorkoutLocalDataSource {
   /// Get the latest draft workout for a user
   Future<WorkoutSession?> getDraftWorkout(String userId) async {
     try {
-      AppLogger.debug(_tag, 'SELECT: Draft workout for userId=$userId');
       return await HiveService.getDraftWorkout(userId);
     } catch (e) {
       AppLogger.error(_tag, 'SELECT: getDraftWorkout FAILED', e);
@@ -63,15 +58,8 @@ class WorkoutLocalDataSource {
   /// Update an existing workout
   Future<WorkoutSession> updateWorkout(WorkoutSession workout) async {
     try {
-      AppLogger.debug(_tag, 'UPDATE: workout id=${workout.id}, exercises count=${workout.exercises.length}');
-      for (int i = 0; i < workout.exercises.length; i++) {
-        final ex = workout.exercises[i];
-        AppLogger.debug(_tag, 'UPDATE:   [$i] ${ex.name} | variation="${ex.variation}"');
-      }
-      
       await HiveService.updateWorkout(workout);
-      
-      AppLogger.debug(_tag, 'UPDATE: SUCCESSFUL - workout id=${workout.id}');
+
       return workout;
     } catch (e) {
       AppLogger.error(_tag, 'UPDATE: FAILED', e);
@@ -82,9 +70,7 @@ class WorkoutLocalDataSource {
   /// Discard (delete) all drafts for a specific user
   Future<void> discardDrafts(String userId) async {
     try {
-      AppLogger.debug(_tag, 'DELETE: drafts userId=$userId');
       await HiveService.discardDrafts(userId);
-      AppLogger.debug(_tag, 'DELETE: drafts SUCCESS');
     } catch (e) {
       AppLogger.error(_tag, 'DELETE: drafts FAILED', e);
       rethrow;
@@ -94,9 +80,7 @@ class WorkoutLocalDataSource {
   /// Delete a workout and all related exercises, sets, and segments
   Future<void> deleteWorkout(String workoutId) async {
     try {
-      AppLogger.debug(_tag, 'DELETE: workout id=$workoutId');
       await HiveService.deleteWorkout(workoutId);
-      AppLogger.debug(_tag, 'DELETE: workout SUCCESS');
     } catch (e) {
       AppLogger.error(_tag, 'DELETE: workout FAILED', e);
       rethrow;
@@ -106,13 +90,11 @@ class WorkoutLocalDataSource {
   /// Get all workouts for a user and clear them (for cleanup)
   Future<void> clearUserWorkouts(String userId) async {
     try {
-      AppLogger.debug(_tag, 'DELETE: workouts WHERE userId=$userId');
       final workouts =
           await HiveService.getWorkouts(userId, includeDrafts: true);
       for (final w in workouts) {
         await HiveService.deleteWorkout(w.id);
       }
-      AppLogger.debug(_tag, 'DELETE: workouts user SUCCESS');
     } catch (e) {
       AppLogger.error(_tag, 'DELETE: workouts user FAILED', e);
       rethrow;

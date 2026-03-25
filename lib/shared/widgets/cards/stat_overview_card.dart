@@ -29,10 +29,10 @@ class StatOverviewCard extends StatelessWidget {
           colors: [color.withValues(alpha: 0.1), Colors.transparent],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.15), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -59,20 +59,20 @@ class StatOverviewCard extends StatelessWidget {
               Text(
                 value,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18,
-                ),
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
               ),
               if (unit != null) ...[
                 const SizedBox(width: 2),
                 Text(
                   unit!,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 10,
-                  ),
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 10,
+                      ),
                 ),
               ],
             ],
@@ -82,10 +82,10 @@ class StatOverviewCard extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

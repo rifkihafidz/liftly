@@ -68,7 +68,7 @@ class PlanCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     PopupMenuButton(
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.more_vert_rounded,
                         color: AppColors.textSecondary,
                       ),
@@ -78,15 +78,15 @@ class PlanCard extends StatelessWidget {
                       itemBuilder: (context) => [
                         PopupMenuItem(
                           onTap: onEdit,
-                          child: Row(
+                          child: const Row(
                             children: [
                               Icon(
                                 Icons.edit_rounded,
                                 size: 20,
                                 color: AppColors.textPrimary,
                               ),
-                              const SizedBox(width: 12),
-                              const Text(
+                              SizedBox(width: 12),
+                              Text(
                                 'Edit',
                                 style: TextStyle(color: AppColors.textPrimary),
                               ),
@@ -95,14 +95,14 @@ class PlanCard extends StatelessWidget {
                         ),
                         PopupMenuItem(
                           onTap: onDelete,
-                          child: Row(
+                          child: const Row(
                             children: [
                               Icon(
                                 Icons.delete_rounded,
                                 size: 20,
                                 color: AppColors.error,
                               ),
-                              const SizedBox(width: 12),
+                              SizedBox(width: 12),
                               Text(
                                 'Delete',
                                 style: TextStyle(color: AppColors.error),
@@ -129,7 +129,7 @@ class PlanCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.list_alt_rounded,
                         size: 16,
                         color: AppColors.accent,
@@ -137,7 +137,7 @@ class PlanCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         '${plan.exercises.length} Exercises',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppColors.accent,
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
@@ -178,7 +178,7 @@ class PlanCard extends StatelessWidget {
                                   children: [
                                     TextSpan(
                                       text: ex.name,
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: AppColors.textSecondary,
                                         fontSize: 13,
                                       ),

@@ -236,7 +236,7 @@ class ViewSetRow extends StatelessWidget {
                 ),
                 child: Text(
                   'Set ${set.setNumber}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppColors.accent,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
@@ -254,7 +254,7 @@ class ViewSetRow extends StatelessWidget {
                     color: AppColors.accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Text(
+                  child: const Text(
                     'DROP SET',
                     style: TextStyle(
                       color: AppColors.accent,

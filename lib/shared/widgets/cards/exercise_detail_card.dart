@@ -90,9 +90,9 @@ class _ExerciseDetailCardState extends State<ExerciseDetailCard> {
                                       ),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
-                                    child: Text(
+                                    child: const Text(
                                       'Skipped',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         color: AppColors.textSecondary,
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,

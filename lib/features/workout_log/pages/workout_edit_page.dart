@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../../core/utils/app_logger.dart';
 
 import 'package:flutter/material.dart';
@@ -48,7 +49,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     final exercises = _editedWorkout.exercises;
 
     for (final exercise in exercises) {
-      _loadHistoryAndPRsRecursive(exercise.name, variation: exercise.variation);
+      unawaited(_loadHistoryAndPRsRecursive(exercise.name,
+          variation: exercise.variation));
     }
   }
 
@@ -263,9 +265,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                     AppDialogs.showConfirmationDialog(
                                       context: context,
                                       title: 'Delete Exercise',
-                                      message: 'Are you sure you want to delete "${exercise.name}"?',
-                                      confirmText: 'Delete',
-                                      isDangerous: true,
+                                      message:
+                                          'Are you sure you want to delete "${exercise.name}"?',
                                     ).then((confirmed) {
                                       if (confirmed == true) {
                                         _removeExercise(exIndex);
@@ -358,7 +359,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
 
     showGeneralDialog(
       context: context,
-      barrierDismissible: false,
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 400),
       pageBuilder: (context, animation, secondaryAnimation) {
@@ -417,7 +417,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
           position: Tween<Offset>(
             begin: const Offset(0, 1),
             end: Offset.zero,
-          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+          ).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
           child: ScaleTransition(
             scale: Tween<double>(begin: 0.95, end: 1).animate(
               CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
@@ -450,7 +451,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
       title: 'Delete Workout',
       message:
           'Are you sure you want to delete this workout session? This action cannot be undone.',
-      confirmText: 'Delete',
       isDangerous: true,
     );
 
@@ -576,7 +576,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
 
       availableExercises = uniqueNames.toList()..sort();
     } catch (e, stackTrace) {
-      AppLogger.error('WorkoutEditPage', 'Error loading suggestions', e, stackTrace);
+      AppLogger.error(
+          'WorkoutEditPage', 'Error loading suggestions', e, stackTrace);
     }
 
     if (!context.mounted) return;
@@ -614,7 +615,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                 repsFrom: 1,
                 repsTo: 12,
                 segmentOrder: 0,
-                notes: '',
               ),
             ],
           ),
@@ -829,7 +829,8 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
     // 1. Get suggestions
     List<String> suggestions = [];
     try {
-      final names = await workoutRepository.getExerciseNames(userId: AppConstants.defaultUserId);
+      final names = await workoutRepository.getExerciseNames(
+          userId: AppConstants.defaultUserId);
       suggestions = names.toSet().toList()..sort();
     } catch (_) {}
 
@@ -933,7 +934,8 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
             final index = entry.key;
             final set = entry.value;
             return Padding(
-              padding: EdgeInsets.only(bottom: index < sets.length - 1 ? 12 : 0),
+              padding:
+                  EdgeInsets.only(bottom: index < sets.length - 1 ? 12 : 0),
               child: ViewSetRow(key: ValueKey('view_set_${set.id}'), set: set),
             );
           }),
@@ -1083,7 +1085,6 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
                       weight: 0.0,
                       repsFrom: initialRepsFrom,
                       repsTo: initialRepsTo,
-                      notes: '',
                       segmentOrder: segments.length,
                     ),
                   );

@@ -204,7 +204,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                         },
                       ),
                       IconButton(
-                        icon: Icon(
+                        icon: const Icon(
                           Icons.delete_rounded,
                           color: AppColors.error,
                         ),
@@ -248,30 +248,29 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                             ],
                           ),
                           if (workout.planName != null &&
-                              workout.planName!.isNotEmpty) ...
-                            [
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.bookmark_rounded,
-                                    size: 14,
-                                    color: AppColors.accent.withValues(
-                                        alpha: 0.7),
+                              workout.planName!.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.bookmark_rounded,
+                                  size: 14,
+                                  color:
+                                      AppColors.accent.withValues(alpha: 0.7),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  workout.planName!,
+                                  style: TextStyle(
+                                    color:
+                                        AppColors.accent.withValues(alpha: 0.7),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    workout.planName!,
-                                    style: TextStyle(
-                                      color: AppColors.accent
-                                          .withValues(alpha: 0.7),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 24),
                           // Row 1: Duration & Exercises
                           Row(
@@ -356,7 +355,6 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       title: 'Delete Workout',
       message:
           'Are you sure you want to delete this workout? This action cannot be undone.',
-      confirmText: 'Delete',
       isDangerous: true,
     ).then((confirm) {
       if (confirm == true && context.mounted) {
@@ -369,7 +367,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
     _isDeleting = true;
     const userId = AppConstants.defaultUserId;
     final workoutId = _currentWorkout.id.toString();
-    
+
     // Extract everything from context upfront, before any async gaps
     final bloc = context.read<WorkoutBloc>();
     final scaffoldContext = context;
@@ -377,13 +375,13 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
     showDialog(
       context: scaffoldContext,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => const AlertDialog(
         backgroundColor: AppColors.cardBg,
         content: Row(
           children: [
             CircularProgressIndicator(color: AppColors.accent),
-            const SizedBox(width: 16),
-            const Text(
+            SizedBox(width: 16),
+            Text(
               'Deleting...',
               style: TextStyle(color: AppColors.textPrimary),
             ),

@@ -20,7 +20,6 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   bool _isTransparent = false;
   bool _isGenerating = false;
 
-
   String _formatDateWithTimeRange(DateTime date) {
     return DateFormat('dd MMMM yyyy').format(date);
   }
@@ -33,7 +32,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
     final h = duration.inHours;
     final m = duration.inMinutes % 60;
     final durationStr = h > 0 ? '${h}h ${m}m' : '${m}m';
-    
+
     final startTimeStr = DateFormat('HH:mm').format(startedAt);
     final endTimeStr = DateFormat('HH:mm').format(endedAt);
     return '$durationStr ($startTimeStr - $endTimeStr)';
@@ -75,7 +74,8 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
         }
       }
     } catch (e, stackTrace) {
-      AppLogger.error('WorkoutShareSheet', 'Error sharing image', e, stackTrace);
+      AppLogger.error(
+          'WorkoutShareSheet', 'Error sharing image', e, stackTrace);
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }
@@ -107,207 +107,206 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Share Activity',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Screenshot Target Area
-          Center(
-            child: Stack(
-              children: [
-                // 1. Visual Background (Checkerboard for transparency preview)
-                if (_isTransparent)
-                  Container(
-                    width: 320,
-                    height: (workout.planName?.isNotEmpty ?? false) ? 480 : 440,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: CustomPaint(painter: CheckerboardPainter()),
-                    ),
-                  ),
-
-                // 2. The Actual Content to Capture
-                Screenshot(
-                  controller: _screenshotController,
-                  child: Container(
-                    width: 320,
-                    height: (workout.planName?.isNotEmpty ?? false) ? 480 : 440,
-                    decoration: BoxDecoration(
-                      color: _isTransparent
-                          ? Colors.transparent
-                          : AppColors.cardBg,
-                      borderRadius: BorderRadius.circular(16),
-                      // Ensure shadow/border only when NOT transparent to avoid artifacts
-                      border: _isTransparent
-                          ? null
-                          : Border.all(color: AppColors.borderLight),
-                    ),
-                    alignment: Alignment.center,
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Badge - Only show if NOT generating (saving)
-                          if (_isTransparent && !_isGenerating)
-                            Align(
-                              alignment: Alignment.topLeft,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 1.5,
-                                  ),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'TRANSPARENT',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                          const Spacer(),
-
-                          _buildStatGroup(
-                            'Date',
-                            _formatDateWithTimeRange(workout.effectiveDate),
-                            isSmall: true,
-                          ),
-                          const SizedBox(height: 10),
-
-                          if (workout.planName != null &&
-                              workout.planName!.isNotEmpty) ...
-                            [
-                              _buildStatGroup(
-                                  'Plan', workout.planName!),
-                              const SizedBox(height: 8),
-                            ],
-                          _buildStatGroup('Exercises', '$exerciseCount'),
-                          const SizedBox(height: 8),
-                          _buildStatGroup('Total Sets', '$totalSets'),
-                          const SizedBox(height: 8),
-                          _buildStatGroup(
-                            'Total Volume',
-                            '${_formatNumber(totalVolume)} kg',
-                          ),
-                          const SizedBox(height: 8),
-                          _buildStatGroup(
-                            'Duration',
-                            _formatTimeRange(workout.startedAt, workout.endedAt),
-                          ),
-
-                          const Spacer(),
-
-                          // App Logo/Badge
-                          Column(
-                            children: [
-                              Icon(
-                                Icons.fitness_center_rounded,
-                                color: AppColors.accent,
-                                size: 28,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'LIFTLY',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 14,
-                                  letterSpacing: 2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Share Activity',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                  ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close,
+                          color: AppColors.textSecondary),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+              const SizedBox(height: 20),
 
-          const SizedBox(height: 24),
+              // Screenshot Target Area
+              Center(
+                child: Stack(
+                  children: [
+                    // 1. Visual Background (Checkerboard for transparency preview)
+                    if (_isTransparent)
+                      Container(
+                        width: 320,
+                        height:
+                            (workout.planName?.isNotEmpty ?? false) ? 480 : 440,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: CustomPaint(painter: CheckerboardPainter()),
+                        ),
+                      ),
 
-          // Options Row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                _buildOptionButton(
-                  label: 'Classic',
-                  isActive: !_isTransparent,
-                  onTap: () => setState(() => _isTransparent = false),
+                    // 2. The Actual Content to Capture
+                    Screenshot(
+                      controller: _screenshotController,
+                      child: Container(
+                        width: 320,
+                        height:
+                            (workout.planName?.isNotEmpty ?? false) ? 480 : 440,
+                        decoration: BoxDecoration(
+                          color: _isTransparent
+                              ? Colors.transparent
+                              : AppColors.cardBg,
+                          borderRadius: BorderRadius.circular(16),
+                          // Ensure shadow/border only when NOT transparent to avoid artifacts
+                          border: _isTransparent
+                              ? null
+                              : Border.all(color: AppColors.borderLight),
+                        ),
+                        alignment: Alignment.center,
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            children: [
+                              // Badge - Only show if NOT generating (saving)
+                              if (_isTransparent && !_isGenerating)
+                                Align(
+                                  alignment: Alignment.topLeft,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 1.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'TRANSPARENT',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                              const Spacer(),
+
+                              _buildStatGroup(
+                                'Date',
+                                _formatDateWithTimeRange(workout.effectiveDate),
+                                isSmall: true,
+                              ),
+                              const SizedBox(height: 10),
+
+                              if (workout.planName != null &&
+                                  workout.planName!.isNotEmpty) ...[
+                                _buildStatGroup('Plan', workout.planName!),
+                                const SizedBox(height: 8),
+                              ],
+                              _buildStatGroup('Exercises', '$exerciseCount'),
+                              const SizedBox(height: 8),
+                              _buildStatGroup('Total Sets', '$totalSets'),
+                              const SizedBox(height: 8),
+                              _buildStatGroup(
+                                'Total Volume',
+                                '${_formatNumber(totalVolume)} kg',
+                              ),
+                              const SizedBox(height: 8),
+                              _buildStatGroup(
+                                'Duration',
+                                _formatTimeRange(
+                                    workout.startedAt, workout.endedAt),
+                              ),
+
+                              const Spacer(),
+
+                              // App Logo/Badge
+                              const Column(
+                                children: [
+                                  Icon(
+                                    Icons.fitness_center_rounded,
+                                    color: AppColors.accent,
+                                    size: 28,
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'LIFTLY',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 14,
+                                      letterSpacing: 2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                _buildOptionButton(
-                  label: 'Transparent',
-                  isActive: _isTransparent,
-                  onTap: () => setState(() => _isTransparent = true),
-                ),
-              ],
-            ),
-          ),
+              ),
 
-          const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
-          // Share Actions - Simplified
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildShareIcon(
-                  icon: Icons.save_alt_rounded,
-                  label: 'Save Image',
-                  color: AppColors.accent,
-                  onTap: () => _shareImage(context),
+              // Options Row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    _buildOptionButton(
+                      label: 'Classic',
+                      isActive: !_isTransparent,
+                      onTap: () => setState(() => _isTransparent = false),
+                    ),
+                    const SizedBox(width: 12),
+                    _buildOptionButton(
+                      label: 'Transparent',
+                      isActive: _isTransparent,
+                      onTap: () => setState(() => _isTransparent = true),
+                    ),
+                  ],
                 ),
-                _buildShareIcon(
-                  icon: Icons.ios_share_rounded,
-                  label: 'Share to...',
-                  color: AppColors.textPrimary,
-                  onTap: () => _shareImage(context),
-                ),
-              ],
-            ),
-          ),
+              ),
 
-          // Close Column children & Column widget
+              const SizedBox(height: 32),
+
+              // Share Actions - Simplified
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildShareIcon(
+                      icon: Icons.save_alt_rounded,
+                      label: 'Save Image',
+                      color: AppColors.accent,
+                      onTap: () => _shareImage(context),
+                    ),
+                    _buildShareIcon(
+                      icon: Icons.ios_share_rounded,
+                      label: 'Share to...',
+                      color: AppColors.textPrimary,
+                      onTap: () => _shareImage(context),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Close Column children & Column widget
             ],
           ),
-
           if (_isGenerating)
             Positioned.fill(
               child: Container(

@@ -167,7 +167,6 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
             color: isSkipped
                 ? AppColors.borderLight.withValues(alpha: 0.5)
                 : AppColors.borderLight,
-            width: 1,
           ),
           boxShadow: [
             if (_isExpanded || widget.isAlwaysExpanded)
@@ -324,7 +323,8 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
 
     return Row(
       children: [
-        Icon(Icons.layers_outlined, size: 16, color: AppColors.textSecondary),
+        const Icon(Icons.layers_outlined,
+            size: 16, color: AppColors.textSecondary),
         const SizedBox(width: 8),
         Text(
           '$setCount Sets',
@@ -333,7 +333,8 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
           ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(width: 16),
-        Icon(Icons.fitness_center, size: 16, color: AppColors.textSecondary),
+        const Icon(Icons.fitness_center,
+            size: 16, color: AppColors.textSecondary),
         const SizedBox(width: 8),
         Text(
           'Vol: ${totalVol > 0 ? _formatNumber(totalVol) : "-"} kg',
@@ -383,7 +384,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
                         ),
                         if (widget.onEditVariation != null) ...[
                           const SizedBox(width: 4),
-                          Icon(
+                          const Icon(
                             Icons.edit,
                             size: 12,
                             color: AppColors.accent,
@@ -738,7 +739,7 @@ class _SetHeader extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: AppColors.cardBg,
-                border: Border.all(color: AppColors.accent, width: 1),
+                border: Border.all(color: AppColors.accent),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
