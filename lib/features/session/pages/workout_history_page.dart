@@ -102,7 +102,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
 
   void _loadWorkouts() {
     context.read<WorkoutBloc>().add(
-          const WorkoutsFetched(limit: 20, offset: 0),
+          const WorkoutsFetched(limit: 20),
         );
   }
 
@@ -253,7 +253,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                                             primary: AppColors.accent,
                                             onPrimary: Colors.white,
                                             surface: AppColors.cardBg,
-                                            onSurface: AppColors.textPrimary,
                                           ),
                                           dialogTheme: const DialogThemeData(
                                             backgroundColor: AppColors.cardBg,
@@ -277,7 +276,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                           ),
                           const SizedBox(height: 24),
                           const SizedBox(height: 24),
-                          Divider(color: AppColors.borderDark),
+                          const Divider(color: AppColors.borderDark),
                           const SizedBox(height: 24),
                           const SizedBox(height: 24),
 
@@ -295,10 +294,9 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                           const SizedBox(height: 12),
                           if (planNames.isEmpty ||
                               (planNames.length == 1 && planNames.first == '-'))
-                            Center(
+                            const Center(
                               child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 24),
+                                padding: EdgeInsets.symmetric(vertical: 24),
                                 child: Text(
                                   'No plans available to filter.',
                                   style:
@@ -393,7 +391,8 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                         child: OutlinedButton(
                           onPressed: () => Navigator.pop(context),
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: AppColors.borderLight),
+                            side:
+                                const BorderSide(color: AppColors.borderLight),
                             foregroundColor: AppColors.textPrimary,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
@@ -465,7 +464,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.error_outline_rounded,
                       size: 64,
                       color: AppColors.error,
@@ -482,7 +481,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                     Text(
                       state.message,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.textSecondary),
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 24),
                     FilledButton(
@@ -670,7 +669,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                           SmoothPageRoute(
                             page: WorkoutDetailPage(
                               workout: session,
-                              fromSession: false,
                             ),
                           ),
                         );
@@ -697,7 +695,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.cardBg,
               shape: BoxShape.circle,
             ),
@@ -805,7 +803,7 @@ class _MonthHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Text(
         title,
-        style: TextStyle(
+        style: const TextStyle(
           color: AppColors.accent,
           fontWeight: FontWeight.bold,
           fontSize: 12,

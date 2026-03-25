@@ -42,7 +42,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
   @override
   void initState() {
     super.initState();
-    context.read<PlanBloc>().add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
+    context.read<PlanBloc>().add(const PlansFetchRequested());
     _loadAvailableExercises();
   }
 
@@ -57,14 +57,16 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
       }
     }
     try {
-      final workouts = await _workoutRepository.getWorkouts(userId: AppConstants.defaultUserId);
+      final workouts = await _workoutRepository.getWorkouts(
+          userId: AppConstants.defaultUserId);
       for (var w in workouts) {
         for (var e in w.exercises) {
           names.add(e.name);
         }
       }
     } catch (e, stackTrace) {
-      AppLogger.error('StartWorkoutPage', 'Error loading suggestions', e, stackTrace);
+      AppLogger.error(
+          'StartWorkoutPage', 'Error loading suggestions', e, stackTrace);
     }
 
     if (mounted) {
@@ -78,7 +80,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
   void _sortPlans() {
     final state = context.read<PlanBloc>().state;
     if (state is PlansLoaded) {
-      List<WorkoutPlan> plans = List.from(state.plans);
+      final plans = List<WorkoutPlan>.from(state.plans);
       switch (_sortOption) {
         case PlanSortOption.recent:
           plans.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -117,7 +119,6 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
 
     AppDialogs.showExerciseEntryDialog(
       context: context,
-      userId: AppConstants.defaultUserId,
       title: 'Add Exercise',
       hintText: 'Exercise Name (ex: Bench Press)',
       suggestions: _availableExercises,
@@ -131,7 +132,6 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                 variation: variation,
                 order: _sessionQueue.length,
                 sets: const [],
-                isTemplate: false,
               ),
             );
           });
@@ -152,7 +152,6 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
 
     AppDialogs.showExerciseEntryDialog(
       context: context,
-      userId: AppConstants.defaultUserId,
       title: 'Edit Exercise',
       initialValue: exercise.name,
       initialVariation: exercise.variation,
@@ -316,8 +315,8 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
             physics: const BouncingScrollPhysics(),
             slivers: [
               // 1. SELECT PLAN HEADER
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(24, 16, 24, 16),
                 sliver: SliverToBoxAdapter(
                   child: Text(
                     'SELECT PLAN',
@@ -336,9 +335,9 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 sliver: SliverToBoxAdapter(
                   child: _sortedPlans.isEmpty
-                      ? Center(
+                      ? const Center(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 32),
+                            padding: EdgeInsets.symmetric(vertical: 32),
                             child: Text(
                               'No plans found.',
                               style: TextStyle(color: AppColors.textSecondary),
@@ -424,7 +423,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                             const SizedBox(height: 4),
                                             Text(
                                               '${plan.exercises.length} Exercises',
-                                              style: TextStyle(
+                                              style: const TextStyle(
                                                 color: AppColors.textSecondary,
                                                 fontSize: 12,
                                               ),
@@ -498,7 +497,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                     _sessionQueue.isEmpty
                         ? 'EXERCISES'
                         : 'EXERCISES (${_sessionQueue.length})',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.accent,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -538,7 +537,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                const Text(
                                   'Selected Plan',
                                   style: TextStyle(
                                     color: AppColors.textSecondary,
@@ -589,8 +588,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                           decoration: BoxDecoration(
                             color: AppColors.cardBg.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: AppColors.borderDark, width: 1),
+                            border: Border.all(color: AppColors.borderDark),
                           ),
                           child: Column(
                             children: [
@@ -601,7 +599,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                                     .withValues(alpha: 0.2),
                               ),
                               const SizedBox(height: 16),
-                              Text(
+                              const Text(
                                 'Select a plan or add exercise\nto start your workout',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
@@ -629,11 +627,10 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                             index: index,
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 border: Border(
                                   bottom: BorderSide(
                                     color: AppColors.borderDark,
-                                    width: 1,
                                   ),
                                 ),
                               ),
@@ -758,7 +755,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
                 ),
 
               // Bottom spacing
-              SliverToBoxAdapter(child: const SizedBox(height: 48)),
+              const SliverToBoxAdapter(child: SizedBox(height: 48)),
             ],
           );
         },

@@ -28,14 +28,11 @@ class StatsFilter {
           startDate.year,
           startDate.month,
           startDate.day,
-          0,
-          0,
-          0,
         );
       case TimePeriod.month:
-        return DateTime(now.year, now.month, 1);
+        return DateTime(now.year, now.month);
       case TimePeriod.year:
-        return DateTime(now.year, 1, 1);
+        return DateTime(now.year);
       case TimePeriod.allTime:
         return null; // No start date
     }
@@ -53,8 +50,8 @@ class StatsFilter {
         return DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
       case TimePeriod.month:
         final nextMonth = now.month == 12
-            ? DateTime(now.year + 1, 1, 1)
-            : DateTime(now.year, now.month + 1, 1);
+            ? DateTime(now.year + 1)
+            : DateTime(now.year, now.month + 1);
         return nextMonth.subtract(const Duration(seconds: 1));
       case TimePeriod.year:
         return DateTime(now.year, 12, 31, 23, 59, 59);

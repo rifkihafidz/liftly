@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
@@ -54,8 +55,9 @@ class _SplashPageState extends State<SplashPage>
     // so the splash screen is always visible.
     await Future.delayed(Duration.zero);
 
-    final minDuration =
-        kIsWeb ? const Duration(milliseconds: 800) : const Duration(milliseconds: 1800);
+    final minDuration = kIsWeb
+        ? const Duration(milliseconds: 800)
+        : const Duration(milliseconds: 1800);
 
     await Future.wait([
       Future.delayed(minDuration),
@@ -63,9 +65,9 @@ class _SplashPageState extends State<SplashPage>
     ]);
 
     if (mounted) {
-      Navigator.of(context).pushReplacement(
+      unawaited(Navigator.of(context).pushReplacement(
         SimpleFadePageRoute(page: const MainNavigationWrapper()),
-      );
+      ));
     }
   }
 

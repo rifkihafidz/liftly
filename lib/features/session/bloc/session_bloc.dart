@@ -1,14 +1,12 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../core/services/backup_service.dart';
-import '../../../core/utils/app_logger.dart';
 
 import '../../workout_log/repositories/workout_repository.dart';
 import '../../../core/models/personal_record.dart';
 import 'session_event.dart';
 import 'session_state.dart';
-
-const String _tag = 'SessionBloc';
 
 class SessionBloc extends Bloc<SessionEvent, SessionState> {
   final WorkoutRepository _workoutRepository;
@@ -38,7 +36,6 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     on<SessionExerciseNotesUpdated>(_onExerciseNotesUpdated);
     on<SessionDiscarded>(_onSessionDiscarded);
     on<SessionExercisesReordered>(_onExercisesReordered);
-
   }
 
   Future<void> _onSessionStarted(
@@ -81,7 +78,6 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
                     repsFrom: 1,
                     repsTo: 12,
                     segmentOrder: 0,
-                    notes: '',
                   ),
                 ],
               ),
@@ -101,9 +97,6 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         createdAt: now,
         updatedAt: now,
       );
-
-      AppLogger.debug(_tag,
-          'SessionStarted: planName=${event.planName}, session.planName=${session.planName}');
 
       // Load history and PRs in parallel for better performance
       final historyFutures = <Future<void>>[];
@@ -226,7 +219,6 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         name: event.exerciseName,
         variation: event.exerciseVariation,
         order: newExerciseIndex,
-        isTemplate: false,
         sets: [
           ExerciseSet(
             id: 'set_${timestamp}_ex${newExerciseIndex}_s1',
@@ -238,7 +230,6 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
                 repsFrom: 1,
                 repsTo: 12,
                 segmentOrder: 0,
-                notes: '',
               ),
             ],
           ),
@@ -529,7 +520,6 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
           repsFrom: initialRepsFrom,
           repsTo: initialRepsTo,
           segmentOrder: segmentOrder,
-          notes: '',
         );
 
         final updatedSegments = [...set.segments, newSegment];
@@ -698,7 +688,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
 
       // Trigger auto-backup (Cloud) in background
       // Fire and forget - don't block the UI
-      BackupService().backupIfEnabled();
+      unawaited(BackupService().backupIfEnabled());
 
       // Discard any drafts for this user now that we've finished a session
       _workoutRepository.discardDrafts(userId: session.userId).ignore();
@@ -714,8 +704,6 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     emit(const SessionLoading());
     try {
       final session = event.draftSession;
-      AppLogger.debug(_tag, 'SessionDraftResumed: draftSession.planName=${session.planName}');
-
       // Load history and PRs in parallel
       final historyFutures = <Future<void>>[];
 
@@ -776,8 +764,6 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         isDraft: true,
         updatedAt: DateTime.now(),
       );
-      AppLogger.debug(_tag, 'SessionSaveDraftRequested: session.planName=${session.planName}');
-
       // Save workout directly using WorkoutRepository
       // createWorkout uses REPLACE conflict algorithm, so it handles updates too
       final savedSession = await _workoutRepository.createWorkout(

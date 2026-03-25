@@ -52,8 +52,6 @@ class StatsBloc extends Bloc<StatsEvent, StatsState> {
           timePeriod: period,
           referenceDate: refDate,
           personalRecords: results['prs'] as Map<String, PersonalRecord>,
-          prFilter: null,
-          sortOrder: PrSortOrder.az,
         ),
       );
     } catch (e) {
@@ -165,7 +163,7 @@ Future<Map<String, dynamic>> _calculateStatsIsolate(
       final exName = exercise.name.toLowerCase();
       final variation = exercise.variation.toLowerCase();
       final key = '$exName:$variation';
-      
+
       exerciseStats.putIfAbsent(key, () => []);
       // Store original case for later display
       originalExerciseData[key] = (exercise.name, exercise.variation);
@@ -186,7 +184,7 @@ Future<Map<String, dynamic>> _calculateStatsIsolate(
     final originalData = originalExerciseData[entry.key];
     final originalExerciseName = originalData?.$1 ?? entry.key.split(':').first;
     final originalVariation = originalData?.$2 ?? '';
-    
+
     final pr = StatisticsService.calculatePRFromHistory(
       originalExerciseName,
       entry.value,

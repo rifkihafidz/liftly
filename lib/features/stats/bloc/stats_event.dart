@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/stats_filter.dart';
 import 'stats_state.dart';
 
@@ -13,7 +14,7 @@ abstract class StatsEvent extends Equatable {
 class StatsFetched extends StatsEvent {
   final String userId;
 
-  const StatsFetched({required this.userId});
+  const StatsFetched({this.userId = AppConstants.defaultUserId});
 
   @override
   List<Object?> get props => [userId];

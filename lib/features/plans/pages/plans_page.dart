@@ -46,7 +46,7 @@ class _PlansPageState extends State<PlansPage> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    context.read<PlanBloc>().add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
+    context.read<PlanBloc>().add(const PlansFetchRequested());
   }
 
   @override
@@ -215,7 +215,7 @@ class _PlansPageState extends State<PlansPage> {
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(24),
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     color: AppColors.cardBg,
                                     shape: BoxShape.circle,
                                   ),
@@ -364,11 +364,11 @@ class _PlansPageState extends State<PlansPage> {
       title: 'Delete Plan',
       message:
           'Are you sure you want to delete "${plan.name}"? This action cannot be undone.',
-      confirmText: 'Delete',
       isDangerous: true,
     ).then((confirm) {
       if (confirm == true && context.mounted) {
-        context.read<PlanBloc>().add(PlanDeleted(userId: AppConstants.defaultUserId, planId: plan.id));
+        context.read<PlanBloc>().add(
+            PlanDeleted(userId: AppConstants.defaultUserId, planId: plan.id));
       }
     });
   }

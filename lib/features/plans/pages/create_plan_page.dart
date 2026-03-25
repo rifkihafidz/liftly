@@ -49,7 +49,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
           .map((e) => _QueueItem(e.name, variation: e.variation)));
     }
 
-    context.read<PlanBloc>().add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
+    context.read<PlanBloc>().add(const PlansFetchRequested());
     _loadAvailableExercises();
   }
 
@@ -64,14 +64,16 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
       }
     }
     try {
-      final workouts = await _workoutRepository.getWorkouts(userId: AppConstants.defaultUserId);
+      final workouts = await _workoutRepository.getWorkouts(
+          userId: AppConstants.defaultUserId);
       for (var w in workouts) {
         for (var e in w.exercises) {
           names.add(e.name);
         }
       }
     } catch (e, stackTrace) {
-      AppLogger.error('CreatePlanPage', 'Error loading suggestions', e, stackTrace);
+      AppLogger.error(
+          'CreatePlanPage', 'Error loading suggestions', e, stackTrace);
     }
 
     if (mounted) {
@@ -120,7 +122,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
 
     AppDialogs.showExerciseEntryDialog(
       context: context,
-      userId: AppConstants.defaultUserId,
       title: index != null ? 'Edit Exercise' : 'Add Exercise',
       initialValue: initialValue,
       initialVariation: initialVariation,
@@ -237,7 +238,6 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                               border: Border.all(
                                 color:
                                     AppColors.borderDark.withValues(alpha: 0.5),
-                                width: 1,
                               ),
                             ),
                             child: Column(
@@ -250,7 +250,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                                       .withValues(alpha: 0.2),
                                 ),
                                 const SizedBox(height: 12),
-                                Text(
+                                const Text(
                                   'No exercises added yet',
                                   style: TextStyle(
                                     color: AppColors.textSecondary,
@@ -419,7 +419,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(child: SizedBox(height: 100)),
+                const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
             ),
           ),

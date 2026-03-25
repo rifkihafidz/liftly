@@ -11,13 +11,12 @@ Future<void> requestPersistence() async {
   try {
     final isPersisted = await _persisted().toDart;
     if (isPersisted.toDart) {
-      AppLogger.debug('Persistence', 'Storage is already persisted');
       return;
     }
 
     final result = await _persist().toDart;
     if (result.toDart) {
-      AppLogger.debug('Persistence', 'Storage successfully persisted');
+      // Success
     } else {
       AppLogger.warning('Persistence', 'Storage persistence denied by browser');
     }

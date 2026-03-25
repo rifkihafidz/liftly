@@ -19,7 +19,6 @@ import 'core/services/update_service.dart';
 import 'core/services/hive_service.dart';
 import 'core/services/backup_service.dart';
 import 'features/home/pages/main_navigation_wrapper.dart';
-import 'core/constants/app_constants.dart';
 import 'core/utils/app_logger.dart';
 
 void main() async {
@@ -105,7 +104,7 @@ class _LiftlyState extends State<Liftly> with WidgetsBindingObserver {
         ),
         BlocProvider(
           create: (context) => StatsBloc(workoutRepository: _workoutRepository)
-            ..add(const StatsFetched(userId: AppConstants.defaultUserId)),
+            ..add(const StatsFetched()),
         ),
       ],
       child: MaterialApp(

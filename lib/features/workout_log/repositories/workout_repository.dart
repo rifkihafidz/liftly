@@ -1,19 +1,15 @@
 import '../../../core/models/workout_session.dart';
 import '../data_sources/workout_local_data_source.dart';
 import '../../../core/models/personal_record.dart';
-import '../../../core/utils/app_logger.dart';
 
 class WorkoutRepository {
   final WorkoutLocalDataSource _localDataSource = WorkoutLocalDataSource();
-
-  static const String _tag = 'WorkoutRepository';
 
   Future<WorkoutSession> createWorkout({
     required String userId,
     required WorkoutSession workout,
   }) async {
     try {
-      AppLogger.debug(_tag, 'createWorkout: planName=${workout.planName}');
       return await _localDataSource.createWorkout(workout);
     } catch (e) {
       throw Exception(_parseErrorMessage(e.toString()));
@@ -102,7 +98,6 @@ class WorkoutRepository {
   Future<WorkoutSession?> getDraftWorkout({required String userId}) async {
     try {
       final draft = await _localDataSource.getDraftWorkout(userId);
-      AppLogger.debug(_tag, 'getDraftWorkout: draft?.planName=${draft?.planName}');
       return draft;
     } catch (e) {
       return null;

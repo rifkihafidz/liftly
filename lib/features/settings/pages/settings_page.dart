@@ -189,21 +189,21 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        AppDialogs.showSuccessDialog(
+        unawaited(AppDialogs.showSuccessDialog(
           context: context,
           title: 'Cloud Backup Successful',
           message:
               'Your data has been safely backed up to Google Drive (Liftly Backup folder).',
-        );
+        ));
       }
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        AppDialogs.showErrorDialog(
+        unawaited(AppDialogs.showErrorDialog(
           context: context,
           title: 'Cloud Backup Failed',
           message: e.toString(),
-        );
+        ));
       }
     } finally {
       progressNotifier.dispose();
@@ -252,11 +252,11 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        AppDialogs.showSuccessDialog(
+        unawaited(AppDialogs.showSuccessDialog(
           context: context,
           title: 'Excel Export Successful',
           message: message,
-        );
+        ));
       }
     } catch (e) {
       if (context.mounted) {
@@ -286,12 +286,12 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _isLoading = false);
 
       if (backups.isEmpty) {
-        AppDialogs.showErrorDialog(
+        unawaited(AppDialogs.showErrorDialog(
           context: context,
           title: 'No Backups Found',
           message:
               'Could not find any backups in your Google Drive (Liftly Backup folder).',
-        );
+        ));
         return;
       }
 
@@ -322,7 +322,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   subtitle: Text(
                     date,
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: const TextStyle(color: AppColors.textSecondary),
                   ),
                   leading: const Icon(
                     Icons.insert_drive_file,
@@ -361,7 +361,7 @@ class _SettingsPageState extends State<SettingsPage> {
           final statusNotifier =
               ValueNotifier<String>('Starting Cloud restore...');
 
-          showDialog(
+          unawaited(showDialog(
             context: context,
             barrierDismissible: false,
             builder: (context) => PopScope(
@@ -394,7 +394,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
             ),
-          );
+          ));
 
           await Future.delayed(const Duration(milliseconds: 300));
 
@@ -410,21 +410,16 @@ class _SettingsPageState extends State<SettingsPage> {
           Navigator.pop(context); // Close progress dialog
 
           // Refresh Blocs so UI updates immediately
-          context.read<PlanBloc>().add(
-              const PlansFetchRequested(userId: AppConstants.defaultUserId));
-          context
-              .read<WorkoutBloc>()
-              .add(const WorkoutsFetched(userId: AppConstants.defaultUserId));
-          context
-              .read<StatsBloc>()
-              .add(const StatsFetched(userId: AppConstants.defaultUserId));
+          context.read<PlanBloc>().add(const PlansFetchRequested());
+          context.read<WorkoutBloc>().add(const WorkoutsFetched());
+          context.read<StatsBloc>().add(const StatsFetched());
 
-          AppDialogs.showSuccessDialog(
+          unawaited(AppDialogs.showSuccessDialog(
             context: context,
             title: 'Cloud Restore Successful',
             message:
                 'Application data has been successfully restored from Google Drive.',
-          );
+          ));
         }
       }
     } catch (e) {
@@ -435,11 +430,11 @@ class _SettingsPageState extends State<SettingsPage> {
           AppDialogs.hideLoadingDialog(context);
         } catch (_) {}
 
-        AppDialogs.showErrorDialog(
+        unawaited(AppDialogs.showErrorDialog(
           context: context,
           title: 'Cloud Restore Failed',
           message: e.toString(),
-        );
+        ));
       }
     } finally {
       if (mounted && _isLoading) setState(() => _isLoading = false);
@@ -471,7 +466,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final progressNotifier = ValueNotifier<double>(0.0);
       final statusNotifier = ValueNotifier<String>('Starting...');
 
-      showDialog(
+      unawaited(showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => PopScope(
@@ -504,7 +499,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
         ),
-      );
+      ));
 
       // 3. Process with callback
       // Add a small delay for dialog to build
@@ -522,15 +517,9 @@ class _SettingsPageState extends State<SettingsPage> {
         Navigator.pop(context); // Close progress dialog
 
         // Refresh Blocs so UI updates immediately
-        context
-            .read<PlanBloc>()
-            .add(const PlansFetchRequested(userId: AppConstants.defaultUserId));
-        context
-            .read<WorkoutBloc>()
-            .add(const WorkoutsFetched(userId: AppConstants.defaultUserId));
-        context
-            .read<StatsBloc>()
-            .add(const StatsFetched(userId: AppConstants.defaultUserId));
+        context.read<PlanBloc>().add(const PlansFetchRequested());
+        context.read<WorkoutBloc>().add(const WorkoutsFetched());
+        context.read<StatsBloc>().add(const StatsFetched());
 
         await AppDialogs.showSuccessDialog(
           context: context,
@@ -574,20 +563,15 @@ class _SettingsPageState extends State<SettingsPage> {
       if (context.mounted) {
         AppDialogs.hideLoadingDialog(context);
         if (context.mounted) {
-          context.read<PlanBloc>().add(
-              const PlansFetchRequested(userId: AppConstants.defaultUserId));
-          context
-              .read<WorkoutBloc>()
-              .add(const WorkoutsFetched(userId: AppConstants.defaultUserId));
-          context
-              .read<StatsBloc>()
-              .add(const StatsFetched(userId: AppConstants.defaultUserId));
+          context.read<PlanBloc>().add(const PlansFetchRequested());
+          context.read<WorkoutBloc>().add(const WorkoutsFetched());
+          context.read<StatsBloc>().add(const StatsFetched());
 
-          AppDialogs.showSuccessDialog(
+          unawaited(AppDialogs.showSuccessDialog(
             context: context,
             title: 'Success',
             message: 'All data cleared successfully',
-          );
+          ));
         }
       }
     } catch (e) {
@@ -618,21 +602,20 @@ class _SettingsPageState extends State<SettingsPage> {
             controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              SliverAppBar(
+              const SliverAppBar(
                 pinned: true,
                 automaticallyImplyLeading: false,
                 leadingWidth: 56,
-                leading: const SizedBox.shrink(),
-                title: const Text('Settings'),
+                leading: SizedBox.shrink(),
+                title: Text('Settings'),
               ),
               SliverPadding(
                 padding: const EdgeInsets.all(AppConstants.defaultPadding),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    FadeInSlide(
-                      index: 0,
-                      child: const SectionHeader(
-                          title: AppConstants.headerCloudBackup),
+                    const FadeInSlide(
+                      child:
+                          SectionHeader(title: AppConstants.headerCloudBackup),
                     ),
                     const SizedBox(height: 16),
                     if (_isCheckingStatus)
@@ -719,10 +702,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     const SizedBox(height: AppConstants.sectionSpacing),
 
                     // DATA MANAGEMENT SECTION
-                    FadeInSlide(
+                    const FadeInSlide(
                       index: 5,
-                      child: const SectionHeader(
-                          title: AppConstants.headerLocalData),
+                      child: SectionHeader(title: AppConstants.headerLocalData),
                     ),
                     const SizedBox(height: AppConstants.subSectionSpacing),
                     FadeInSlide(
@@ -749,10 +731,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     const SizedBox(height: AppConstants.sectionSpacing),
 
                     // DANGER ZONE
-                    FadeInSlide(
+                    const FadeInSlide(
                       index: 8,
-                      child: const SectionHeader(
-                          title: AppConstants.headerDangerZone),
+                      child:
+                          SectionHeader(title: AppConstants.headerDangerZone),
                     ),
                     const SizedBox(height: 16),
                     FadeInSlide(

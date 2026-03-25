@@ -632,8 +632,8 @@ class DataManagementService {
               (a['segment_order'] as int).compareTo(b['segment_order'] as int));
 
           final segments = segmentsData.map((segRow) {
-            int rFrom = segRow['reps_from'] as int? ?? 1;
-            int rTo =
+            final rFrom = segRow['reps_from'] as int? ?? 1;
+            var rTo =
                 segRow['reps_to'] as int? ?? (segRow['reps'] as int? ?? 1);
             if (rTo < rFrom) rTo = rFrom;
 

@@ -70,7 +70,6 @@ class _SessionPageState extends State<SessionPage> {
           context,
           duration: const Duration(milliseconds: 400),
           curve: Curves.easeOutCubic,
-          alignment: 0.0,
         );
       } else {
         // Fallback: Use a layout crawler to find items that aren't rendered yet
@@ -113,7 +112,6 @@ class _SessionPageState extends State<SessionPage> {
                       stepContext,
                       duration: const Duration(milliseconds: 400),
                       curve: Curves.easeOutCubic,
-                      alignment: 0.0,
                     );
                   }
                 });
@@ -127,10 +125,10 @@ class _SessionPageState extends State<SessionPage> {
                   const Duration(milliseconds: 80), () => stepJump(nextIdx));
             } else {
               // Context missing! We must blind-jump to force sliver layout
-              double currentOffset = _scrollController.offset;
-              double targetOffset =
+              final currentOffset = _scrollController.offset;
+              final targetOffset =
                   currentOffset + (isGoingDown ? 400.0 : -400.0);
-              double clampedOffset = targetOffset.clamp(
+              final clampedOffset = targetOffset.clamp(
                   0.0, _scrollController.position.maxScrollExtent);
 
               if ((clampedOffset - currentOffset).abs() < 1.0) return;
@@ -221,7 +219,7 @@ class _SessionPageState extends State<SessionPage> {
                         ),
                       ),
                       elevation: 4,
-                      child: Icon(
+                      child: const Icon(
                         Icons.keyboard_arrow_up_rounded,
                         color: AppColors.accent,
                         size: 20,
@@ -240,7 +238,7 @@ class _SessionPageState extends State<SessionPage> {
                         ),
                       ),
                       elevation: 4,
-                      child: Icon(
+                      child: const Icon(
                         Icons.format_list_bulleted_rounded,
                         color: AppColors.accent,
                         size: 20,
@@ -452,7 +450,7 @@ class _SessionPageState extends State<SessionPage> {
                                             children: [
                                               Text(
                                                 'EXERCISES (${exercises.length})',
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                   color: AppColors.accent,
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 12,
@@ -691,7 +689,6 @@ class _SessionPageState extends State<SessionPage> {
   ) {
     AppDialogs.showExerciseEntryDialog(
       context: context,
-      userId: AppConstants.defaultUserId,
       title: 'Edit Exercise',
       initialValue: exerciseName,
       initialVariation: currentVariation,
@@ -797,7 +794,6 @@ class _SessionPageState extends State<SessionPage> {
 
     AppDialogs.showExerciseEntryDialog(
       context: context,
-      userId: AppConstants.defaultUserId,
       title: 'Edit Exercise',
       initialValue: currentName,
       suggestions: availableExercises,
@@ -851,7 +847,7 @@ class _SessionPageState extends State<SessionPage> {
             .map((e) => e.name);
         uniqueNames.addAll(planNames);
       } else {
-        context.read<PlanBloc>().add(const PlansFetchRequested(userId: userId));
+        context.read<PlanBloc>().add(const PlansFetchRequested());
       }
 
       availableExercises = uniqueNames.toList()..sort();
@@ -864,7 +860,6 @@ class _SessionPageState extends State<SessionPage> {
 
     AppDialogs.showExerciseEntryDialog(
       context: context,
-      userId: AppConstants.defaultUserId,
       title: 'Add Exercise',
       hintText: 'Exercise Name (ex: Bench Press)',
       suggestions: availableExercises,

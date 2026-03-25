@@ -41,10 +41,6 @@ class UpdateService {
         },
       );
 
-      if (kDebugMode) {
-        AppLogger.debug('UpdateService', 'Version check response: ${response.statusCode}');
-      }
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final serverVersion = data['version'] as String?;
@@ -53,12 +49,9 @@ class UpdateService {
           final cleanServer = serverVersion.split('+')[0];
           final cleanApp = AppConstants.appVersion.split('+')[0];
 
-          if (kDebugMode) {
-            AppLogger.debug('UpdateService', 'Comparing Versions - Server: $cleanServer, App: $cleanApp');
-          }
-
           if (_isUpdateRequired(cleanServer, cleanApp)) {
-            AppLogger.info('UpdateService', 'UPDATE REQUIRED: $cleanApp -> $cleanServer');
+            AppLogger.info(
+                'UpdateService', 'UPDATE REQUIRED: $cleanApp -> $cleanServer');
             _timer?.cancel();
             platform.reloadPage();
           }
@@ -81,8 +74,10 @@ class UpdateService {
     // Only trigger update when server version is NEWER than app version.
     // This prevents infinite reload loops when running a newer local version
     // that hasn't been deployed yet.
-    final serverParts = serverVersion.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-    final appParts = appVersion.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final serverParts =
+        serverVersion.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final appParts =
+        appVersion.split('.').map((e) => int.tryParse(e) ?? 0).toList();
 
     // Pad to equal length
     while (serverParts.length < appParts.length) {

@@ -7,7 +7,6 @@ import 'package:liftly/core/models/workout_plan.dart';
 import 'package:liftly/core/models/workout_session.dart';
 import 'package:liftly/core/models/personal_record.dart';
 import 'package:liftly/core/services/statistics_service.dart';
-import 'package:liftly/core/utils/app_logger.dart';
 import 'package:liftly/core/utils/persistence_helper.dart';
 import 'package:liftly/core/constants/app_constants.dart';
 import 'package:path_provider/path_provider.dart';
@@ -174,7 +173,6 @@ class HiveService {
 
   static Future<void> _checkMetadataIntegrity() async {
     if (_metaBox.isEmpty && _workoutBox.isNotEmpty) {
-      AppLogger.debug('HiveService', 'Meta box empty, rebuilding index...');
       final metaMap = <String, WorkoutMetadata>{};
       for (final w in _workoutBox.values) {
         metaMap[w.id] = WorkoutMetadata(
@@ -185,7 +183,6 @@ class HiveService {
         );
       }
       await _metaBox.putAll(metaMap);
-      AppLogger.debug('HiveService', 'Index rebuilt with ${metaMap.length} items.');
     }
   }
 
@@ -331,7 +328,7 @@ class HiveService {
   static Future<void> updateWorkout(WorkoutSession workout) async {
     await init();
     await _workoutBox.put(workout.id, workout);
-    
+
     await _metaBox.put(
         workout.id,
         WorkoutMetadata(
@@ -617,7 +614,7 @@ class HiveService {
     // Also track original exercise names and variations for display
     final exerciseHistories = <String, List<Map<String, dynamic>>>{};
     final originalExerciseData = <String, (String name, String variation)>{};
-    
+
     for (final w in filteredWorkouts) {
       for (final ex in w.exercises) {
         if (ex.skipped) continue;
@@ -625,7 +622,7 @@ class HiveService {
         final exerciseNameLower = ex.name.toLowerCase();
         final variationLower = ex.variation.toLowerCase();
         final key = '$exerciseNameLower:$variationLower';
-        
+
         exerciseHistories.putIfAbsent(key, () => []);
         // Store original case for later display
         originalExerciseData[key] = (ex.name, ex.variation);
@@ -645,9 +642,10 @@ class HiveService {
     for (final entry in exerciseHistories.entries) {
       // Extract exercise name from key (format: exerciseName:variation)
       final originalData = originalExerciseData[entry.key];
-      final originalExerciseName = originalData?.$1 ?? entry.key.split(':').first;
+      final originalExerciseName =
+          originalData?.$1 ?? entry.key.split(':').first;
       final originalVariation = originalData?.$2 ?? '';
-      
+
       final pr = StatisticsService.calculatePRFromHistory(
         originalExerciseName,
         entry.value,

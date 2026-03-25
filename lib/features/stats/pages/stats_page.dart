@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../session/widgets/session_exercise_history_sheet.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import '../../../core/constants/app_constants.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
@@ -67,7 +66,7 @@ class _StatsPageState extends State<StatsPage> {
     _sharePreviewController = ScreenshotController();
 
     final bloc = context.read<StatsBloc>();
-    bloc.add(const StatsFetched(userId: AppConstants.defaultUserId));
+    bloc.add(const StatsFetched());
 
     // Watch for the first StatsLoading that comes after our dispatch, then
     // clear the flag once StatsLoaded/StatsError follows.
@@ -131,18 +130,18 @@ class _StatsPageState extends State<StatsPage> {
       // but let's keep it simple for this case
 
       // Capture the share preview widget
-      var image = await _sharePreviewController.capture(
+      final image = await _sharePreviewController.capture(
         delay: const Duration(milliseconds: 300),
         pixelRatio: 2.0,
       );
 
       if (image == null) {
         if (!context.mounted) return;
-        AppDialogs.showErrorDialog(
+        unawaited(AppDialogs.showErrorDialog(
           context: context,
           title: 'Capture Failed',
           message: 'Failed to capture screenshot. Please try again.',
-        );
+        ));
         return;
       }
 
@@ -167,11 +166,11 @@ class _StatsPageState extends State<StatsPage> {
       }
     } catch (e) {
       if (!context.mounted) return;
-      AppDialogs.showErrorDialog(
+      unawaited(AppDialogs.showErrorDialog(
         context: context,
         title: 'Share Error',
         message: 'Failed to share. Error: ${e.toString()}',
-      );
+      ));
     }
   }
 
@@ -191,11 +190,11 @@ class _StatsPageState extends State<StatsPage> {
 
       if (filteredRecords.isEmpty) {
         if (!mounted) return;
-        AppDialogs.showErrorDialog(
+        unawaited(AppDialogs.showErrorDialog(
           context: context,
           title: 'Nothing to Share',
           message: 'No personal records found with the current filter.',
-        );
+        ));
         return;
       }
 
@@ -233,7 +232,7 @@ class _StatsPageState extends State<StatsPage> {
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
+              const Text(
                 'One metric per exercise keeps the card clean.',
                 style: TextStyle(
                   color: AppColors.textSecondary,
@@ -285,11 +284,11 @@ class _StatsPageState extends State<StatsPage> {
       ], text: 'My Personal Records on Liftly! 🏆');
     } catch (e) {
       if (!context.mounted) return;
-      AppDialogs.showErrorDialog(
+      unawaited(AppDialogs.showErrorDialog(
         context: context,
         title: 'Share Failed',
         message: 'Failed to share records. Error: $e',
-      );
+      ));
     }
   }
 
@@ -319,7 +318,8 @@ class _StatsPageState extends State<StatsPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                  const Icon(Icons.error_outline,
+                      size: 64, color: AppColors.error),
                   const SizedBox(height: 16),
                   Text(
                     'Error',
@@ -333,17 +333,16 @@ class _StatsPageState extends State<StatsPage> {
                     child: Text(
                       state.message,
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: () {
                       context.read<StatsBloc>().add(
-                            const StatsFetched(
-                                userId: AppConstants.defaultUserId),
+                            const StatsFetched(),
                           );
                     },
                     child: const Text('Retry'),
@@ -416,7 +415,7 @@ class _StatsPageState extends State<StatsPage> {
                           _buildDynamicContent(context, activeState),
                           const SizedBox(
                             height: 100,
-                          ), // Padding to avoid footer overlap
+                          ),
                         ]),
                       ),
                     ),
@@ -480,7 +479,6 @@ class _StatsPageState extends State<StatsPage> {
               physics: const NeverScrollableScrollPhysics(),
               children: [
                 FadeInSlide(
-                  index: 0,
                   child: StatOverviewCard(
                     label: 'Workouts',
                     value: filteredSessions.length.toString(),
@@ -583,8 +581,8 @@ class _StatsPageState extends State<StatsPage> {
               ),
             ),
           ),
-          secondChild: Column(
-            key: const ValueKey('trends-empty'),
+          secondChild: const Column(
+            key: ValueKey('trends-empty'),
             children: [
               _EmptyStateCard(
                 icon: Icons.show_chart,
@@ -844,7 +842,6 @@ class _StatsPageState extends State<StatsPage> {
                         ],
                         border: Border.all(
                           color: AppColors.accent.withValues(alpha: 0.15),
-                          width: 1,
                         ),
                       ),
                       clipBehavior: Clip.hardEdge,
@@ -865,8 +862,6 @@ class _StatsPageState extends State<StatsPage> {
                             padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment:
-                                  MainAxisAlignment.start, // Avoid stretching
                               children: [
                                 // Exercise name
                                 Text(
@@ -1123,7 +1118,7 @@ class _StatsSharePreview extends StatelessWidget {
     return Container(
       width: 720,
       height: 1280,
-      decoration: BoxDecoration(color: const Color(0xFF0B0F14)),
+      decoration: const BoxDecoration(color: Color(0xFF0B0F14)),
       child: Center(
         child: Container(
           width: 640,
@@ -1133,7 +1128,6 @@ class _StatsSharePreview extends StatelessWidget {
             borderRadius: BorderRadius.circular(32),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.05),
-              width: 1,
             ),
             boxShadow: [
               BoxShadow(
@@ -1160,7 +1154,7 @@ class _StatsSharePreview extends StatelessWidget {
                           color: AppColors.accent.withValues(alpha: 0.2),
                         ),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.fitness_center,
                         color: AppColors.accent,
                         size: 24,
@@ -1268,7 +1262,7 @@ class _StatsSharePreview extends StatelessWidget {
                   isCompact: true,
                 ),
               ] else ...[
-                _EmptyStateCard(
+                const _EmptyStateCard(
                   icon: Icons.show_chart,
                   title: 'No Data',
                   message: 'Log workouts to see your growth.',
@@ -1338,7 +1332,7 @@ class _StatsSharePreview extends StatelessWidget {
             colors: [color.withValues(alpha: 0.15), Colors.transparent],
           ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Column(
           children: [
@@ -1464,7 +1458,7 @@ class _VolumeChartCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.cardBg,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderLight, width: 1),
+          border: Border.all(color: AppColors.borderLight),
         ),
         child: Center(
           child: Text(
@@ -1606,7 +1600,7 @@ class _VolumeChartCard extends StatelessWidget {
     if (rawMax <= 0) {
       chartInterval = 100;
     } else {
-      double targetInterval = rawMax / 3;
+      final double targetInterval = rawMax / 3;
       if (targetInterval <= 10) {
         chartInterval = 10;
       } else if (targetInterval <= 25) {
@@ -1642,7 +1636,6 @@ class _VolumeChartCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: AppColors.success.withValues(alpha: 0.3),
-          width: 1,
         ),
       ),
       child: Column(
@@ -1662,7 +1655,6 @@ class _VolumeChartCard extends StatelessWidget {
             child: BarChart(
               BarChartData(
                 gridData: FlGridData(
-                  show: true,
                   drawVerticalLine: false,
                   horizontalInterval: chartInterval,
                   getDrawingHorizontalLine: (value) {
@@ -1673,7 +1665,6 @@ class _VolumeChartCard extends StatelessWidget {
                   },
                 ),
                 barTouchData: BarTouchData(
-                  enabled: true,
                   touchTooltipData: BarTouchTooltipData(
                     getTooltipColor: (_) => AppColors.cardBg,
                     tooltipBorder: BorderSide(
@@ -1693,7 +1684,7 @@ class _VolumeChartCard extends StatelessWidget {
 
                       return BarTooltipItem(
                         '$titleTooltip\n',
-                        TextStyle(
+                        const TextStyle(
                           color: AppColors.textSecondary,
                           fontWeight: FontWeight.bold,
                           fontSize: 10,
@@ -1714,16 +1705,10 @@ class _VolumeChartCard extends StatelessWidget {
                   ),
                 ),
                 titlesData: FlTitlesData(
-                  show: true,
-                  rightTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
+                  rightTitles: const AxisTitles(),
+                  topTitles: const AxisTitles(),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
-                      showTitles: true,
                       interval: 1, // Draw all, filter in getTitlesWidget
                       getTitlesWidget: (double value, TitleMeta meta) {
                         final index = value.toInt();
@@ -1764,7 +1749,6 @@ class _VolumeChartCard extends StatelessWidget {
                   ),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
-                      showTitles: true,
                       interval: chartInterval,
                       getTitlesWidget: (double value, TitleMeta meta) {
                         // Skip values higher than finalMaxY to prevent edge labels
@@ -1784,15 +1768,12 @@ class _VolumeChartCard extends StatelessWidget {
                   ),
                 ),
                 borderData: FlBorderData(
-                  show: true,
                   border: Border(
                     bottom: BorderSide(
                       color: AppColors.success.withValues(alpha: 0.2),
-                      width: 1,
                     ),
                     left: BorderSide(
                       color: AppColors.success.withValues(alpha: 0.2),
-                      width: 1,
                     ),
                   ),
                 ),
@@ -1929,8 +1910,8 @@ class _WorkoutFrequencyCard extends StatelessWidget {
         title = 'Workout Frequency (${DateFormat('MMMM yyyy').format(now)})';
 
         // Calculate weeks
-        int totalDays = lastDayOfMonth.day;
-        int weeksCount = (totalDays / 7).ceil();
+        final int totalDays = lastDayOfMonth.day;
+        final int weeksCount = (totalDays / 7).ceil();
 
         frequencyData = List.filled(weeksCount, 0);
 
@@ -2036,7 +2017,6 @@ class _WorkoutFrequencyCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: AppColors.accent.withValues(alpha: 0.3),
-            width: 1,
           ),
         ),
         child: Column(
@@ -2132,7 +2112,7 @@ class _WorkoutFrequencyCard extends StatelessWidget {
             ? (maxFreq <= 25 ? 25 : (maxFreq / 5).ceil() * 5)
             : (maxFreq < 3 ? 3 : maxFreq + 1);
 
-    List<BarChartGroupData> barGroups = [];
+    final List<BarChartGroupData> barGroups = [];
     for (int i = 0; i < frequencyData.length; i++) {
       barGroups.add(
         BarChartGroupData(
@@ -2171,7 +2151,6 @@ class _WorkoutFrequencyCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: AppColors.accent.withValues(alpha: 0.3),
-          width: 1,
         ),
       ),
       child: Column(
@@ -2193,7 +2172,6 @@ class _WorkoutFrequencyCard extends StatelessWidget {
             child: BarChart(
               BarChartData(
                 gridData: FlGridData(
-                  show: true,
                   drawVerticalLine: false,
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
@@ -2203,7 +2181,6 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                   },
                 ),
                 barTouchData: BarTouchData(
-                  enabled: true,
                   touchTooltipData: BarTouchTooltipData(
                     getTooltipColor: (_) => AppColors.cardBg,
                     tooltipBorder: BorderSide(
@@ -2227,16 +2204,10 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                   ),
                 ),
                 titlesData: FlTitlesData(
-                  show: true,
-                  rightTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
+                  rightTitles: const AxisTitles(),
+                  topTitles: const AxisTitles(),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
-                      showTitles: true,
                       interval: timePeriod == TimePeriod.month &&
                               frequencyData.length > 10
                           ? 5
@@ -2266,7 +2237,6 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                   ),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
-                      showTitles: true,
                       interval: timePeriod == TimePeriod.month &&
                               frequencyData.length > 10
                           ? 5
@@ -2559,7 +2529,6 @@ class _TimePeriodSelectorState extends State<_TimePeriodSelector> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.1),
-          width: 1,
         ),
       ),
       padding: const EdgeInsets.all(4),
@@ -3202,7 +3171,6 @@ class _EmptyStateCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: AppColors.textSecondary.withValues(alpha: 0.2),
-                width: 1,
               ),
             ),
             child: Column(
@@ -3474,7 +3442,7 @@ class _ExerciseFilterDialogState extends State<_ExerciseFilterDialog> {
                                   padding: const EdgeInsets.only(top: 2),
                                   child: Text(
                                     weight.variation,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       color: AppColors.accent,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,

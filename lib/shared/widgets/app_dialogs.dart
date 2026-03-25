@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/constants/colors.dart';
 import '../../features/workout_log/repositories/workout_repository.dart';
 import 'suggestion_text_field.dart';
@@ -331,7 +332,7 @@ class AppDialogs {
   static void showExerciseEntryDialog({
     required BuildContext context,
     required String title,
-    required String userId,
+    String userId = AppConstants.defaultUserId,
     String? initialValue,
     String? initialVariation,
     String? hintText,

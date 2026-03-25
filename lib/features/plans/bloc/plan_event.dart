@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../core/constants/app_constants.dart';
+
 abstract class PlanEvent extends Equatable {
   const PlanEvent();
 
@@ -10,7 +12,7 @@ abstract class PlanEvent extends Equatable {
 class PlansFetchRequested extends PlanEvent {
   final String userId;
 
-  const PlansFetchRequested({required this.userId});
+  const PlansFetchRequested({this.userId = AppConstants.defaultUserId});
 
   @override
   List<Object?> get props => [userId];
@@ -54,14 +56,8 @@ class PlanUpdated extends PlanEvent {
   });
 
   @override
-  List<Object?> get props => [
-        userId,
-        planId,
-        name,
-        description,
-        exercises,
-        exerciseVariations
-      ];
+  List<Object?> get props =>
+      [userId, planId, name, description, exercises, exerciseVariations];
 }
 
 class PlanDeleted extends PlanEvent {

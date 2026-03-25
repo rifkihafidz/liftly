@@ -571,7 +571,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
             .toSet();
         uniqueNames.addAll(planNames);
       } else {
-        context.read<PlanBloc>().add(const PlansFetchRequested(userId: userId));
+        context.read<PlanBloc>().add(const PlansFetchRequested());
       }
 
       availableExercises = uniqueNames.toList()..sort();
@@ -584,7 +584,6 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
 
     AppDialogs.showExerciseEntryDialog(
       context: context,
-      userId: AppConstants.defaultUserId,
       title: 'Add Exercise',
       hintText: 'Exercise Name (ex: Bench Press)',
       suggestions: availableExercises,
@@ -838,7 +837,6 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
 
     AppDialogs.showExerciseEntryDialog(
       context: context,
-      userId: AppConstants.defaultUserId,
       title: 'Edit Exercise',
       initialValue: _currentExercise.name,
       initialVariation: _currentExercise.variation,

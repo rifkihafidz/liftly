@@ -35,7 +35,7 @@ class StatisticsService {
     for (final set in sets) {
       final segments = set.segments;
       double currentSetVolume = 0;
-      List<String> breakdownParts = [];
+      final breakdownParts = <String>[];
       double firstSegmentWeight = 0;
       int totalSetReps = 0;
 
@@ -112,8 +112,7 @@ class StatisticsService {
     for (final record in history) {
       // 1. Max Weight
       final rMaxWeight = (record['maxWeight'] as num).toDouble();
-      final rMaxWeightReps =
-          (record['maxWeightReps'] as num?)?.toInt() ?? 0;
+      final rMaxWeightReps = (record['maxWeightReps'] as num?)?.toInt() ?? 0;
       if (rMaxWeight > globalMaxWeight) {
         globalMaxWeight = rMaxWeight;
         globalMaxWeightReps = rMaxWeightReps;

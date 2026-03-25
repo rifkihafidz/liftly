@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -106,29 +107,29 @@ class _HomePageState extends State<HomePage> {
 
               if (confirm == true) {
                 // Resume Draft
-                Navigator.push(
+                unawaited(Navigator.push(
                   context,
                   SmoothPageRoute(page: SessionPage(draftSession: draft)),
-                );
+                ));
               } else {
-                Navigator.push(
+                unawaited(Navigator.push(
                   context,
                   SmoothPageRoute(page: const StartWorkoutPage()),
-                );
+                ));
               }
             } else {
               // No Draft
-              Navigator.push(
+              unawaited(Navigator.push(
                 context,
                 SmoothPageRoute(page: const StartWorkoutPage()),
-              );
+              ));
             }
           } else if (state is SessionError) {
-            AppDialogs.showErrorDialog(
+            unawaited(AppDialogs.showErrorDialog(
               context: context,
               title: "Error",
               message: state.message,
-            );
+            ));
           }
         },
         child: CustomScrollView(
@@ -147,7 +148,6 @@ class _HomePageState extends State<HomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     FadeInSlide(
-                      index: 0,
                       child: Text(
                         DateFormat(
                           'EEEE, dd MMMM yyyy',
@@ -194,7 +194,8 @@ class _HomePageState extends State<HomePage> {
                         icon: Icons.add_rounded,
                         onTap: () {
                           context.read<SessionBloc>().add(
-                                const SessionCheckDraftRequested(userId: AppConstants.defaultUserId),
+                                const SessionCheckDraftRequested(
+                                    userId: AppConstants.defaultUserId),
                               );
                         },
                       ),
