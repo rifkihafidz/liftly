@@ -1709,6 +1709,7 @@ class _VolumeChartCard extends StatelessWidget {
                   topTitles: const AxisTitles(),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
+                      showTitles: true,
                       interval: 1, // Draw all, filter in getTitlesWidget
                       getTitlesWidget: (double value, TitleMeta meta) {
                         final index = value.toInt();
@@ -1749,6 +1750,7 @@ class _VolumeChartCard extends StatelessWidget {
                   ),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
+                      showTitles: true,
                       interval: chartInterval,
                       getTitlesWidget: (double value, TitleMeta meta) {
                         // Skip values higher than finalMaxY to prevent edge labels
@@ -2208,6 +2210,7 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                   topTitles: const AxisTitles(),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
+                      showTitles: true,
                       interval: timePeriod == TimePeriod.month &&
                               frequencyData.length > 10
                           ? 5
@@ -2237,6 +2240,7 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                   ),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
+                      showTitles: true,
                       interval: timePeriod == TimePeriod.month &&
                               frequencyData.length > 10
                           ? 5
