@@ -7,14 +7,14 @@ import '../../../core/models/personal_record.dart';
 class SessionExerciseHistorySheet extends StatelessWidget {
   final String exerciseName;
   final String exerciseVariation;
-  final WorkoutSession? history;
+  final List<WorkoutSession>? histories;
   final PersonalRecord? pr;
 
   const SessionExerciseHistorySheet({
     super.key,
     required this.exerciseName,
     this.exerciseVariation = '',
-    this.history,
+    this.histories,
     this.pr,
   });
 
@@ -32,14 +32,22 @@ class SessionExerciseHistorySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Find the specific exercise in the history session by variation
-    final historyExercise = history?.exercises
-        .where((e) =>
-            e.name.toLowerCase() == exerciseName.toLowerCase() &&
-            e.variation.toLowerCase() == exerciseVariation.toLowerCase())
-        .firstOrNull;
+    final validHistories = <(WorkoutSession, SessionExercise)>[];
 
-    final showHistory = history != null && historyExercise != null;
+    if (histories != null) {
+      for (final h in histories!) {
+        final historyExercise = h.exercises
+            .where((e) =>
+                e.name.toLowerCase() == exerciseName.toLowerCase() &&
+                e.variation.toLowerCase() == exerciseVariation.toLowerCase())
+            .firstOrNull;
+        if (historyExercise != null) {
+          validHistories.add((h, historyExercise));
+        }
+      }
+    }
+
+    final showHistory = validHistories.isNotEmpty;
 
     // Resolve Best Session sets for the active variation
     List<ExerciseSet>? bestSets;
@@ -47,15 +55,14 @@ class SessionExerciseHistorySheet extends StatelessWidget {
     double bestSessionVol = 0;
 
     if (pr?.bestSessionSets != null) {
-      // PR data is already filtered by variation at the Hive level
       bestSets = pr!.bestSessionSets;
       bestSessionDate = pr!.bestSessionDate;
       bestSessionVol = pr!.bestSessionVolume;
-    } else if (historyExercise != null && history != null) {
-      // No PR yet — use last session as the best reference
-      bestSets = historyExercise.sets;
-      bestSessionDate = history!.workoutDate.toIso8601String();
-      bestSessionVol = historyExercise.totalVolume;
+    } else if (showHistory) {
+      final firstHistory = validHistories.first;
+      bestSets = firstHistory.$2.sets;
+      bestSessionDate = firstHistory.$1.workoutDate.toIso8601String();
+      bestSessionVol = firstHistory.$2.totalVolume;
     }
 
     final showBestSessionSection =
@@ -90,14 +97,20 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                         exerciseName,
                         style: Theme.of(
                           context,
-                        ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        )
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       if (exerciseVariation.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             exerciseVariation,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
                                   color: AppColors.accent,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -116,28 +129,30 @@ class SessionExerciseHistorySheet extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             if (showHistory) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Last Session (${_formatDate(history!.workoutDate)})',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                        ),
-                  ),
-                  Text(
-                    'Total Volume: ${_formatNumber(historyExercise.totalVolume)} kg',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textSecondary,
-                        ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ..._renderSets(context, historyExercise.sets),
-              const SizedBox(height: 24),
+              for (final entry in validHistories) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Session on ${_formatDate(entry.$1.workoutDate)}',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                    Text(
+                      'Total Volume: ${_formatNumber(entry.$2.totalVolume)} kg',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ..._renderSets(context, entry.$2.sets),
+                const SizedBox(height: 24),
+              ],
             ] else
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),

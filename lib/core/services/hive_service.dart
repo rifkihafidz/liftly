@@ -468,33 +468,29 @@ class HiveService {
     return history;
   }
 
-  static Future<WorkoutSession?> getLastExerciseLog(
+  static Future<List<WorkoutSession>> getLatestExerciseLogs(
       String userId, String exerciseName,
-      {String exerciseVariation = ''}) async {
+      {String exerciseVariation = '', int limit = 2}) async {
     await init();
-    final cacheKey =
-        '$userId:${exerciseName.toLowerCase()}:${exerciseVariation.toLowerCase()}';
-    if (_lastExerciseLogCache.containsKey(cacheKey)) {
-      return _lastExerciseLogCache[cacheKey];
-    }
 
     final workouts = _workoutBox.values
         .where((w) => w.userId == userId && !w.isDraft)
         .toList()
       ..sort((a, b) => b.workoutDate.compareTo(a.workoutDate)); // DESC
 
+    final results = <WorkoutSession>[];
     for (final w in workouts) {
       for (final ex in w.exercises) {
         if (ex.name.toLowerCase() == exerciseName.toLowerCase() &&
             ex.variation.toLowerCase() == exerciseVariation.toLowerCase() &&
             !ex.skipped) {
-          _lastExerciseLogCache[cacheKey] = w;
-          return w;
+          results.add(w);
+          if (results.length >= limit) return results;
+          break; // Move to next workout session once we find the exercise
         }
       }
     }
-    _lastExerciseLogCache[cacheKey] = null;
-    return null;
+    return results;
   }
 
   static Future<List<String>> getExerciseNames(String userId) async {

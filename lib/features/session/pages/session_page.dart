@@ -467,7 +467,7 @@ class _SessionPageState extends State<SessionPage> {
                                           exercise: exercise,
                                           exerciseIndex: exIndex,
                                           // History is keyed by variation
-                                          history: state.previousSessions[
+                                          histories: state.previousSessions[
                                               '${exercise.name}:${exercise.variation}'
                                                   .toLowerCase()],
                                           // PR cards: variation-specific only
@@ -662,7 +662,7 @@ class _SessionPageState extends State<SessionPage> {
     BuildContext context,
     String exerciseName,
     String exerciseVariation,
-    WorkoutSession? lastSession,
+    List<WorkoutSession>? histories,
     PersonalRecord? pr,
   ) {
     showModalBottomSheet(
@@ -675,7 +675,7 @@ class _SessionPageState extends State<SessionPage> {
       builder: (context) => SessionExerciseHistorySheet(
         exerciseName: exerciseName,
         exerciseVariation: exerciseVariation,
-        history: lastSession,
+        histories: histories,
         pr: pr,
       ),
     );
@@ -700,6 +700,12 @@ class _SessionPageState extends State<SessionPage> {
                 newVariation: newVariation,
               ),
             );
+      },
+      onJumpToExercise: () {
+        final state = context.read<SessionBloc>().state;
+        if (state is SessionInProgress) {
+          _showExerciseJumpSheet(context, state.session.exercises);
+        }
       },
     );
   }
@@ -942,7 +948,7 @@ class _SessionPageState extends State<SessionPage> {
               const Divider(height: 1),
               ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.45,
+                  maxHeight: MediaQuery.of(context).size.height * 0.6,
                 ),
                 child: ListView.builder(
                   shrinkWrap: true,

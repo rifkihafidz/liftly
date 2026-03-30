@@ -21,7 +21,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   bool _isGenerating = false;
 
   String _formatDateWithTimeRange(DateTime date) {
-    return DateFormat('dd MMMM yyyy').format(date);
+    return DateFormat('EEEE, dd MMMM yyyy').format(date);
   }
 
   String _formatTimeRange(DateTime? startedAt, DateTime? endedAt) {
@@ -266,7 +266,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                 child: Row(
                   children: [
                     _buildOptionButton(
-                      label: 'Classic',
+                      label: 'Normal',
                       isActive: !_isTransparent,
                       onTap: () => setState(() => _isTransparent = false),
                     ),

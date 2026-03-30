@@ -9,21 +9,20 @@ import 'workout_form_widgets.dart';
 class SessionExerciseCard extends StatefulWidget {
   final SessionExercise exercise;
   final int exerciseIndex;
-  final WorkoutSession? history;
+  final List<WorkoutSession>? histories;
   final PersonalRecord? pr;
-  final VoidCallback onSkipToggle;
-  final VoidCallback onHistoryTap;
-  final VoidCallback onAddSet;
-  final Function(int setIndex) onRemoveSet;
-  final Function(int setIndex) onAddDropSet;
-  final Function(int setIndex, int segmentIndex) onRemoveDropSet;
-  final Function(int setIndex, int segmentIndex, String field, dynamic value)
-      onUpdateSegment;
-  final VoidCallback? onEditName;
-  final VoidCallback? onEditVariation;
-  final VoidCallback? onDelete;
   final int? focusedSetIndex;
   final int? focusedSegmentIndex;
+  final VoidCallback onAddSet;
+  final Function(int) onRemoveSet;
+  final Function(int) onAddDropSet;
+  final Function(int, int) onRemoveDropSet;
+  final Function(int, int, String, dynamic) onUpdateSegment;
+  final VoidCallback onHistoryTap;
+  final VoidCallback? onEditVariation;
+  final VoidCallback? onEditName;
+  final VoidCallback? onDelete;
+  final VoidCallback onSkipToggle;
   final bool isAlwaysExpanded;
   final bool isLastExercise;
 
@@ -31,20 +30,20 @@ class SessionExerciseCard extends StatefulWidget {
     super.key,
     required this.exercise,
     required this.exerciseIndex,
-    this.history,
+    this.histories,
     this.pr,
-    required this.onSkipToggle,
-    required this.onHistoryTap,
+    this.focusedSetIndex,
+    this.focusedSegmentIndex,
     required this.onAddSet,
     required this.onRemoveSet,
     required this.onAddDropSet,
     required this.onRemoveDropSet,
     required this.onUpdateSegment,
-    this.onEditName,
+    required this.onHistoryTap,
     this.onEditVariation,
+    this.onEditName,
     this.onDelete,
-    this.focusedSetIndex,
-    this.focusedSegmentIndex,
+    required this.onSkipToggle,
     this.isAlwaysExpanded = false,
     this.isLastExercise = false,
   });

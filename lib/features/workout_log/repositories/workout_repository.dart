@@ -61,16 +61,18 @@ class WorkoutRepository {
     }
   }
 
-  Future<WorkoutSession?> getLastExerciseLog({
+  Future<List<WorkoutSession>> getLatestExerciseLogs({
     required String userId,
     required String exerciseName,
     String exerciseVariation = '',
+    int limit = 2,
   }) async {
     try {
-      return await _localDataSource.getLastExerciseLog(
-          userId, exerciseName, exerciseVariation);
+      return await _localDataSource.getLatestExerciseLogs(
+          userId, exerciseName, exerciseVariation,
+          limit: limit);
     } catch (e) {
-      return null;
+      return [];
     }
   }
 

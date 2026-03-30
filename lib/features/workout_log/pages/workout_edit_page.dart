@@ -35,7 +35,7 @@ class WorkoutEditPage extends StatefulWidget {
 class _WorkoutEditPageState extends State<WorkoutEditPage> {
   late WorkoutSession _editedWorkout;
   final _workoutRepository = WorkoutRepository();
-  final Map<String, WorkoutSession> _previousSessions = {};
+  final Map<String, List<WorkoutSession>> _exerciseHistories = {};
   final Map<String, PersonalRecord> _exercisePRs = {};
 
   @override
@@ -354,7 +354,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     final initialExercise = _editedWorkout.exercises[exerciseIndex];
     final statsKey =
         '${initialExercise.name}:${initialExercise.variation}'.toLowerCase();
-    final history = _previousSessions[statsKey];
+    final history = _exerciseHistories[statsKey];
     final pr = _exercisePRs[statsKey];
 
     showGeneralDialog(
@@ -365,7 +365,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
         return _ExerciseEditDialog(
           initialExercise: initialExercise,
           exerciseIndex: exerciseIndex,
-          history: history,
+          histories: history,
           pr: pr,
           onSave: (updatedExercise) {
             setState(() {
@@ -406,7 +406,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
               context,
               name,
               variation,
-              _previousSessions[statsKey],
+              _exerciseHistories[statsKey],
               _exercisePRs[statsKey],
             );
           },
@@ -528,7 +528,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     BuildContext context,
     String exerciseName,
     String exerciseVariation,
-    WorkoutSession? history,
+    List<WorkoutSession>? history,
     PersonalRecord? pr,
   ) {
     showModalBottomSheet(
@@ -541,7 +541,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
         return SessionExerciseHistorySheet(
           exerciseName: exerciseName,
           exerciseVariation: exerciseVariation,
-          history: history,
+          histories: history,
           pr: pr,
         );
       },
@@ -640,7 +640,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     final statsKey = '$name:$variation'.toLowerCase();
 
     final results = await Future.wait([
-      _workoutRepository.getLastExerciseLog(
+      _workoutRepository.getLatestExerciseLogs(
         userId: userId,
         exerciseName: name,
         exerciseVariation: variation,
@@ -655,7 +655,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     if (!mounted) return;
     setState(() {
       if (results[0] != null) {
-        _previousSessions[statsKey] = results[0] as WorkoutSession;
+        _exerciseHistories[statsKey] = results[0] as List<WorkoutSession>;
       }
       if (results[1] != null) {
         _exercisePRs[statsKey] = results[1] as PersonalRecord;
@@ -776,7 +776,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
 class _ExerciseEditDialog extends StatefulWidget {
   final SessionExercise initialExercise;
   final int exerciseIndex;
-  final WorkoutSession? history;
+  final List<WorkoutSession>? histories;
   final PersonalRecord? pr;
   final Function(SessionExercise) onSave;
   final VoidCallback onDelete;
@@ -786,7 +786,7 @@ class _ExerciseEditDialog extends StatefulWidget {
   const _ExerciseEditDialog({
     required this.initialExercise,
     required this.exerciseIndex,
-    this.history,
+    this.histories,
     this.pr,
     required this.onSave,
     required this.onDelete,
@@ -919,7 +919,7 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
       children: [
         ExerciseViewHeader(
           exercise: _currentExercise,
-          history: widget.history,
+          histories: widget.histories,
           pr: widget.pr,
           onHistoryTap: () => widget.onHistoryTap?.call(
             _currentExercise.name,
@@ -965,7 +965,7 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
           SessionExerciseCard(
             exercise: _currentExercise,
             exerciseIndex: widget.exerciseIndex,
-            history: widget.history,
+            histories: widget.histories,
             pr: widget.pr,
             isAlwaysExpanded: true,
             onHistoryTap: () => widget.onHistoryTap?.call(

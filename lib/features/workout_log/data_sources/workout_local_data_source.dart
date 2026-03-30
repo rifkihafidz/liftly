@@ -101,18 +101,19 @@ class WorkoutLocalDataSource {
     }
   }
 
-  /// Get the last logged session for a specific exercise
-  Future<WorkoutSession?> getLastExerciseLog(
+  /// Get the latest logged sessions for a specific exercise
+  Future<List<WorkoutSession>> getLatestExerciseLogs(
     String userId,
     String exerciseName,
-    String exerciseVariation,
-  ) async {
+    String exerciseVariation, {
+    int limit = 2,
+  }) async {
     try {
-      return await HiveService.getLastExerciseLog(userId, exerciseName,
-          exerciseVariation: exerciseVariation);
+      return await HiveService.getLatestExerciseLogs(userId, exerciseName,
+          exerciseVariation: exerciseVariation, limit: limit);
     } catch (e) {
-      AppLogger.error(_tag, 'SELECT: getLastExerciseLog FAILED', e);
-      return null;
+      AppLogger.error(_tag, 'SELECT: getLatestExerciseLogs FAILED', e);
+      return [];
     }
   }
 

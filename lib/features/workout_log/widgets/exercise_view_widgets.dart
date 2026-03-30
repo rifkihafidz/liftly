@@ -7,14 +7,14 @@ import '../../../core/models/personal_record.dart';
 /// Lightweight header for view mode - only shows exercise info, no editing
 class ExerciseViewHeader extends StatelessWidget {
   final SessionExercise exercise;
-  final WorkoutSession? history;
+  final List<WorkoutSession>? histories;
   final PersonalRecord? pr;
   final VoidCallback? onHistoryTap;
 
   const ExerciseViewHeader({
     super.key,
     required this.exercise,
-    this.history,
+    this.histories,
     this.pr,
     this.onHistoryTap,
   });
@@ -64,7 +64,7 @@ class ExerciseViewHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              if (history != null || pr != null)
+              if (histories != null || pr != null)
                 IconButton(
                   icon: const Icon(Icons.history, size: 20),
                   color: AppColors.textSecondary,

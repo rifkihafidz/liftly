@@ -19,6 +19,8 @@ import 'stats_shimmer.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
 import '../../../shared/widgets/cards/stat_overview_card.dart';
 import '../../../shared/widgets/navigation/active_tab_scope.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../workout_log/repositories/workout_repository.dart';
 
 class StatsPage extends StatefulWidget {
   const StatsPage({super.key});
@@ -788,31 +790,25 @@ class _StatsPageState extends State<StatsPage> {
                 return FadeInSlide(
                   index: index,
                   child: InkWell(
-                    onTap: () {
-                      // Find last session for this exercise with matching variation
-                      WorkoutSession? lastSession;
-                      try {
-                        final exerciseName = entry.value.exerciseName;
-                        lastSession = allSessions.firstWhere((s) => s.exercises
-                            .any((e) =>
-                                e.name.toLowerCase() ==
-                                    exerciseName.toLowerCase() &&
-                                e.variation.toLowerCase() ==
-                                    entry.value.variation.toLowerCase()));
-                      } catch (_) {
-                        // Fallback to first matching exercise without variation check
+                    onTap: () async {
+                      final workoutRepository = WorkoutRepository();
+                      List<WorkoutSession>? lastSessions;
+                      if (context.mounted) {
                         try {
-                          final exerciseName = entry.value.exerciseName;
-                          lastSession = allSessions.firstWhere((s) =>
-                              s.exercises.any((e) =>
-                                  e.name.toLowerCase() ==
-                                  exerciseName.toLowerCase()));
+                          lastSessions =
+                              await workoutRepository.getLatestExerciseLogs(
+                            userId: AppConstants.defaultUserId,
+                            exerciseName: entry.value.exerciseName,
+                            exerciseVariation: entry.value.variation,
+                          );
                         } catch (_) {
                           // ignore
                         }
                       }
 
-                      showModalBottomSheet(
+                      if (!context.mounted) return;
+
+                      await showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
                         backgroundColor: AppColors.cardBg,
@@ -823,7 +819,7 @@ class _StatsPageState extends State<StatsPage> {
                         builder: (context) => SessionExerciseHistorySheet(
                           exerciseName: entry.value.exerciseName,
                           exerciseVariation: entry.value.variation,
-                          history: lastSession,
+                          histories: lastSessions,
                           pr: entry.value,
                         ),
                       );

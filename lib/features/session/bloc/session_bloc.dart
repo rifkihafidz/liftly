@@ -101,7 +101,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       // Load history and PRs in parallel for better performance
       final historyFutures = <Future<void>>[];
 
-      final previousSessions = <String, WorkoutSession>{};
+      final previousSessions = <String, List<WorkoutSession>>{};
       final exercisePRs = <String, PersonalRecord>{};
 
       for (int i = 0; i < event.exerciseNames.length; i++) {
@@ -114,12 +114,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
 
         historyFutures.add(
           _workoutRepository
-              .getLastExerciseLog(
-                  userId: event.userId,
-                  exerciseName: name,
-                  exerciseVariation: variation)
-              .then((lastLog) {
-            if (lastLog != null) previousSessions[statsKey] = lastLog;
+              .getLatestExerciseLogs(
+            userId: event.userId,
+            exerciseName: name,
+            exerciseVariation: variation,
+          )
+              .then((logs) {
+            if (logs.isNotEmpty) previousSessions[statsKey] = logs;
           }),
         );
 
@@ -351,7 +352,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
   }) async {
     final statsKey = '$name:$variation'.toLowerCase();
     final results = await Future.wait([
-      _workoutRepository.getLastExerciseLog(
+      _workoutRepository.getLatestExerciseLogs(
         userId: userId,
         exerciseName: name,
         exerciseVariation: variation,
@@ -366,12 +367,12 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     if (state is! SessionInProgress) return;
     final currentState = state as SessionInProgress;
     final updatedPreviousSessions =
-        Map<String, WorkoutSession>.from(currentState.previousSessions);
+        Map<String, List<WorkoutSession>>.from(currentState.previousSessions);
     final updatedExercisePRs =
         Map<String, PersonalRecord>.from(currentState.exercisePRs);
 
-    if (results[0] != null) {
-      updatedPreviousSessions[statsKey] = results[0] as WorkoutSession;
+    if (results[0] != null && (results[0] as List).isNotEmpty) {
+      updatedPreviousSessions[statsKey] = results[0] as List<WorkoutSession>;
     }
     if (results[1] != null) {
       updatedExercisePRs[statsKey] = results[1] as PersonalRecord;
@@ -707,7 +708,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       // Load history and PRs in parallel
       final historyFutures = <Future<void>>[];
 
-      final previousSessions = <String, WorkoutSession>{};
+      final previousSessions = <String, List<WorkoutSession>>{};
       final exercisePRs = <String, PersonalRecord>{};
 
       for (final ex in session.exercises) {
@@ -717,12 +718,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
 
         historyFutures.add(
           _workoutRepository
-              .getLastExerciseLog(
-                  userId: session.userId,
-                  exerciseName: name,
-                  exerciseVariation: variation)
-              .then((lastLog) {
-            if (lastLog != null) previousSessions[statsKey] = lastLog;
+              .getLatestExerciseLogs(
+            userId: session.userId,
+            exerciseName: name,
+            exerciseVariation: variation,
+          )
+              .then((logs) {
+            if (logs.isNotEmpty) previousSessions[statsKey] = logs;
           }),
         );
 

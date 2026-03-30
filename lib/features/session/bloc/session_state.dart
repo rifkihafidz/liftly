@@ -30,7 +30,7 @@ class SessionDraftCheckSuccess extends SessionState {
 
 class SessionInProgress extends SessionState {
   final WorkoutSession session;
-  final Map<String, WorkoutSession> previousSessions;
+  final Map<String, List<WorkoutSession>> previousSessions;
   final Map<String, PersonalRecord> exercisePRs;
   final int? focusedExerciseIndex;
   final int? focusedSetIndex;
@@ -69,7 +69,7 @@ class SessionInProgress extends SessionState {
 
   SessionInProgress copyWith({
     WorkoutSession? session,
-    Map<String, WorkoutSession>? previousSessions,
+    Map<String, List<WorkoutSession>>? previousSessions,
     Map<String, PersonalRecord>? exercisePRs,
     int? focusedExerciseIndex,
     int? focusedSetIndex,
