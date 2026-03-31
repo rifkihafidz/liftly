@@ -910,105 +910,116 @@ class _SessionPageState extends State<SessionPage> {
       BuildContext context, List<SessionExercise> exercises) {
     showModalBottomSheet<int>(
       context: context,
-      backgroundColor: AppColors.cardBg,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (sheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Jump to Exercise',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(sheetContext),
-                      icon: const Icon(Icons.close,
-                          color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
+        return DraggableScrollableSheet(
+          initialChildSize: 0.8,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: AppColors.cardBg,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
-              const Divider(height: 1),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.8,
-                ),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: exercises.length,
-                  itemBuilder: (context, index) {
-                    final ex = exercises[index];
-                    return ListTile(
-                      onTap: () {
-                        Navigator.pop(sheetContext, index);
-                      },
-                      leading: Container(
-                        width: 32,
-                        height: 32,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: ex.skipped
-                              ? AppColors.textSecondary.withValues(alpha: 0.1)
-                              : AppColors.accent.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '${index + 1}',
-                          style: TextStyle(
-                            color: ex.skipped
-                                ? AppColors.textSecondary
-                                : AppColors.accent,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+              child: Column(
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.textSecondary.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      title: Text(
-                        ex.name,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: ex.skipped
-                              ? AppColors.textSecondary
-                              : AppColors.textPrimary,
-                          decoration:
-                              ex.skipped ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Jump to Exercise',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
                         ),
-                      ),
-                      subtitle: ex.variation.isNotEmpty
-                          ? Text(
-                              ex.variation,
+                        IconButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          icon: const Icon(Icons.close,
+                              color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: exercises.length,
+                      itemBuilder: (context, index) {
+                        final ex = exercises[index];
+                        return ListTile(
+                          onTap: () {
+                            Navigator.pop(sheetContext, index);
+                          },
+                          leading: Container(
+                            width: 32,
+                            height: 32,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: ex.skipped
+                                  ? AppColors.textSecondary
+                                      .withValues(alpha: 0.1)
+                                  : AppColors.accent.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${index + 1}',
                               style: TextStyle(
                                 color: ex.skipped
                                     ? AppColors.textSecondary
-                                        .withValues(alpha: 0.5)
-                                    : AppColors.accent.withValues(alpha: 0.7),
-                                fontSize: 12,
+                                    : AppColors.accent,
+                                fontWeight: FontWeight.bold,
                               ),
-                            )
-                          : null,
-                      trailing: Text(
-                        '${ex.sets.length} sets',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                            ),
+                          ),
+                          title: Text(
+                            ex.name,
+                            style: TextStyle(
+                              color: ex.skipped
+                                  ? AppColors.textSecondary
+                                  : AppColors.textPrimary,
+                              decoration: ex.skipped
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                          subtitle: ex.variation.isNotEmpty
+                              ? Text(
+                                  ex.variation,
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12),
+                                )
+                              : null,
+                          trailing: const Icon(Icons.chevron_right,
+                              size: 20, color: AppColors.textSecondary),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     ).then((selectedIndex) {
