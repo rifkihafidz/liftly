@@ -942,7 +942,7 @@ class _SessionPageState extends State<SessionPage> {
               const Divider(height: 1),
               ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.6,
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
                 ),
                 child: ListView.builder(
                   shrinkWrap: true,
