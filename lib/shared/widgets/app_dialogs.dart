@@ -338,7 +338,6 @@ class AppDialogs {
     String? hintText,
     required List<String> suggestions,
     required Function(String name, String variation) onConfirm,
-    VoidCallback? onJumpToExercise,
   }) {
     showDialog(
       context: context,
@@ -350,7 +349,6 @@ class AppDialogs {
         hintText: hintText,
         suggestions: suggestions,
         onConfirm: onConfirm,
-        onJumpToExercise: onJumpToExercise,
       ),
     );
   }
@@ -452,7 +450,6 @@ class _ExerciseEntryDialog extends StatefulWidget {
   final String? hintText;
   final List<String> suggestions;
   final Function(String name, String variation) onConfirm;
-  final VoidCallback? onJumpToExercise;
 
   const _ExerciseEntryDialog({
     required this.title,
@@ -462,7 +459,6 @@ class _ExerciseEntryDialog extends StatefulWidget {
     this.hintText,
     required this.suggestions,
     required this.onConfirm,
-    this.onJumpToExercise,
   });
 
   @override
@@ -584,19 +580,6 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
         ),
       ),
       actions: [
-        if (widget.onJumpToExercise != null)
-          TextButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              widget.onJumpToExercise!();
-            },
-            icon: const Icon(Icons.list_alt_rounded, size: 18),
-            label: const Text('Jump'),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.accent,
-            ),
-          ),
-        const Spacer(),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(

@@ -701,12 +701,6 @@ class _SessionPageState extends State<SessionPage> {
               ),
             );
       },
-      onJumpToExercise: () {
-        final state = context.read<SessionBloc>().state;
-        if (state is SessionInProgress) {
-          _showExerciseJumpSheet(context, state.session.exercises);
-        }
-      },
     );
   }
 
