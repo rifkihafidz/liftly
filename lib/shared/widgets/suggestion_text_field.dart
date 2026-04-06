@@ -28,6 +28,7 @@ class SuggestionTextField extends StatefulWidget {
 class _SuggestionTextFieldState extends State<SuggestionTextField> {
   List<String> _filteredSuggestions = [];
   bool _isSelecting = false;
+  bool _isInteractingWithSuggestions = false;
   final FocusNode _internalFocusNode = FocusNode();
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
@@ -59,10 +60,15 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
     if (_effectiveFocusNode.hasFocus) {
       _updateSuggestions();
     } else {
-      // Small delay to allow tap on suggestion to register
-      Future.delayed(const Duration(milliseconds: 150), () {
+      // Small delay to allow tap/interaction on suggestion to register
+      Future.delayed(const Duration(milliseconds: 200), () {
         if (mounted && !_effectiveFocusNode.hasFocus) {
-          _removeOverlay();
+          if (!_isInteractingWithSuggestions) {
+            _removeOverlay();
+          } else {
+            // If lost focus while interacting with overlay, refocused
+            _effectiveFocusNode.requestFocus();
+          }
         }
       });
     }
@@ -163,15 +169,30 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
           showWhenUnlinked: false,
           offset:
               Offset(0, showAbove ? -(actualMaxHeight + 4) : size.height + 4),
-          child: Material(
-            elevation: 12,
-            borderRadius: BorderRadius.circular(16),
-            color: AppColors.cardBg,
-            clipBehavior: Clip.antiAlias,
-            child: Listener(
-              onPointerDown: (_) {
-                _effectiveFocusNode.requestFocus();
-              },
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) {
+              setState(() => _isInteractingWithSuggestions = true);
+              _effectiveFocusNode.requestFocus();
+            },
+            onPointerUp: (_) {
+              // Delay setting to false to allow focus listener to catch it
+              Future.delayed(const Duration(milliseconds: 300), () {
+                if (mounted)
+                  setState(() => _isInteractingWithSuggestions = false);
+              });
+            },
+            onPointerCancel: (_) {
+              Future.delayed(const Duration(milliseconds: 300), () {
+                if (mounted)
+                  setState(() => _isInteractingWithSuggestions = false);
+              });
+            },
+            child: Material(
+              elevation: 12,
+              borderRadius: BorderRadius.circular(16),
+              color: AppColors.cardBg,
+              clipBehavior: Clip.antiAlias,
               child: Container(
                 constraints: BoxConstraints(maxHeight: actualMaxHeight),
                 decoration: const BoxDecoration(),
