@@ -261,9 +261,7 @@ class _SessionPageState extends State<SessionPage> {
                 title: 'Draft Saved',
                 message: 'Your workout draft has been saved.',
                 onConfirm: () {
-                  if (mounted) {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  }
+                  // Stay on session page
                 },
               );
             } else if (state is SessionSaved) {

@@ -773,7 +773,14 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         workout: session,
       );
 
-      emit(SessionDraftSaved(session: savedSession));
+      emit(SessionDraftSaved(
+        session: savedSession,
+        previousSessions: currentState.previousSessions,
+        exercisePRs: currentState.exercisePRs,
+        focusedExerciseIndex: currentState.focusedExerciseIndex,
+        focusedSetIndex: currentState.focusedSetIndex,
+        focusedSegmentIndex: currentState.focusedSegmentIndex,
+      ));
     } catch (e) {
       emit(SessionError(message: 'Failed to save draft: $e'));
     }

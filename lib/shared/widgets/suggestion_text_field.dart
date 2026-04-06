@@ -134,6 +134,26 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
   OverlayEntry _createOverlayEntry() {
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
+    final offset = renderBox.localToGlobal(Offset.zero);
+
+    // Get screen and keyboard info
+    final mediaQuery = MediaQuery.of(context);
+    final screenHeight = mediaQuery.size.height;
+    final keyboardHeight = mediaQuery.viewInsets.bottom;
+    final usableHeight = screenHeight - keyboardHeight;
+
+    // Space calculations
+    const double minOverlayHeight = 100;
+    const double preferredMaxHeight = 200;
+    final double spaceBelow = usableHeight - (offset.dy + size.height) - 8;
+    final double spaceAbove = offset.dy - mediaQuery.padding.top - 8;
+
+    // Determine position
+    final bool showAbove =
+        spaceBelow < minOverlayHeight && spaceAbove > spaceBelow;
+    final double actualMaxHeight = showAbove
+        ? spaceAbove.clamp(minOverlayHeight, preferredMaxHeight)
+        : spaceBelow.clamp(minOverlayHeight, preferredMaxHeight);
 
     return OverlayEntry(
       builder: (context) => Positioned(
@@ -141,19 +161,23 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
         child: CompositedTransformFollower(
           link: _layerLink,
           showWhenUnlinked: false,
-          offset: Offset(0, size.height + 4),
+          // If showing above, offset Y by -(actualHeight + 4)
+          // Since CompositedTransformFollower offset is relative to LeaderLink (top-left of TextField)
+          offset:
+              Offset(0, showAbove ? -(actualMaxHeight + 4) : size.height + 4),
           child: Material(
-            elevation:
-                12, // Increased elevation for better depth without borders
+            elevation: 12,
             borderRadius: BorderRadius.circular(16),
             color: AppColors.cardBg,
             clipBehavior: Clip.antiAlias,
             child: Container(
-              constraints: const BoxConstraints(maxHeight: 200),
+              constraints: BoxConstraints(maxHeight: actualMaxHeight),
               decoration: const BoxDecoration(),
               child: ListView.separated(
                 padding: EdgeInsets.zero,
                 shrinkWrap: true,
+                // Ensure ListView doesn't take focus
+                primary: false,
                 itemCount: _filteredSuggestions.length,
                 separatorBuilder: (context, index) => Divider(
                   height: 1,
@@ -162,10 +186,10 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
                 itemBuilder: (context, index) {
                   final suggestion = _filteredSuggestions[index];
                   return InkWell(
+                    // CRITICAL: Prevent InkWell from taking focus away from TextField
+                    canRequestFocus: false,
                     onTap: () {
                       _selectSuggestion(suggestion);
-                      // Only update the field, don't submit yet
-                      // User will click confirm button in dialog or press enter
                     },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(

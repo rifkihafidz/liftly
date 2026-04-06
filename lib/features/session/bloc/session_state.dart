@@ -97,13 +97,25 @@ class SessionSaved extends SessionState {
   List<Object?> get props => [session];
 }
 
-class SessionDraftSaved extends SessionState {
-  final WorkoutSession session;
-
-  const SessionDraftSaved({required this.session});
+class SessionDraftSaved extends SessionInProgress {
+  const SessionDraftSaved({
+    required super.session,
+    super.previousSessions,
+    super.exercisePRs,
+    super.focusedExerciseIndex,
+    super.focusedSetIndex,
+    super.focusedSegmentIndex,
+  });
 
   @override
-  List<Object?> get props => [session];
+  List<Object?> get props => [
+        session,
+        previousSessions,
+        exercisePRs,
+        focusedExerciseIndex,
+        focusedSetIndex,
+        focusedSegmentIndex,
+      ];
 }
 
 class SessionError extends SessionState {
