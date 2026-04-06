@@ -161,8 +161,6 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
         child: CompositedTransformFollower(
           link: _layerLink,
           showWhenUnlinked: false,
-          // If showing above, offset Y by -(actualHeight + 4)
-          // Since CompositedTransformFollower offset is relative to LeaderLink (top-left of TextField)
           offset:
               Offset(0, showAbove ? -(actualMaxHeight + 4) : size.height + 4),
           child: Material(
@@ -170,42 +168,46 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
             borderRadius: BorderRadius.circular(16),
             color: AppColors.cardBg,
             clipBehavior: Clip.antiAlias,
-            child: Container(
-              constraints: BoxConstraints(maxHeight: actualMaxHeight),
-              decoration: const BoxDecoration(),
-              child: ListView.separated(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                // Ensure ListView doesn't take focus
-                primary: false,
-                itemCount: _filteredSuggestions.length,
-                separatorBuilder: (context, index) => Divider(
-                  height: 1,
-                  color: AppColors.borderLight.withValues(alpha: 0.05),
+            child: Listener(
+              onPointerDown: (_) {
+                _effectiveFocusNode.requestFocus();
+              },
+              child: Container(
+                constraints: BoxConstraints(maxHeight: actualMaxHeight),
+                decoration: const BoxDecoration(),
+                child: ListView.separated(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  primary: false,
+                  itemCount: _filteredSuggestions.length,
+                  separatorBuilder: (context, index) => Divider(
+                    height: 1,
+                    color: AppColors.borderLight.withValues(alpha: 0.05),
+                  ),
+                  itemBuilder: (context, index) {
+                    final suggestion = _filteredSuggestions[index];
+                    return InkWell(
+                      canRequestFocus: false,
+                      onTap: () {
+                        _selectSuggestion(suggestion);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Text(
+                          suggestion,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                itemBuilder: (context, index) {
-                  final suggestion = _filteredSuggestions[index];
-                  return InkWell(
-                    // CRITICAL: Prevent InkWell from taking focus away from TextField
-                    canRequestFocus: false,
-                    onTap: () {
-                      _selectSuggestion(suggestion);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        suggestion,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                      ),
-                    ),
-                  );
-                },
               ),
             ),
           ),
