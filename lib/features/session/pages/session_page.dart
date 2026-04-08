@@ -46,6 +46,7 @@ class _SessionPageState extends State<SessionPage> {
   late SessionBloc _sessionBloc;
   final Map<int, GlobalKey> _exerciseKeys = {};
   final ScrollController _scrollController = ScrollController();
+  bool _shouldPopOnDraftSave = false;
 
   GlobalKey _getKeyForExercise(int index) {
     return _exerciseKeys.putIfAbsent(index, () => GlobalKey());
@@ -261,7 +262,10 @@ class _SessionPageState extends State<SessionPage> {
                 title: 'Draft Saved',
                 message: 'Your workout draft has been saved.',
                 onConfirm: () {
-                  // Stay on session page
+                  if (_shouldPopOnDraftSave && mounted) {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  }
+                  _shouldPopOnDraftSave = false;
                 },
               );
             } else if (state is SessionSaved) {
@@ -737,6 +741,7 @@ class _SessionPageState extends State<SessionPage> {
             ),
             TextButton(
               onPressed: () {
+                _shouldPopOnDraftSave = true;
                 Navigator.pop(dialogContext); // Close dialog
                 context.read<SessionBloc>().add(
                       const SessionSaveDraftRequested(),

@@ -178,14 +178,16 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
             onPointerUp: (_) {
               // Delay setting to false to allow focus listener to catch it
               Future.delayed(const Duration(milliseconds: 300), () {
-                if (mounted)
+                if (mounted) {
                   setState(() => _isInteractingWithSuggestions = false);
+                }
               });
             },
             onPointerCancel: (_) {
               Future.delayed(const Duration(milliseconds: 300), () {
-                if (mounted)
+                if (mounted) {
                   setState(() => _isInteractingWithSuggestions = false);
+                }
               });
             },
             child: Material(
