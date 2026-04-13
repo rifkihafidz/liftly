@@ -734,7 +734,8 @@ class _SessionPageState extends State<SessionPage> {
               onPressed: () {
                 Navigator.pop(dialogContext); // Close dialog
                 context.read<SessionBloc>().add(const SessionDiscarded());
-                Navigator.pop(context); // Close page (Discard)
+                // Close page and go to Home
+                Navigator.of(context).popUntil((route) => route.isFirst);
               },
               style: TextButton.styleFrom(foregroundColor: AppColors.error),
               child: const Text('Discard'),
@@ -1110,12 +1111,25 @@ class _SessionPageState extends State<SessionPage> {
                                 ),
                               ),
                             ),
-                            title: Text(
-                              ex.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.textPrimary,
-                              ),
+                            title: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  ex.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                if (ex.variation.isNotEmpty)
+                                  Text(
+                                    ex.variation,
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                              ],
                             ),
                             trailing: ReorderableDelayedDragStartListener(
                               index: index,

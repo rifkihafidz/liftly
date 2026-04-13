@@ -22,9 +22,11 @@ class StatisticsService {
   ) {
     double sessionMaxWeight = 0;
     int sessionMaxWeightReps = 0;
+    String sessionMaxWeightNotes = '';
     double sessionTotalVolume = 0;
     double bestSetVolume = 0;
     String bestSetVolumeBreakdown = '';
+    String bestSetVolumeNotes = '';
     double bestSetVolumeWeight = 0;
     int bestSetVolumeReps = 0;
     int sessionTotalReps = 0;
@@ -36,6 +38,7 @@ class StatisticsService {
       final segments = set.segments;
       double currentSetVolume = 0;
       final breakdownParts = <String>[];
+      final setNotes = <String>[];
       double firstSegmentWeight = 0;
       int totalSetReps = 0;
 
@@ -52,9 +55,11 @@ class StatisticsService {
         if (seg.weight > sessionMaxWeight) {
           sessionMaxWeight = seg.weight;
           sessionMaxWeightReps = effectiveReps;
+          sessionMaxWeightNotes = seg.notes;
         } else if (seg.weight == sessionMaxWeight) {
           if (effectiveReps > sessionMaxWeightReps) {
             sessionMaxWeightReps = effectiveReps;
+            sessionMaxWeightNotes = seg.notes;
           }
         }
 
@@ -64,11 +69,15 @@ class StatisticsService {
 
         breakdownParts.add(
             '${seg.weight % 1 == 0 ? seg.weight.toInt() : seg.weight} kg x $effectiveReps');
+        if (seg.notes.isNotEmpty) {
+          setNotes.add(seg.notes);
+        }
       }
 
       if (currentSetVolume > bestSetVolume) {
         bestSetVolume = currentSetVolume;
         bestSetVolumeBreakdown = breakdownParts.join(' + ');
+        bestSetVolumeNotes = setNotes.join(', ');
         bestSetVolumeWeight = firstSegmentWeight;
         bestSetVolumeReps = totalSetReps;
       }
@@ -80,8 +89,10 @@ class StatisticsService {
       'totalReps': sessionTotalReps,
       'maxWeight': sessionMaxWeight,
       'maxWeightReps': sessionMaxWeightReps,
+      'maxWeightNotes': sessionMaxWeightNotes,
       'bestSetVolume': bestSetVolume,
       'bestSetVolumeBreakdown': bestSetVolumeBreakdown,
+      'bestSetVolumeNotes': bestSetVolumeNotes,
       'bestSetVolumeWeight': bestSetVolumeWeight,
       'bestSetVolumeReps': bestSetVolumeReps,
       'sets': sets,
@@ -98,11 +109,13 @@ class StatisticsService {
 
     double globalMaxWeight = 0;
     int globalMaxWeightReps = 0;
+    String globalMaxWeightNotes = '';
 
     double globalMaxSetVolume = 0;
     double globalMaxSetVolumeWeight = 0;
     int globalMaxSetVolumeReps = 0;
     String globalMaxSetVolumeBreakdown = '';
+    String globalMaxSetVolumeNotes = '';
 
     double globalBestSessionVolume = 0;
     int globalBestSessionReps = 0;
@@ -113,12 +126,16 @@ class StatisticsService {
       // 1. Max Weight
       final rMaxWeight = (record['maxWeight'] as num).toDouble();
       final rMaxWeightReps = (record['maxWeightReps'] as num?)?.toInt() ?? 0;
+      final rMaxWeightNotes = record['maxWeightNotes'] as String? ?? '';
+
       if (rMaxWeight > globalMaxWeight) {
         globalMaxWeight = rMaxWeight;
         globalMaxWeightReps = rMaxWeightReps;
+        globalMaxWeightNotes = rMaxWeightNotes;
       } else if (rMaxWeight == globalMaxWeight &&
           rMaxWeightReps > globalMaxWeightReps) {
         globalMaxWeightReps = rMaxWeightReps;
+        globalMaxWeightNotes = rMaxWeightNotes;
       }
 
       // 2. Max Set Volume
@@ -131,6 +148,7 @@ class StatisticsService {
             (record['bestSetVolumeReps'] as num?)?.toInt() ?? 0;
         globalMaxSetVolumeBreakdown =
             record['bestSetVolumeBreakdown'] as String;
+        globalMaxSetVolumeNotes = record['bestSetVolumeNotes'] as String? ?? '';
       }
 
       // 3. Best Session Volume
@@ -164,10 +182,12 @@ class StatisticsService {
     return PersonalRecord(
       maxWeight: globalMaxWeight,
       maxWeightReps: globalMaxWeightReps,
+      maxWeightNotes: globalMaxWeightNotes,
       maxVolume: globalMaxSetVolume,
       maxVolumeWeight: globalMaxSetVolumeWeight,
       maxVolumeReps: globalMaxSetVolumeReps,
       maxVolumeBreakdown: globalMaxSetVolumeBreakdown,
+      maxVolumeNotes: globalMaxSetVolumeNotes,
       bestSessionVolume: globalBestSessionVolume,
       bestSessionReps: globalBestSessionReps,
       bestSessionDate: globalBestSessionDate,

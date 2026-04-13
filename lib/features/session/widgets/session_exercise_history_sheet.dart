@@ -207,9 +207,11 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                       value: '${_formatNumber(pr!.maxWeight)} kg',
                       details: '${pr!.maxWeightReps} reps',
                       icon: Icons.fitness_center_rounded,
-                      notes: exerciseVariation.isNotEmpty
-                          ? exerciseVariation
-                          : null,
+                      notes: pr!.maxWeightNotes.isNotEmpty
+                          ? pr!.maxWeightNotes
+                          : (exerciseVariation.isNotEmpty
+                              ? exerciseVariation
+                              : null),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -222,9 +224,11 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                           ? pr!.maxVolumeBreakdown
                           : '${_formatNumber(pr!.maxVolumeWeight)} kg x ${pr!.maxVolumeReps}',
                       icon: Icons.auto_graph_rounded,
-                      notes: exerciseVariation.isNotEmpty
-                          ? exerciseVariation
-                          : null,
+                      notes: pr!.maxVolumeNotes.isNotEmpty
+                          ? pr!.maxVolumeNotes
+                          : (exerciseVariation.isNotEmpty
+                              ? exerciseVariation
+                              : null),
                     ),
                   ),
                 ],
