@@ -183,8 +183,8 @@ class SessionExercise extends Equatable {
     // Variation field is more reliable (e.g., "Single Arm", "Right Leg")
     final nameLower = name.toLowerCase();
     final variationLower = variation.toLowerCase();
-    
-    if (nameLower.contains('single') || 
+
+    if (nameLower.contains('single') ||
         nameLower.contains('unilateral') ||
         variationLower.contains('single') ||
         variationLower.contains('unilateral')) {
@@ -342,10 +342,14 @@ class WorkoutSession extends Equatable {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       planId: identical(planId, _absent) ? this.planId : planId as String?,
-      planName: identical(planName, _absent) ? this.planName : planName as String?,
+      planName:
+          identical(planName, _absent) ? this.planName : planName as String?,
       workoutDate: workoutDate ?? this.workoutDate,
-      startedAt: identical(startedAt, _absent) ? this.startedAt : startedAt as DateTime?,
-      endedAt: identical(endedAt, _absent) ? this.endedAt : endedAt as DateTime?,
+      startedAt: identical(startedAt, _absent)
+          ? this.startedAt
+          : startedAt as DateTime?,
+      endedAt:
+          identical(endedAt, _absent) ? this.endedAt : endedAt as DateTime?,
       exercises: exercises ?? this.exercises,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

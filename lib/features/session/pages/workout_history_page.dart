@@ -51,9 +51,12 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
     if (activeTab != null &&
         _lastActiveTab != null &&
         activeTab != _lastActiveTab &&
-        activeTab == 1 &&
-        _scrollController.hasClients) {
-      _scrollController.jumpTo(0);
+        activeTab == 1) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
+      // Force refresh when tab becomes active to load newly saved workouts
+      _loadWorkouts();
     }
     _lastActiveTab = activeTab;
   }
@@ -449,6 +452,11 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                 _isLoadingMore = false;
               });
             }
+          }
+
+          // Force refresh list if an update was successful elsewhere (e.g. from Detail -> Edit)
+          if (state is WorkoutUpdatedSuccess || state is WorkoutSuccess) {
+            _loadWorkouts();
           }
         },
         child: BlocBuilder<WorkoutBloc, WorkoutState>(

@@ -23,6 +23,8 @@ import '../../plans/bloc/plan_bloc.dart';
 import '../../plans/bloc/plan_event.dart';
 import '../../plans/bloc/plan_state.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../workout_log/bloc/workout_bloc.dart';
+import '../../workout_log/bloc/workout_event.dart';
 
 class SessionPage extends StatefulWidget {
   final List<SessionExercise> exercises; // Updated from exerciseNames
@@ -269,6 +271,11 @@ class _SessionPageState extends State<SessionPage> {
                 },
               );
             } else if (state is SessionSaved) {
+              // Ensure WorkoutBloc is refreshed with the newly completed workout
+              context.read<WorkoutBloc>().add(
+                    const WorkoutsFetched(limit: 20),
+                  );
+
               AppDialogs.showSuccessDialog(
                 context: context,
                 title: 'Success',
