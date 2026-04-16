@@ -142,10 +142,9 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                       _currentWorkout = updatedWorkout;
                     });
                   } catch (e) {
-                    // Workout not found in list -> it was deleted!
-                    if (mounted) {
-                      Navigator.pop(context);
-                    }
+                    // Workout not found in list.
+                    // Do nothing here instead of popping, because it might just be missing
+                    // from the paginated cache, or deleted on another screen which handles its own pop.
                   }
                 }
               }

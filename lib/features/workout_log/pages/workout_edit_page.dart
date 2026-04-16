@@ -111,7 +111,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
               onConfirm: () {
                 // Extract context before pop
                 final currentContext = context;
-                Navigator.pop(currentContext);
+                Navigator.pop(currentContext, true);
               },
             );
           } else if (state is WorkoutError) {

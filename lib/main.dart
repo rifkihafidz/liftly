@@ -76,8 +76,13 @@ class _LiftlyState extends State<Liftly> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && kIsWeb) {
-      UpdateService.checkVersion();
+    if (state == AppLifecycleState.resumed) {
+      if (kIsWeb) {
+        UpdateService.checkVersion();
+      }
+      // Force a UI rebuild to recover from WebGL context loss
+      // which often causes a blank screen on Android Chrome after tab switching.
+      setState(() {});
     }
   }
 
