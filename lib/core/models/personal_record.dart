@@ -5,13 +5,14 @@ class PersonalRecord extends Equatable {
   // Metric 1: Max Weight (Heaviest Set - individual segment)
   final double maxWeight;
   final int maxWeightReps;
-
+  final String? maxWeightDate;
   final String maxWeightNotes;
 
   // Metric 2: Max Volume Set (Best volume in a single set - aggregated segments)
   final double maxVolume;
   final double maxVolumeWeight;
   final int maxVolumeReps;
+  final String? maxVolumeDate;
   final String maxVolumeBreakdown; // ex: "(10 kg x 10 + 5 kg x 2)"
   final String maxVolumeNotes;
 
@@ -37,10 +38,12 @@ class PersonalRecord extends Equatable {
     this.variation = '',
     this.maxWeight = 0,
     this.maxWeightReps = 0,
+    this.maxWeightDate,
     this.maxWeightNotes = '',
     this.maxVolume = 0,
     this.maxVolumeWeight = 0,
     this.maxVolumeReps = 0,
+    this.maxVolumeDate,
     this.maxVolumeBreakdown = '',
     this.maxVolumeNotes = '',
     this.bestSessionVolume = 0,
@@ -55,10 +58,12 @@ class PersonalRecord extends Equatable {
         variation,
         maxWeight,
         maxWeightReps,
+        maxWeightDate,
         maxWeightNotes,
         maxVolume,
         maxVolumeWeight,
         maxVolumeReps,
+        maxVolumeDate,
         maxVolumeBreakdown,
         maxVolumeNotes,
         bestSessionVolume,

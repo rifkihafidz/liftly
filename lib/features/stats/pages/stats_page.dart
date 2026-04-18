@@ -2107,7 +2107,9 @@ class _WorkoutFrequencyCard extends StatelessWidget {
         .toDouble();
     final double maxYValue =
         timePeriod == TimePeriod.year || timePeriod == TimePeriod.allTime
-            ? (maxFreq <= 25 ? 25 : (maxFreq / 5).ceil() * 5)
+            ? (timePeriod == TimePeriod.allTime
+                ? ((maxFreq / 25).ceil() + 1) * 25
+                : (maxFreq <= 25 ? 25 : (maxFreq / 5).ceil() * 5))
             : (maxFreq < 3 ? 3 : maxFreq + 1);
 
     final List<BarChartGroupData> barGroups = [];
@@ -2240,10 +2242,9 @@ class _WorkoutFrequencyCard extends StatelessWidget {
                       interval: timePeriod == TimePeriod.month &&
                               frequencyData.length > 10
                           ? 5
-                          : ((timePeriod == TimePeriod.year ||
-                                  timePeriod == TimePeriod.allTime)
-                              ? 5
-                              : 1),
+                          : (timePeriod == TimePeriod.allTime
+                              ? 25
+                              : (timePeriod == TimePeriod.year ? 5 : 1)),
                       getTitlesWidget: (double value, TitleMeta meta) {
                         return Text(
                           '${value.toInt()}',

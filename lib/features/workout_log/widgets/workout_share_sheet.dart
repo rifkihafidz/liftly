@@ -20,22 +20,62 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   bool _isTransparent = false;
   bool _isGenerating = false;
 
+  final Map<String, bool> _showOptions = {
+    'Date': true,
+    'Plan': true,
+    'Exercises': true,
+    'Total Sets': true,
+    'Total Volume': true,
+    'Duration (H & m)': true,
+    'Duration (Time)': true,
+  };
+
   String _formatDateWithTimeRange(DateTime date) {
     return DateFormat('EEEE, dd MMMM yyyy').format(date);
   }
 
-  String _formatTimeRange(DateTime? startedAt, DateTime? endedAt) {
-    if (startedAt == null || endedAt == null) {
-      return '-';
-    }
+  String _formatDuration(DateTime? startedAt, DateTime? endedAt) {
+    if (startedAt == null || endedAt == null) return '-';
     final duration = endedAt.difference(startedAt);
     final h = duration.inHours;
     final m = duration.inMinutes % 60;
-    final durationStr = h > 0 ? '${h}h ${m}m' : '${m}m';
+    return h > 0 ? '${h}h ${m}m' : '${m}m';
+  }
 
+  String _formatTimeRange(DateTime? startedAt, DateTime? endedAt) {
+    if (startedAt == null || endedAt == null) return '-';
     final startTimeStr = DateFormat('HH:mm').format(startedAt);
     final endTimeStr = DateFormat('HH:mm').format(endedAt);
-    return '$durationStr ($startTimeStr - $endTimeStr)';
+    return '$startTimeStr - $endTimeStr';
+  }
+
+  String _formatFullDuration(DateTime? startedAt, DateTime? endedAt) {
+    final showDurationText = _showOptions['Duration (H & m)'] ?? false;
+    final showTimeRange = _showOptions['Duration (Time)'] ?? false;
+
+    if (!showDurationText && !showTimeRange) return '-';
+
+    final duration = _formatDuration(startedAt, endedAt);
+    final timeRange = _formatTimeRange(startedAt, endedAt);
+
+    if (showDurationText && showTimeRange) {
+      return '$duration ($timeRange)';
+    } else if (showDurationText) {
+      return duration;
+    } else {
+      return timeRange;
+    }
+  }
+
+  void _toggleOption(String key) {
+    final enabledCount = _showOptions.values.where((v) => v).length;
+    if (enabledCount <= 3 && (_showOptions[key] ?? false)) {
+      // Prevent unselecting if it would leave fewer than 3 options
+      return;
+    }
+    setState(() {
+      _showOptions[key] = !(_showOptions[key] ?? false);
+    });
   }
 
   String _formatNumber(double number) {
@@ -99,7 +139,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
       top: false,
       child: SingleChildScrollView(
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 24),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: const BoxDecoration(
             color: AppColors.darkBg,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -130,138 +170,245 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
 
                   // Screenshot Target Area
                   Center(
-                    child: Stack(
-                      children: [
-                        // 1. Visual Background (Checkerboard for transparency preview)
-                        if (_isTransparent)
-                          Container(
-                            width: 320,
-                            height: (workout.planName?.isNotEmpty ?? false)
-                                ? 480
-                                : 440,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child:
-                                  CustomPaint(painter: CheckerboardPainter()),
-                            ),
-                          ),
+                    child: SizedBox(
+                      width: 280,
+                      height: ((workout.planName?.isNotEmpty ?? false) &&
+                              (_showOptions['Plan'] ?? true))
+                          ? 420
+                          : 385,
+                      child: FittedBox(
+                        child: Stack(
+                          children: [
+                            // 1. Visual Background (Checkerboard for transparency preview)
+                            if (_isTransparent)
+                              Container(
+                                width: 320,
+                                height:
+                                    ((workout.planName?.isNotEmpty ?? false) &&
+                                            (_showOptions['Plan'] ?? true))
+                                        ? 480
+                                        : 440,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: CustomPaint(
+                                      painter: CheckerboardPainter()),
+                                ),
+                              ),
 
-                        // 2. The Actual Content to Capture
-                        Screenshot(
-                          controller: _screenshotController,
-                          child: Container(
-                            width: 320,
-                            height: (workout.planName?.isNotEmpty ?? false)
-                                ? 480
-                                : 440,
-                            decoration: BoxDecoration(
-                              color: _isTransparent
-                                  ? Colors.transparent
-                                  : AppColors.cardBg,
-                              borderRadius: BorderRadius.circular(16),
-                              // Ensure shadow/border only when NOT transparent to avoid artifacts
-                              border: _isTransparent
-                                  ? null
-                                  : Border.all(color: AppColors.borderLight),
-                            ),
-                            alignment: Alignment.center,
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                children: [
-                                  // Badge - Only show if NOT generating (saving)
-                                  if (_isTransparent && !_isGenerating)
-                                    Align(
-                                      alignment: Alignment.topLeft,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          border: Border.all(
-                                            color: Colors.white,
-                                            width: 1.5,
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                        ),
-                                        child: const Text(
-                                          'TRANSPARENT',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-
-                                  const Spacer(),
-
-                                  _buildStatGroup(
-                                    'Date',
-                                    _formatDateWithTimeRange(
-                                        workout.effectiveDate),
-                                    isSmall: true,
-                                  ),
-                                  const SizedBox(height: 10),
-
-                                  if (workout.planName != null &&
-                                      workout.planName!.isNotEmpty) ...[
-                                    _buildStatGroup('Plan', workout.planName!),
-                                    const SizedBox(height: 8),
-                                  ],
-                                  _buildStatGroup(
-                                      'Exercises', '$exerciseCount'),
-                                  const SizedBox(height: 8),
-                                  _buildStatGroup('Total Sets', '$totalSets'),
-                                  const SizedBox(height: 8),
-                                  _buildStatGroup(
-                                    'Total Volume',
-                                    '${_formatNumber(totalVolume)} kg',
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _buildStatGroup(
-                                    'Duration',
-                                    _formatTimeRange(
-                                        workout.startedAt, workout.endedAt),
-                                  ),
-
-                                  const Spacer(),
-
-                                  // App Logo/Badge
-                                  const Column(
+                            // 2. The Actual Content to Capture
+                            Screenshot(
+                              controller: _screenshotController,
+                              child: Container(
+                                width: 320,
+                                height:
+                                    ((workout.planName?.isNotEmpty ?? false) &&
+                                            (_showOptions['Plan'] ?? true))
+                                        ? 480
+                                        : 440,
+                                decoration: BoxDecoration(
+                                  color: _isTransparent
+                                      ? Colors.transparent
+                                      : AppColors.cardBg,
+                                  borderRadius: BorderRadius.circular(16),
+                                  // Ensure shadow/border only when NOT transparent to avoid artifacts
+                                  border: _isTransparent
+                                      ? null
+                                      : Border.all(
+                                          color: AppColors.borderLight),
+                                ),
+                                alignment: Alignment.center,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Column(
                                     children: [
-                                      Icon(
-                                        Icons.fitness_center_rounded,
-                                        color: AppColors.accent,
-                                        size: 28,
-                                      ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        'LIFTLY',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: AppColors.textPrimary,
-                                          fontWeight: FontWeight.w900,
-                                          fontSize: 14,
-                                          letterSpacing: 2,
+                                      // Badge - Only show if NOT generating (saving)
+                                      if (_isTransparent && !_isGenerating)
+                                        Align(
+                                          alignment: Alignment.topLeft,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                color: Colors.white,
+                                                width: 1.5,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              'TRANSPARENT',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
                                         ),
+
+                                      const Spacer(),
+
+                                      if (_showOptions['Date'] ?? true) ...[
+                                        _buildStatGroup(
+                                          'Date',
+                                          _formatDateWithTimeRange(
+                                              workout.effectiveDate),
+                                          isSmall: true,
+                                        ),
+                                        const SizedBox(height: 10),
+                                      ],
+
+                                      if ((workout.planName?.isNotEmpty ??
+                                              false) &&
+                                          (_showOptions['Plan'] ?? true)) ...[
+                                        _buildStatGroup(
+                                            'Plan', workout.planName!),
+                                        const SizedBox(height: 8),
+                                      ],
+                                      if (_showOptions['Exercises'] ??
+                                          true) ...[
+                                        _buildStatGroup(
+                                            'Exercises', '$exerciseCount'),
+                                        const SizedBox(height: 8),
+                                      ],
+                                      if (_showOptions['Total Sets'] ??
+                                          true) ...[
+                                        _buildStatGroup(
+                                            'Total Sets', '$totalSets'),
+                                        const SizedBox(height: 8),
+                                      ],
+                                      if (_showOptions['Total Volume'] ??
+                                          true) ...[
+                                        _buildStatGroup(
+                                          'Total Volume',
+                                          '${_formatNumber(totalVolume)} kg',
+                                        ),
+                                        const SizedBox(height: 8),
+                                      ],
+                                      if ((_showOptions['Duration (H & m)'] ??
+                                              true) ||
+                                          (_showOptions['Duration (Time)'] ??
+                                              true))
+                                        _buildStatGroup(
+                                          'Duration',
+                                          _formatFullDuration(workout.startedAt,
+                                              workout.endedAt),
+                                        ),
+
+                                      const Spacer(),
+
+                                      // App Logo/Badge
+                                      const Column(
+                                        children: [
+                                          Icon(
+                                            Icons.fitness_center_rounded,
+                                            color: AppColors.accent,
+                                            size: 28,
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'LIFTLY',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: AppColors.textPrimary,
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 14,
+                                              letterSpacing: 2,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ],
+                                ),
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Display Options Checklist
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Show Data Points (min. 3)',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _showOptions.keys.map((key) {
+                            final isActive = _showOptions[key] ?? false;
+                            return GestureDetector(
+                              onTap: () => _toggleOption(key),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isActive
+                                      ? AppColors.accent.withValues(alpha: 0.1)
+                                      : AppColors.inputBg,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: isActive
+                                        ? AppColors.accent
+                                        : Colors.transparent,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isActive
+                                          ? Icons.check_circle_rounded
+                                          : Icons.circle_outlined,
+                                      size: 14,
+                                      color: isActive
+                                          ? AppColors.accent
+                                          : AppColors.textSecondary,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      key,
+                                      style: TextStyle(
+                                        color: isActive
+                                            ? AppColors.textPrimary
+                                            : AppColors.textSecondary,
+                                        fontSize: 12,
+                                        fontWeight: isActive
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
                         ),
                       ],
                     ),
@@ -289,7 +436,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 20),
 
                   // Share Actions - Simplified
                   Padding(

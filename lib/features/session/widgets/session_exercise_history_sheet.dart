@@ -207,6 +207,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                       value: '${_formatNumber(pr!.maxWeight)} kg',
                       details: '${pr!.maxWeightReps} reps',
                       icon: Icons.fitness_center_rounded,
+                      date: pr!.maxWeightDate,
                       notes: pr!.maxWeightNotes.isNotEmpty
                           ? pr!.maxWeightNotes
                           : (exerciseVariation.isNotEmpty
@@ -224,6 +225,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                           ? pr!.maxVolumeBreakdown
                           : '${_formatNumber(pr!.maxVolumeWeight)} kg x ${pr!.maxVolumeReps}',
                       icon: Icons.auto_graph_rounded,
+                      date: pr!.maxVolumeDate,
                       notes: pr!.maxVolumeNotes.isNotEmpty
                           ? pr!.maxVolumeNotes
                           : (exerciseVariation.isNotEmpty
@@ -337,6 +339,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
     required String details,
     required IconData icon,
     bool isFullWidth = false,
+    String? date,
     String? notes,
   }) {
     return Container(
@@ -400,6 +403,15 @@ class SessionExerciseHistorySheet extends StatelessWidget {
               fontSize: 11,
             ),
           ),
+          if (date != null)
+            Text(
+              _formatDate(DateTime.parse(date)),
+              style: TextStyle(
+                color: AppColors.textSecondary.withValues(alpha: 0.8),
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           if (notes != null) ...[
             const SizedBox(height: 4),
             Text(

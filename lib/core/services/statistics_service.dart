@@ -109,11 +109,13 @@ class StatisticsService {
 
     double globalMaxWeight = 0;
     int globalMaxWeightReps = 0;
+    String? globalMaxWeightDate;
     String globalMaxWeightNotes = '';
 
     double globalMaxSetVolume = 0;
     double globalMaxSetVolumeWeight = 0;
     int globalMaxSetVolumeReps = 0;
+    String? globalMaxSetVolumeDate;
     String globalMaxSetVolumeBreakdown = '';
     String globalMaxSetVolumeNotes = '';
 
@@ -123,6 +125,8 @@ class StatisticsService {
     List<ExerciseSet>? globalBestSessionSets;
 
     for (final record in history) {
+      final recordDate = record['workoutDate'] as String?;
+
       // 1. Max Weight
       final rMaxWeight = (record['maxWeight'] as num).toDouble();
       final rMaxWeightReps = (record['maxWeightReps'] as num?)?.toInt() ?? 0;
@@ -131,10 +135,12 @@ class StatisticsService {
       if (rMaxWeight > globalMaxWeight) {
         globalMaxWeight = rMaxWeight;
         globalMaxWeightReps = rMaxWeightReps;
+        globalMaxWeightDate = recordDate;
         globalMaxWeightNotes = rMaxWeightNotes;
       } else if (rMaxWeight == globalMaxWeight &&
           rMaxWeightReps > globalMaxWeightReps) {
         globalMaxWeightReps = rMaxWeightReps;
+        globalMaxWeightDate = recordDate;
         globalMaxWeightNotes = rMaxWeightNotes;
       }
 
@@ -146,6 +152,7 @@ class StatisticsService {
             (record['bestSetVolumeWeight'] as num).toDouble();
         globalMaxSetVolumeReps =
             (record['bestSetVolumeReps'] as num?)?.toInt() ?? 0;
+        globalMaxSetVolumeDate = recordDate;
         globalMaxSetVolumeBreakdown =
             record['bestSetVolumeBreakdown'] as String;
         globalMaxSetVolumeNotes = record['bestSetVolumeNotes'] as String? ?? '';
@@ -167,7 +174,7 @@ class StatisticsService {
       if (isNewBest) {
         globalBestSessionVolume = rSessionVol;
         globalBestSessionReps = rSessionReps;
-        globalBestSessionDate = record['workoutDate'] as String;
+        globalBestSessionDate = recordDate;
         globalBestSessionSets = (record['sets'] as List?)?.cast<ExerciseSet>();
       }
     }
@@ -182,10 +189,12 @@ class StatisticsService {
     return PersonalRecord(
       maxWeight: globalMaxWeight,
       maxWeightReps: globalMaxWeightReps,
+      maxWeightDate: globalMaxWeightDate,
       maxWeightNotes: globalMaxWeightNotes,
       maxVolume: globalMaxSetVolume,
       maxVolumeWeight: globalMaxSetVolumeWeight,
       maxVolumeReps: globalMaxSetVolumeReps,
+      maxVolumeDate: globalMaxSetVolumeDate,
       maxVolumeBreakdown: globalMaxSetVolumeBreakdown,
       maxVolumeNotes: globalMaxSetVolumeNotes,
       bestSessionVolume: globalBestSessionVolume,
