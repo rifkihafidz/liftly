@@ -209,18 +209,22 @@ class AppDialogs {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: Text(cancelText),
-                    ),
-                    const SizedBox(width: 12),
-                    FilledButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: FilledButton.styleFrom(
-                        backgroundColor:
-                            isDangerous ? AppColors.error : AppColors.accent,
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: Text(cancelText, textAlign: TextAlign.center),
                       ),
-                      child: Text(confirmText),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: FilledButton.styleFrom(
+                          backgroundColor:
+                              isDangerous ? AppColors.error : AppColors.accent,
+                        ),
+                        child: Text(confirmText, textAlign: TextAlign.center),
+                      ),
                     ),
                   ],
                 ),

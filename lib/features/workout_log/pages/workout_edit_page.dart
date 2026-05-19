@@ -37,6 +37,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
   final _workoutRepository = WorkoutRepository();
   final Map<String, List<WorkoutSession>> _exerciseHistories = {};
   final Map<String, PersonalRecord> _exercisePRs = {};
+  bool _hasAddedNewExercise = false;
 
   @override
   void initState() {
@@ -54,33 +55,53 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     }
   }
 
-  void _saveChanges() {
+  void _saveChanges() async {
     final allSkipped = _editedWorkout.exercises.every((e) => e.skipped);
     if (allSkipped || _editedWorkout.exercises.isEmpty) {
       _showEmptyWorkoutConfirmation();
       return;
     }
 
-    AppDialogs.showConfirmationDialog(
+    final confirm = await AppDialogs.showConfirmationDialog(
       context: context,
       title: 'Save Changes',
       message: 'Are you sure you want to save these changes?',
       confirmText: 'Save',
-    ).then((confirm) {
-      if (confirm == true && mounted) {
-        const userId = AppConstants.defaultUserId;
-        final workoutId = _editedWorkout.id;
+    );
 
-        final workoutData = _editedWorkout.toMap();
-        context.read<WorkoutBloc>().add(
-              WorkoutUpdated(
-                userId: userId,
-                workoutId: workoutId,
-                workoutData: workoutData,
-              ),
-            );
+    if (confirm == true && mounted) {
+      if (_hasAddedNewExercise) {
+        final updateTime = await AppDialogs.showConfirmationDialog(
+          context: context,
+          title: 'Update Finish Time?',
+          message: 'You have added a new exercise. Do you want to update the workout\'s finish time to the current time?',
+          confirmText: 'Update',
+          cancelText: 'Keep',
+        );
+
+        if (updateTime == true && mounted) {
+          setState(() {
+            _editedWorkout = _editedWorkout.copyWith(endedAt: DateTime.now());
+          });
+        }
       }
-    });
+
+      if (mounted) {
+        _dispatchUpdate();
+      }
+    }
+  }
+
+  void _dispatchUpdate() {
+    const userId = AppConstants.defaultUserId;
+    final workoutData = _editedWorkout.toMap();
+    context.read<WorkoutBloc>().add(
+          WorkoutUpdated(
+            userId: userId,
+            workoutId: _editedWorkout.id,
+            workoutData: workoutData,
+          ),
+        );
   }
 
   bool _allowPop = false;
@@ -597,6 +618,8 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
     setState(() {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final newExerciseIndex = _editedWorkout.exercises.length;
+      
+      _hasAddedNewExercise = true;
 
       final newExercise = SessionExercise(
         id: 'ex_${timestamp}_$newExerciseIndex',
