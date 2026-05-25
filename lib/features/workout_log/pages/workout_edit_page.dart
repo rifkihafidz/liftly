@@ -113,7 +113,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
 
     return Scaffold(
       backgroundColor: AppColors.darkBg,
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       body: BlocListener<WorkoutBloc, WorkoutState>(
         listenWhen: (previous, current) {
           return (previous is! WorkoutError || current is! WorkoutError) &&
@@ -303,12 +303,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                     ),
                   ),
                   SliverPadding(
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      8,
-                      16,
-                      MediaQuery.of(context).viewInsets.bottom + 80,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
                     sliver: SliverToBoxAdapter(
                       child: Column(
                         children: [
@@ -888,7 +883,7 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.darkBg,
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
           backgroundColor: AppColors.darkBg,
           elevation: 0,
@@ -929,12 +924,7 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
     return ListView(
       controller: _scrollController,
       physics: const ClampingScrollPhysics(),
-      padding: EdgeInsets.fromLTRB(
-        16,
-        0,
-        16,
-        MediaQuery.of(context).viewInsets.bottom + 100,
-      ), // Extra padding for FAB
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 120), // Extra padding for FAB
       children: [
         ExerciseViewHeader(
           exercise: _currentExercise,
@@ -1148,9 +1138,9 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
           // Save Button
           Padding(
             key: _saveButtonKey,
-            padding: EdgeInsets.only(
+            padding: const EdgeInsets.only(
               top: 12,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 40,
+              bottom: 120, // Constant large padding to ensure fields can scroll up
             ),
             child: SizedBox(
               width: double.infinity,
