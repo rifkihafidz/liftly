@@ -552,6 +552,12 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
                 onSubmitted: (val) {
                   _loadVariations(val.trim());
                 },
+                onCleared: () {
+                  _variationController.clear();
+                  setState(() {
+                    _variationSuggestions = [];
+                  });
+                },
               ),
               errorText: _errorText,
             ),

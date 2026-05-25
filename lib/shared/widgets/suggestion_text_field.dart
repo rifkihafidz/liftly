@@ -8,6 +8,7 @@ class SuggestionTextField extends StatefulWidget {
   final List<String> suggestions;
   final Function(String) onSubmitted;
   final ValueChanged<String>? onChanged;
+  final VoidCallback? onCleared;
   final bool enabled;
 
   const SuggestionTextField({
@@ -18,6 +19,7 @@ class SuggestionTextField extends StatefulWidget {
     this.hintText = 'Enter text...',
     this.suggestions = const [],
     this.onChanged,
+    this.onCleared,
     this.enabled = true,
   });
 
@@ -275,6 +277,21 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
           focusedBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          suffixIcon: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: widget.controller,
+            builder: (context, value, child) {
+              if (value.text.isEmpty || !widget.enabled) return const SizedBox.shrink();
+              return IconButton(
+                icon: const Icon(Icons.clear, size: 20, color: AppColors.textSecondary),
+                onPressed: () {
+                  widget.controller.clear();
+                  widget.onChanged?.call('');
+                  widget.onCleared?.call();
+                  _updateSuggestions();
+                },
+              );
+            },
+          ),
         ),
         onSubmitted: (value) {
           _removeOverlay();

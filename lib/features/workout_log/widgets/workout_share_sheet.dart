@@ -20,15 +20,22 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   bool _isTransparent = false;
   bool _isGenerating = false;
 
-  final Map<String, bool> _showOptions = {
-    'Date': true,
-    'Plan': true,
-    'Exercises': true,
-    'Total Sets': true,
-    'Total Volume': true,
-    'Duration (H & m)': true,
-    'Duration (Time)': true,
-  };
+  late final Map<String, bool> _showOptions;
+
+  @override
+  void initState() {
+    super.initState();
+    final hasPlan = widget.workout.planName?.isNotEmpty ?? false;
+    _showOptions = {
+      'Date': true,
+      'Plan': hasPlan,
+      'Exercises': true,
+      'Total Sets': true,
+      'Total Volume': true,
+      'Duration (H & m)': true,
+      'Duration (Time)': true,
+    };
+  }
 
   String _formatDateWithTimeRange(DateTime date) {
     return DateFormat('EEEE, dd MMMM yyyy').format(date);
@@ -68,6 +75,9 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   }
 
   void _toggleOption(String key) {
+    if (key == 'Plan' && !(widget.workout.planName?.isNotEmpty ?? false)) {
+      return;
+    }
     final enabledCount = _showOptions.values.where((v) => v).length;
     if (enabledCount <= 3 && (_showOptions[key] ?? false)) {
       // Prevent unselecting if it would leave fewer than 3 options
@@ -361,20 +371,24 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                           runSpacing: 8,
                           children: _showOptions.keys.map((key) {
                             final isActive = _showOptions[key] ?? false;
+                            final isDisabled = key == 'Plan' && !(workout.planName?.isNotEmpty ?? false);
+                            
                             return GestureDetector(
-                              onTap: () => _toggleOption(key),
+                              onTap: isDisabled ? null : () => _toggleOption(key),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isActive
-                                      ? AppColors.accent.withValues(alpha: 0.1)
-                                      : AppColors.inputBg,
+                                  color: isDisabled
+                                      ? AppColors.inputBg.withValues(alpha: 0.5)
+                                      : isActive
+                                          ? AppColors.accent.withValues(alpha: 0.1)
+                                          : AppColors.inputBg,
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: isActive
+                                    color: isActive && !isDisabled
                                         ? AppColors.accent
                                         : Colors.transparent,
                                   ),
@@ -387,17 +401,21 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                           ? Icons.check_circle_rounded
                                           : Icons.circle_outlined,
                                       size: 14,
-                                      color: isActive
-                                          ? AppColors.accent
-                                          : AppColors.textSecondary,
+                                      color: isDisabled
+                                          ? AppColors.textSecondary.withValues(alpha: 0.3)
+                                          : isActive
+                                              ? AppColors.accent
+                                              : AppColors.textSecondary,
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
                                       key,
                                       style: TextStyle(
-                                        color: isActive
-                                            ? AppColors.textPrimary
-                                            : AppColors.textSecondary,
+                                        color: isDisabled
+                                            ? AppColors.textSecondary.withValues(alpha: 0.3)
+                                            : isActive
+                                                ? AppColors.textPrimary
+                                                : AppColors.textSecondary,
                                         fontSize: 12,
                                         fontWeight: isActive
                                             ? FontWeight.bold
