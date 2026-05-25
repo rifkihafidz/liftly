@@ -113,7 +113,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
 
     return Scaffold(
       backgroundColor: AppColors.darkBg,
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: BlocListener<WorkoutBloc, WorkoutState>(
         listenWhen: (previous, current) {
           return (previous is! WorkoutError || current is! WorkoutError) &&
@@ -303,7 +303,12 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                     ),
                   ),
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      8,
+                      16,
+                      MediaQuery.of(context).viewInsets.bottom + 80,
+                    ),
                     sliver: SliverToBoxAdapter(
                       child: Column(
                         children: [
@@ -881,13 +886,10 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return Scaffold(
       backgroundColor: AppColors.darkBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-      insetPadding: EdgeInsets.zero,
-      child: Scaffold(
-        backgroundColor: AppColors.darkBg,
-        appBar: AppBar(
+      resizeToAvoidBottomInset: false,
+      appBar: AppBar(
           backgroundColor: AppColors.darkBg,
           elevation: 0,
           title: Text(_currentExercise.name),
@@ -917,8 +919,7 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   /// VIEW MODE - Lightweight read-only widget for smooth scrolling
@@ -928,7 +929,12 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
     return ListView(
       controller: _scrollController,
       physics: const ClampingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100), // Extra padding for FAB
+      padding: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        MediaQuery.of(context).viewInsets.bottom + 100,
+      ), // Extra padding for FAB
       children: [
         ExerciseViewHeader(
           exercise: _currentExercise,
@@ -1142,9 +1148,9 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
           // Save Button
           Padding(
             key: _saveButtonKey,
-            padding: const EdgeInsets.only(
+            padding: EdgeInsets.only(
               top: 12,
-              bottom: 40,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 40,
             ),
             child: SizedBox(
               width: double.infinity,

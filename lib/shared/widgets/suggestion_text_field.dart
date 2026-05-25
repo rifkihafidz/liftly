@@ -277,18 +277,27 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
           focusedBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          suffixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           suffixIcon: ValueListenableBuilder<TextEditingValue>(
             valueListenable: widget.controller,
             builder: (context, value, child) {
-              if (value.text.isEmpty || !widget.enabled) return const SizedBox.shrink();
-              return IconButton(
-                icon: const Icon(Icons.clear, size: 20, color: AppColors.textSecondary),
-                onPressed: () {
+              if (value.text.isEmpty || !widget.enabled) {
+                return const SizedBox(width: 36, height: 36);
+              }
+              return GestureDetector(
+                onTap: () {
                   widget.controller.clear();
                   widget.onChanged?.call('');
                   widget.onCleared?.call();
                   _updateSuggestions();
                 },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  color: Colors.transparent,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.clear, size: 20, color: AppColors.textSecondary),
+                ),
               );
             },
           ),
