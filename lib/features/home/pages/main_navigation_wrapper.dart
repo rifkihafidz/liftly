@@ -95,8 +95,6 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isMobile = MediaQuery.of(context).size.width < 600;
-
     // Safety check to prevent index out of bounds
     final int safeIndex = _selectedIndex < _pages.length ? _selectedIndex : 0;
 
@@ -114,8 +112,7 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
             children: _pages,
           ),
         ),
-        bottomNavigationBar: isMobile
-            ? Container(
+        bottomNavigationBar: Container(
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
@@ -163,8 +160,7 @@ class MainNavigationWrapperState extends State<MainNavigationWrapper> {
                     ),
                   ],
                 ),
-              )
-            : null,
+              ),
       ),
     );
   }

@@ -169,4 +169,22 @@ class WorkoutLocalDataSource {
       return {};
     }
   }
+
+  /// Batch update exercise name and variation
+  Future<void> batchUpdateExerciseNameAndVariation(
+    String userId,
+    String oldName,
+    String oldVariation,
+    String newName,
+    String newVariation,
+  ) async {
+    try {
+      await HiveService.batchUpdateExerciseNameAndVariation(
+          userId, oldName, oldVariation, newName, newVariation);
+    } catch (e) {
+      AppLogger.error(_tag, 'UPDATE: batchUpdateExerciseNameAndVariation FAILED', e);
+      rethrow;
+    }
+  }
 }
+

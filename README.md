@@ -9,6 +9,7 @@
 - **📈 Advanced Analytics**: Visualize your progress with interactive charts for workout frequency, volume, and intensity.
 - **🏆 Personal Records**: Automatically track and highlight your PRs across different exercises.
 - **📜 Workout History**: Detailed logs of past workouts with filtering and editing capabilities.
+- **🛠️ Exercise Management**: Bulk edit, rename, and intelligently merge duplicate exercises in your glossary.
 - **💪 Flexible Sets**: Support for Normal, Warmup, and Drop Sets with easy logging.
 - **☁️ Cloud Backup**: Automatic backup to Google Drive with one-click restore.
 - **📤 Import/Export**: Export and import your data in Excel format (.xlsx).
@@ -82,6 +83,14 @@ liftly/
 - **[excel](https://pub.dev/packages/excel)** - Excel file generation and parsing
 
 ## � Changelog
+
+### v2.3.6
+- **Feature**: Added **Exercise Management** to bulk edit, rename, and intelligently merge duplicate exercises across all past workouts and plans.
+- **UI/UX**: Enforced strict mobile-width layout constraint (`480px`) on Web platform to guarantee interface integrity.
+- **UI/UX**: Standardized navigation transitions globally using a custom `SmoothPageRoute`.
+- **Bug fixes**: Resolved calculation bugs for Personal Records (PR) and "Best Session" when merging multiple exercises in the same session.
+- **Bug fixes**: Fixed race conditions in dialog navigations to prevent immediate pop dismissals on async operations.
+- **Data Management**: Updated local data repository logic (`HiveService`) with robust cache invalidation and synchronized state handling.
 
 ### v2.0.0
 - **Bug fixes**: Resolved workout history stale data after editing a workout

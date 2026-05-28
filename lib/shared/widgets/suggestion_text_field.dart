@@ -266,6 +266,7 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
                   ? AppColors.textPrimary
                   : AppColors.textSecondary.withValues(alpha: 0.5),
             ),
+        textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           hintText: widget.hintText,
           hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -276,7 +277,7 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
           suffixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           suffixIcon: ValueListenableBuilder<TextEditingValue>(
             valueListenable: widget.controller,

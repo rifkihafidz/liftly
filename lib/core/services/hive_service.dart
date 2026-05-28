@@ -398,7 +398,7 @@ class HiveService {
   static Future<List<WorkoutPlan>> getPlans(String userId) async {
     await init();
     return _planBox.values.where((p) => p.userId == userId).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   }
 
   static Future<WorkoutPlan?> getPlan(String id) async {
@@ -449,17 +449,27 @@ class HiveService {
       ..sort((a, b) => a.workoutDate.compareTo(b.workoutDate)); // Ascending
 
     for (final w in workouts) {
-      for (final ex in w.exercises) {
-        if (ex.name.toLowerCase() == exerciseName.toLowerCase() &&
-            ex.variation.toLowerCase() == exerciseVariation.toLowerCase() &&
-            !ex.skipped) {
-          final metrics = StatisticsService.calculateSessionMetrics(
-            ex,
-            w.workoutDate,
-            ex.sets,
-          );
-          history.add(metrics);
-        }
+      final matchingExercises = w.exercises.where((e) =>
+          e.name.toLowerCase() == exerciseName.toLowerCase() &&
+          e.variation.toLowerCase() == exerciseVariation.toLowerCase() &&
+          !e.skipped);
+
+      if (matchingExercises.isNotEmpty) {
+        final mergedEx = matchingExercises.reduce((a, b) {
+          final mergedSets = <ExerciseSet>[...a.sets, ...b.sets]
+              .asMap()
+              .entries
+              .map((e) => e.value.copyWith(setNumber: e.key + 1))
+              .toList();
+          return a.copyWith(sets: mergedSets);
+        });
+
+        final metrics = StatisticsService.calculateSessionMetrics(
+          mergedEx,
+          w.workoutDate,
+          mergedEx.sets,
+        );
+        history.add(metrics);
       }
     }
 
@@ -612,21 +622,37 @@ class HiveService {
     final originalExerciseData = <String, (String name, String variation)>{};
 
     for (final w in filteredWorkouts) {
+      // Group exercises by (name:variation) key to handle duplicate names in one session
+      final sessionGroups = <String, List<SessionExercise>>{};
+
       for (final ex in w.exercises) {
         if (ex.skipped) continue;
+        final key =
+            '${ex.name.toLowerCase()}:${ex.variation.toLowerCase()}';
+        sessionGroups.putIfAbsent(key, () => []).add(ex);
+      }
 
-        final exerciseNameLower = ex.name.toLowerCase();
-        final variationLower = ex.variation.toLowerCase();
-        final key = '$exerciseNameLower:$variationLower';
+      for (final entry in sessionGroups.entries) {
+        final key = entry.key;
+        final group = entry.value;
+
+        // Merge sets if multiple entries share the same name in this session
+        final mergedEx = group.reduce((a, b) {
+          final mergedSets = <ExerciseSet>[...a.sets, ...b.sets]
+              .asMap()
+              .entries
+              .map((e) => e.value.copyWith(setNumber: e.key + 1))
+              .toList();
+          return a.copyWith(sets: mergedSets);
+        });
 
         exerciseHistories.putIfAbsent(key, () => []);
-        // Store original case for later display
-        originalExerciseData[key] = (ex.name, ex.variation);
+        originalExerciseData[key] = (mergedEx.name, mergedEx.variation);
 
         final metrics = StatisticsService.calculateSessionMetrics(
-          ex,
+          mergedEx,
           w.workoutDate,
-          ex.sets,
+          mergedEx.sets,
         );
 
         exerciseHistories[key]!.add(metrics);
@@ -653,6 +679,66 @@ class HiveService {
     }
 
     return results;
+  }
+
+  static Future<void> batchUpdateExerciseNameAndVariation(
+    String userId,
+    String oldName,
+    String oldVariation,
+    String newName,
+    String newVariation,
+  ) async {
+    await init();
+    
+    bool hasChanges = false;
+    
+    // Update Workouts
+    for (final workout in _workoutBox.values) {
+      if (workout.userId == userId) {
+        bool needsUpdate = false;
+        final updatedExercises = workout.exercises.map((ex) {
+          if (ex.name == oldName && ex.variation == oldVariation) {
+            needsUpdate = true;
+            return ex.copyWith(name: newName, variation: newVariation);
+          }
+          return ex;
+        }).toList();
+
+        if (needsUpdate) {
+          await _workoutBox.put(
+              workout.id, workout.copyWith(exercises: updatedExercises));
+          hasChanges = true;
+        }
+      }
+    }
+
+    // Update Plans
+    for (final plan in _planBox.values) {
+      if (plan.userId == userId) {
+        bool needsUpdate = false;
+        final updatedExercises = plan.exercises.map((ex) {
+          if (ex.name == oldName && ex.variation == oldVariation) {
+            needsUpdate = true;
+            return ex.copyWith(name: newName, variation: newVariation);
+          }
+          return ex;
+        }).toList();
+
+        if (needsUpdate) {
+          await _planBox.put(
+              plan.id, plan.copyWith(exercises: updatedExercises));
+          hasChanges = true;
+        }
+      }
+    }
+
+    if (hasChanges) {
+      // Clear all caches since data changed drastically
+      _invalidatePRCache();
+      _invalidateExerciseHistoryCache();
+      _invalidateLastExerciseLogCache();
+      _invalidateExerciseNamesCache();
+    }
   }
 
   // ================= Utility =================

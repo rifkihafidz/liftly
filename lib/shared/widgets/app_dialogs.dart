@@ -212,7 +212,10 @@ class AppDialogs {
                     Expanded(
                       child: TextButton(
                         onPressed: () => Navigator.pop(context, false),
-                        child: Text(cancelText, textAlign: TextAlign.center),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(cancelText, textAlign: TextAlign.center),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -222,8 +225,12 @@ class AppDialogs {
                         style: FilledButton.styleFrom(
                           backgroundColor:
                               isDangerous ? AppColors.error : AppColors.accent,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                         ),
-                        child: Text(confirmText, textAlign: TextAlign.center),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(confirmText, textAlign: TextAlign.center),
+                        ),
                       ),
                     ),
                   ],
@@ -336,6 +343,7 @@ class AppDialogs {
   static void showExerciseEntryDialog({
     required BuildContext context,
     required String title,
+    String? caption,
     String userId = AppConstants.defaultUserId,
     String? initialValue,
     String? initialVariation,
@@ -347,6 +355,7 @@ class AppDialogs {
       context: context,
       builder: (context) => _ExerciseEntryDialog(
         title: title,
+        caption: caption,
         userId: userId,
         initialValue: initialValue,
         initialVariation: initialVariation,
@@ -448,6 +457,7 @@ class AppDialogs {
 
 class _ExerciseEntryDialog extends StatefulWidget {
   final String title;
+  final String? caption;
   final String userId;
   final String? initialValue;
   final String? initialVariation;
@@ -457,6 +467,7 @@ class _ExerciseEntryDialog extends StatefulWidget {
 
   const _ExerciseEntryDialog({
     required this.title,
+    this.caption,
     required this.userId,
     this.initialValue,
     this.initialVariation,
@@ -539,6 +550,13 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (widget.caption != null) ...[
+              Text(
+                widget.caption!,
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+            ],
             // Exercise Name Field
             _buildInputWrapper(
               child: SuggestionTextField(
@@ -644,8 +662,8 @@ class _ExerciseEntryDialogState extends State<_ExerciseEntryDialog> {
   void _handleConfirm() {
     final name = _nameController.text.trim();
     if (name.isNotEmpty) {
-      widget.onConfirm(name, _variationController.text.trim());
       Navigator.pop(context);
+      widget.onConfirm(name, _variationController.text.trim());
     } else {
       setState(() {
         _errorText = 'Exercise name cannot be empty';
@@ -714,8 +732,8 @@ class _TextInputDialogState extends State<_TextInputDialog> {
           suggestions: widget.suggestions ?? [],
           onChanged: (_) => _updateSuggestions(),
           onSubmitted: (_) {
-            widget.onConfirm(_controller.text.trim());
             Navigator.pop(context);
+            widget.onConfirm(_controller.text.trim());
           },
         ),
       ),
@@ -726,8 +744,8 @@ class _TextInputDialogState extends State<_TextInputDialog> {
         ),
         FilledButton(
           onPressed: () {
-            widget.onConfirm(_controller.text.trim());
             Navigator.pop(context);
+            widget.onConfirm(_controller.text.trim());
           },
           child: const Text('Confirm'),
         ),

@@ -53,3 +53,23 @@ class WorkoutsFetched extends WorkoutEvent {
   @override
   List<Object?> get props => [userId, limit, offset];
 }
+
+class WorkoutBatchEdited extends WorkoutEvent {
+  final String userId;
+  final String oldName;
+  final String oldVariation;
+  final String newName;
+  final String newVariation;
+
+  const WorkoutBatchEdited({
+    required this.userId,
+    required this.oldName,
+    required this.oldVariation,
+    required this.newName,
+    required this.newVariation,
+  });
+
+  @override
+  List<Object?> get props =>
+      [userId, oldName, oldVariation, newName, newVariation];
+}

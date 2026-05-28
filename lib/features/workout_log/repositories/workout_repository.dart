@@ -141,6 +141,21 @@ class WorkoutRepository {
     }
   }
 
+  Future<void> batchUpdateExerciseNameAndVariation({
+    required String userId,
+    required String oldName,
+    required String oldVariation,
+    required String newName,
+    required String newVariation,
+  }) async {
+    try {
+      await _localDataSource.batchUpdateExerciseNameAndVariation(
+          userId, oldName, oldVariation, newName, newVariation);
+    } catch (e) {
+      throw Exception(_parseErrorMessage(e.toString()));
+    }
+  }
+
   String _parseErrorMessage(String error) {
     if (error.contains('Exception:')) {
       return error.split('Exception:').last.trim();

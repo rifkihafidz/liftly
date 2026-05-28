@@ -24,7 +24,7 @@ class PlansPage extends StatefulWidget {
 }
 
 class _PlansPageState extends State<PlansPage> {
-  PlanSortOption _sortOption = PlanSortOption.newest;
+  PlanSortOption _sortOption = PlanSortOption.nameAZ;
   late ScrollController _scrollController;
   int? _lastActiveTab;
 

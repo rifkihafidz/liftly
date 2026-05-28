@@ -1,4 +1,5 @@
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/page_transitions.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -17,6 +18,7 @@ enum PlanSortOption {
   recent,
   oldest,
   alphabetical,
+  alphabeticalDesc,
 }
 
 class StartWorkoutPage extends StatefulWidget {
@@ -31,7 +33,7 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
   final List<SessionExercise> _sessionQueue = [];
   final List<String> _availableExercises = [];
   final _workoutRepository = WorkoutRepository();
-  PlanSortOption _sortOption = PlanSortOption.oldest;
+  PlanSortOption _sortOption = PlanSortOption.alphabetical;
 
   List<WorkoutPlan> _sortedPlans = [];
 
@@ -89,7 +91,10 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
           plans.sort((a, b) => a.createdAt.compareTo(b.createdAt));
           break;
         case PlanSortOption.alphabetical:
-          plans.sort((a, b) => a.name.compareTo(b.name));
+          plans.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          break;
+        case PlanSortOption.alphabeticalDesc:
+          plans.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
           break;
       }
       setState(() {
@@ -106,6 +111,8 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
         return 'Oldest First';
       case PlanSortOption.alphabetical:
         return 'A-Z';
+      case PlanSortOption.alphabeticalDesc:
+        return 'Z-A';
     }
   }
 
@@ -195,8 +202,8 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
     // Navigate to SessionPage
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SessionPage(
+      SmoothPageRoute(
+        page: SessionPage(
           planId: _selectedPlan?.id,
           planName: _selectedPlan?.name,
           exercises: allExercises,
@@ -298,7 +305,10 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
               sortedPlans.sort((a, b) => a.createdAt.compareTo(b.createdAt));
               break;
             case PlanSortOption.alphabetical:
-              sortedPlans.sort((a, b) => a.name.compareTo(b.name));
+              sortedPlans.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+              break;
+            case PlanSortOption.alphabeticalDesc:
+              sortedPlans.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
               break;
           }
 

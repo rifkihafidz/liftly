@@ -15,6 +15,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
     on<WorkoutUpdated>(_onWorkoutUpdated);
     on<WorkoutDeleted>(_onWorkoutDeleted);
     on<WorkoutsFetched>(_onWorkoutsFetched);
+    on<WorkoutBatchEdited>(_onWorkoutBatchEdited);
   }
 
   Future<void> _onWorkoutSubmitted(
@@ -173,6 +174,30 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
       }
     } catch (e) {
       emit(WorkoutError(message: e.toString()));
+    }
+  }
+
+  Future<void> _onWorkoutBatchEdited(
+    WorkoutBatchEdited event,
+    Emitter<WorkoutState> emit,
+  ) async {
+    final currentState = state;
+    try {
+      await _workoutRepository.batchUpdateExerciseNameAndVariation(
+        userId: event.userId,
+        oldName: event.oldName,
+        oldVariation: event.oldVariation,
+        newName: event.newName,
+        newVariation: event.newVariation,
+      );
+      // Batch edit only renames exercises in-place; the workout list itself
+      // is unchanged, so we keep the current state to avoid a full re-fetch.
+      // ExerciseManagementPage reloads its own exercise list independently.
+    } catch (e) {
+      emit(WorkoutError(message: e.toString()));
+      if (currentState is WorkoutsLoaded) {
+        emit(currentState);
+      }
     }
   }
 

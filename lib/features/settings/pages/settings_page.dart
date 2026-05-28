@@ -20,7 +20,8 @@ import '../../workout_log/bloc/workout_bloc.dart';
 import '../../workout_log/bloc/workout_event.dart';
 import '../../stats/bloc/stats_bloc.dart';
 import '../../stats/bloc/stats_event.dart';
-
+import '../../workout_log/pages/exercise_management_page.dart';
+import '../../../core/utils/page_transitions.dart';
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -726,6 +727,24 @@ class _SettingsPageState extends State<SettingsPage> {
                         icon: Icons.file_download_rounded,
                         color: AppColors.accent,
                         onTap: () => _handleImport(context),
+                      ),
+                    ),
+                    const SizedBox(height: AppConstants.itemSpacing),
+                    FadeInSlide(
+                      index: 8,
+                      child: MenuListItem(
+                        title: 'Manage Exercises',
+                        subtitle: 'Rename exercises across all history',
+                        icon: Icons.fitness_center_rounded,
+                        color: Colors.purple,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            SmoothPageRoute(
+                              page: const ExerciseManagementPage(),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(height: AppConstants.sectionSpacing),

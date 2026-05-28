@@ -118,6 +118,20 @@ class _LiftlyState extends State<Liftly> with WidgetsBindingObserver {
         // Skip SplashPage on Web as it already has a native HTML splash
         home: kIsWeb ? const MainNavigationWrapper() : const SplashPage(),
         debugShowCheckedModeBanner: false,
+        builder: kIsWeb
+            ? (context, child) {
+                if (child == null) return const SizedBox.shrink();
+                return Container(
+                  color: Colors.black,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: child,
+                    ),
+                  ),
+                );
+              }
+            : null,
       ),
     );
   }

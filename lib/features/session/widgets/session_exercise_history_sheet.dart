@@ -36,14 +36,23 @@ class SessionExerciseHistorySheet extends StatelessWidget {
 
     if (histories != null) {
       for (final h in histories!) {
-        final historyExercise = h.exercises
-            .where((e) =>
-                e.name.toLowerCase() == exerciseName.toLowerCase() &&
-                e.variation.toLowerCase() == exerciseVariation.toLowerCase())
-            .firstOrNull;
-        if (historyExercise != null) {
-          validHistories.add((h, historyExercise));
-        }
+      // Collect ALL matching exercises in this session (can be >1 after rename/merge)
+      final matchingExercises = h.exercises.where((e) =>
+          e.name.toLowerCase() == exerciseName.toLowerCase() &&
+          e.variation.toLowerCase() == exerciseVariation.toLowerCase());
+
+      if (matchingExercises.isEmpty) continue;
+
+      // Merge sets if there are multiple entries with the same name in one session
+      final merged = matchingExercises.reduce((a, b) {
+        final mergedSets = <ExerciseSet>[...a.sets, ...b.sets]
+            .asMap()
+            .entries
+            .map((e) => e.value.copyWith(setNumber: e.key + 1))
+            .toList();
+        return a.copyWith(sets: mergedSets);
+      });
+      validHistories.add((h, merged));
       }
     }
 
