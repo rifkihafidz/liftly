@@ -758,22 +758,31 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                               height: 32,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: AppColors.accent.withValues(alpha: 0.1),
+                                color: ex.skipped
+                                    ? AppColors.textSecondary.withValues(alpha: 0.1)
+                                    : AppColors.accent.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: Text(
                                 '${index + 1}',
-                                style: const TextStyle(
-                                  color: AppColors.accent,
+                                style: TextStyle(
+                                  color: ex.skipped
+                                      ? AppColors.textSecondary
+                                      : AppColors.accent,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
                             title: Text(
                               ex.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w500,
-                                color: AppColors.textPrimary,
+                                color: ex.skipped
+                                    ? AppColors.textSecondary
+                                    : AppColors.textPrimary,
+                                decoration: ex.skipped
+                                    ? TextDecoration.lineThrough
+                                    : null,
                               ),
                             ),
                           );
