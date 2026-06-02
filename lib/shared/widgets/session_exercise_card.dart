@@ -52,10 +52,13 @@ class SessionExerciseCard extends StatefulWidget {
   State<SessionExerciseCard> createState() => _SessionExerciseCardState();
 }
 
-class _SessionExerciseCardState extends State<SessionExerciseCard> {
+class _SessionExerciseCardState extends State<SessionExerciseCard> with AutomaticKeepAliveClientMixin {
   bool _isExpanded = true;
   int? _scrollToSetIndex;
   final GlobalKey _scrollTargetKey = GlobalKey();
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void dispose() {
@@ -153,6 +156,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final sets = widget.exercise.sets;
     final isSkipped = widget.exercise.skipped;
 

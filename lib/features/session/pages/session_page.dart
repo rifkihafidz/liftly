@@ -247,6 +247,30 @@ class _SessionPageState extends State<SessionPage> {
                         size: 20,
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    FloatingActionButton.small(
+                      heroTag: 'fab_bottom',
+                      onPressed: () {
+                        _scrollController.animateTo(
+                          _scrollController.position.maxScrollExtent,
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeOutCubic,
+                        );
+                      },
+                      backgroundColor: AppColors.cardBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: AppColors.accent.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      elevation: 4,
+                      child: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.accent,
+                        size: 20,
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -1107,13 +1131,18 @@ class _SessionPageState extends State<SessionPage> {
                               height: 32,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: AppColors.accent.withValues(alpha: 0.1),
+                                color: ex.skipped
+                                    ? AppColors.textSecondary
+                                        .withValues(alpha: 0.1)
+                                    : AppColors.accent.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: Text(
                                 '${index + 1}',
-                                style: const TextStyle(
-                                  color: AppColors.accent,
+                                style: TextStyle(
+                                  color: ex.skipped
+                                      ? AppColors.textSecondary
+                                      : AppColors.accent,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -1123,9 +1152,14 @@ class _SessionPageState extends State<SessionPage> {
                               children: [
                                 Text(
                                   ex.name,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w500,
-                                    color: AppColors.textPrimary,
+                                    color: ex.skipped
+                                        ? AppColors.textSecondary
+                                        : AppColors.textPrimary,
+                                    decoration: ex.skipped
+                                        ? TextDecoration.lineThrough
+                                        : null,
                                   ),
                                 ),
                                 if (ex.variation.isNotEmpty)
