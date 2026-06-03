@@ -144,7 +144,7 @@ class _ExerciseManagementPageState extends State<ExerciseManagementPage> {
             ),
           );
           context.read<StatsBloc>().add(
-            const StatsFetched(userId: AppConstants.defaultUserId),
+            const StatsFetched(),
           );
 
           // Start reloading exercises in background
