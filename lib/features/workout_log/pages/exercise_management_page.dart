@@ -7,6 +7,8 @@ import '../../../shared/widgets/app_dialogs.dart';
 import '../bloc/workout_bloc.dart';
 import '../bloc/workout_event.dart';
 import '../repositories/workout_repository.dart';
+import '../../stats/bloc/stats_bloc.dart';
+import '../../stats/bloc/stats_event.dart';
 
 class ExerciseManagementPage extends StatefulWidget {
   const ExerciseManagementPage({super.key});
@@ -141,6 +143,9 @@ class _ExerciseManagementPageState extends State<ExerciseManagementPage> {
               newVariation: newVariation,
             ),
           );
+          context.read<StatsBloc>().add(
+            const StatsFetched(userId: AppConstants.defaultUserId),
+          );
 
           // Start reloading exercises in background
           unawaited(_loadExercises());
@@ -159,6 +164,97 @@ class _ExerciseManagementPageState extends State<ExerciseManagementPage> {
             message: e.toString(),
           );
         }
+      },
+    );
+  }
+
+  /// Builds a flat list of alternating alphabet-header tiles and exercise tiles.
+  Widget _buildExerciseList(List<Map<String, String>> exercises) {
+    // Each element is either {'type': 'header', 'letter': 'A'}
+    // or {'type': 'exercise', ...exercise data...}
+    final List<Map<String, dynamic>> items = [];
+    String? lastLetter;
+
+    for (final ex in exercises) {
+      final name = ex['name'] ?? '';
+      final firstChar = name.isNotEmpty ? name[0].toUpperCase() : '#';
+      final letter = RegExp(r'[A-Z]').hasMatch(firstChar) ? firstChar : '#';
+
+      if (letter != lastLetter) {
+        items.add({'type': 'header', 'letter': letter});
+        lastLetter = letter;
+      }
+      items.add({'type': 'exercise', ...ex});
+    }
+
+    return ListView.builder(
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+
+        if (item['type'] == 'header') {
+          final letter = item['letter'] as String;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    letter,
+                    style: const TextStyle(
+                      color: AppColors.accent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Divider(
+                    color: AppColors.accent.withValues(alpha: 0.2),
+                    thickness: 1,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final name = item['name'] as String? ?? '';
+        final variation = item['variation'] as String? ?? '';
+        final hasVariation = variation.isNotEmpty;
+        final ex = {'name': name, 'variation': variation};
+
+        return ListTile(
+          title: Text(
+            name,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          subtitle: hasVariation
+              ? Text(
+                  variation,
+                  style: const TextStyle(color: AppColors.accent),
+                )
+              : null,
+          trailing: const Icon(
+            Icons.edit_rounded,
+            color: AppColors.textSecondary,
+            size: 20,
+          ),
+          onTap: () => _showEditDialog(ex),
+        );
       },
     );
   }
@@ -209,37 +305,7 @@ class _ExerciseManagementPageState extends State<ExerciseManagementPage> {
                           style: const TextStyle(color: AppColors.textSecondary),
                         ),
                       )
-                    : ListView.builder(
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final ex = filtered[index];
-                          final name = ex['name'] ?? '';
-                          final variation = ex['variation'] ?? '';
-                          final hasVariation = variation.isNotEmpty;
-
-                          return ListTile(
-                            title: Text(
-                              name,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            subtitle: hasVariation
-                                ? Text(
-                                    variation,
-                                    style: const TextStyle(color: AppColors.accent),
-                                  )
-                                : null,
-                            trailing: const Icon(
-                              Icons.edit_rounded,
-                              color: AppColors.textSecondary,
-                              size: 20,
-                            ),
-                            onTap: () => _showEditDialog(ex),
-                          );
-                        },
-                      ),
+                    : _buildExerciseList(filtered),
           ),
         ],
       ),
