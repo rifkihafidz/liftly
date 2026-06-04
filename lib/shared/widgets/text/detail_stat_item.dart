@@ -7,6 +7,7 @@ class DetailStatItem extends StatelessWidget {
   final String label;
   final Color color;
   final String? unit;
+  final Color? valueColor;
 
   const DetailStatItem({
     super.key,
@@ -15,6 +16,7 @@ class DetailStatItem extends StatelessWidget {
     required this.label,
     required this.color,
     this.unit,
+    this.valueColor,
   });
 
   @override
@@ -47,8 +49,8 @@ class DetailStatItem extends StatelessWidget {
             Flexible(
               child: Text(
                 value,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: valueColor ?? AppColors.textPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
                 ),
