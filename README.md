@@ -17,7 +17,8 @@
 - **📅 Dynamic Time Periods**: View stats by Week, Month, or Year with a sticky, intuitive date navigator.
 - **📱 Cross-Platform**: Optimized for Android, iOS, macOS, Windows, Linux, and Web.
 - **🎨 Premium UI/UX**: Features a consistent dark mode design, glassmorphism effects, and smooth animations.
-- **📤 Shareable Stats**: Export your workout summaries as images to social media.
+- **🔥 Muscle Heatmap**: Interactive visualizer showing targeted muscle groups based on workout intensity.
+- **📤 Advanced Sharing**: Export aesthetic workout summaries and heatmaps with customizable data points and transparent backgrounds.
 - **⚡ Performance Optimized**: Handles 1000+ workouts efficiently with intelligent caching.
 
 ## 🚀 Getting Started
@@ -83,6 +84,12 @@ liftly/
 - **[excel](https://pub.dev/packages/excel)** - Excel file generation and parsing
 
 ## � Changelog
+
+### v2.4.0
+- **Feature**: Introduced an interactive **Muscle Heatmap** visualizer (Front & Back anatomy) with dynamic intensity color-coding (Yellow, Orange, Red) based on workout volume.
+- **Feature**: Enhanced **Workout Sharing** capabilities. Users can now share aesthetic workout summaries or muscle heatmaps as high-quality images with togglable transparent backgrounds and customizable data points.
+- **Feature**: Added a mini exercise log preview directly on the Workout Session History Cards.
+- **UI/UX**: Standardized UI consistency, resolved RenderFlex overflows, and improved the `ExerciseDetailCard` state persistence during scrolling.
 
 ### v2.3.6
 - **Feature**: Added **Exercise Management** to bulk edit, rename, and intelligently merge duplicate exercises across all past workouts and plans.

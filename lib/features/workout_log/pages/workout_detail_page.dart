@@ -16,6 +16,8 @@ import '../../../core/utils/page_transitions.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
 import '../../../shared/widgets/cards/exercise_detail_card.dart';
 import '../../../shared/widgets/text/detail_stat_item.dart';
+import '../../../core/utils/muscle_detector.dart';
+import '../../../shared/widgets/visuals/muscle_heatmap.dart';
 
 class WorkoutDetailPage extends StatefulWidget {
   final WorkoutSession workout;
@@ -73,6 +75,76 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       return '${hours}h';
     }
     return '${hours}h ${remainingMinutes}m';
+  }
+
+  Widget _buildMusclesWorked(List<SessionExercise> exercises) {
+    final workedMuscles = <MuscleGroup, int>{};
+    for (var ex in exercises) {
+      if (!ex.skipped) {
+        final muscle =
+            MuscleDetector.detectPrimaryMuscle(ex.name, ex.variation);
+        workedMuscles[muscle] = (workedMuscles[muscle] ?? 0) + ex.sets.length;
+      }
+    }
+
+    if (workedMuscles.isEmpty) return const SizedBox.shrink();
+
+    // Move unknown to the end if present, and optionally remove it if we only want known muscles.
+    // We'll keep it for transparency, but put it at the end.
+    final sortedMuscles = workedMuscles.keys.toList()
+      ..sort((a, b) {
+        if (a == MuscleGroup.unknown) return 1;
+        if (b == MuscleGroup.unknown) return -1;
+        return a.index.compareTo(b.index);
+      });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        const Text(
+          'Muscle Heatmap',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+        MuscleHeatmap(workedMuscles: workedMuscles),
+
+        // Show unknown muscles as tags below if there are any
+        if (sortedMuscles.contains(MuscleGroup.unknown)) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children:
+                sortedMuscles.where((m) => m == MuscleGroup.unknown).map((m) {
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.textSecondary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.textSecondary.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: const Text(
+                  'Other / Uncategorized',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ],
+    );
   }
 
   @override
@@ -319,6 +391,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                               ),
                             ],
                           ),
+                          _buildMusclesWorked(exercises),
                         ],
                       ),
                     ),
@@ -397,7 +470,22 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => WorkoutShareSheet(workout: _currentWorkout),
+      builder: (context) {
+        final workedMuscles = <MuscleGroup, int>{};
+        for (var ex in _currentWorkout.exercises) {
+          if (!ex.skipped) {
+            final muscle =
+                MuscleDetector.detectPrimaryMuscle(ex.name, ex.variation);
+            workedMuscles[muscle] =
+                (workedMuscles[muscle] ?? 0) + ex.sets.length;
+          }
+        }
+
+        return WorkoutShareSheet(
+          workout: _currentWorkout,
+          workedMuscles: workedMuscles,
+        );
+      },
     );
   }
 }

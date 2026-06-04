@@ -18,11 +18,16 @@ class ExerciseDetailCard extends StatefulWidget {
   State<ExerciseDetailCard> createState() => _ExerciseDetailCardState();
 }
 
-class _ExerciseDetailCardState extends State<ExerciseDetailCard> {
+class _ExerciseDetailCardState extends State<ExerciseDetailCard>
+    with AutomaticKeepAliveClientMixin {
   bool _isExpanded = true;
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final sets = widget.exercise.sets;
     final isSkipped = widget.exercise.skipped;
 

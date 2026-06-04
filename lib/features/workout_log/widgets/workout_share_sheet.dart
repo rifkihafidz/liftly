@@ -5,11 +5,18 @@ import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
+import '../../../core/utils/muscle_detector.dart';
+import '../../../shared/widgets/visuals/muscle_heatmap.dart';
 
 class WorkoutShareSheet extends StatefulWidget {
   final WorkoutSession workout;
+  final Map<MuscleGroup, int> workedMuscles;
 
-  const WorkoutShareSheet({super.key, required this.workout});
+  const WorkoutShareSheet({
+    super.key, 
+    required this.workout,
+    required this.workedMuscles,
+  });
 
   @override
   State<WorkoutShareSheet> createState() => _WorkoutShareSheetState();
@@ -19,6 +26,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   final ScreenshotController _screenshotController = ScreenshotController();
   bool _isTransparent = false;
   bool _isGenerating = false;
+  int _currentTab = 0; // 0 for Log, 1 for Heatmap
 
   late final Map<String, bool> _showOptions;
 
@@ -182,14 +190,33 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                   ),
                   const SizedBox(height: 12),
 
+                  // Tabs for Log vs Heatmap
+                  if (widget.workedMuscles.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.inputBg,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            _buildTabButton('Log', 0),
+                            _buildTabButton('Heatmap', 1),
+                          ],
+                        ),
+                      ),
+                    ),
+                  
+                  if (widget.workedMuscles.isNotEmpty)
+                    const SizedBox(height: 16),
+
                   // Screenshot Target Area
                   Center(
                     child: SizedBox(
                       width: 280,
-                      height: ((workout.planName?.isNotEmpty ?? false) &&
-                              (_showOptions['Plan'] ?? true))
-                          ? 420
-                          : 385,
+                      height: _calculateScreenshotHeight(),
                       child: FittedBox(
                         child: Stack(
                           children: [
@@ -197,11 +224,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                             if (_isTransparent)
                               Container(
                                 width: 320,
-                                height:
-                                    ((workout.planName?.isNotEmpty ?? false) &&
-                                            (_showOptions['Plan'] ?? true))
-                                        ? 480
-                                        : 440,
+                                height: _calculateContainerHeight(),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
@@ -217,11 +240,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                               controller: _screenshotController,
                               child: Container(
                                 width: 320,
-                                height:
-                                    ((workout.planName?.isNotEmpty ?? false) &&
-                                            (_showOptions['Plan'] ?? true))
-                                        ? 480
-                                        : 440,
+                                height: _calculateContainerHeight(),
                                 decoration: BoxDecoration(
                                   color: _isTransparent
                                       ? Colors.transparent
@@ -265,10 +284,11 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                             ),
                                           ),
                                         ),
+                                      
+                                      if (_currentTab == 0) ...[
+                                        const Spacer(),
 
-                                      const Spacer(),
-
-                                      if (_showOptions['Date'] ?? true) ...[
+                                        if (_showOptions['Date'] ?? true) ...[
                                         _buildStatGroup(
                                           'Date',
                                           _formatDateWithTimeRange(
@@ -308,12 +328,21 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                       if ((_showOptions['Duration (H & m)'] ??
                                               true) ||
                                           (_showOptions['Duration (Time)'] ??
-                                              true))
+                                              true)) ...[
                                         _buildStatGroup(
                                           'Duration',
                                           _formatFullDuration(workout.startedAt,
                                               workout.endedAt),
                                         ),
+                                        const SizedBox(height: 8),
+                                      ],
+                                    ] else ...[
+                                      // Heatmap Tab Content
+                                      const SizedBox(height: 16),
+                                      MuscleHeatmap(
+                                        workedMuscles: widget.workedMuscles,
+                                      ),
+                                    ],
 
                                       const Spacer(),
 
@@ -351,88 +380,89 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
 
                   const SizedBox(height: 16),
 
-                  // Display Options Checklist
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Show Data Points (min. 3)',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                  if (_currentTab == 0) ...[
+                    // Display Options Checklist
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Show Data Points (min. 3)',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _showOptions.keys.map((key) {
-                            final isActive = _showOptions[key] ?? false;
-                            final isDisabled = key == 'Plan' && !(workout.planName?.isNotEmpty ?? false);
-                            
-                            return GestureDetector(
-                              onTap: isDisabled ? null : () => _toggleOption(key),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isDisabled
-                                      ? AppColors.inputBg.withValues(alpha: 0.5)
-                                      : isActive
-                                          ? AppColors.accent.withValues(alpha: 0.1)
-                                          : AppColors.inputBg,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: isActive && !isDisabled
-                                        ? AppColors.accent
-                                        : Colors.transparent,
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: _showOptions.keys.map((key) {
+                              final isActive = _showOptions[key] ?? false;
+                              final isDisabled = key == 'Plan' && !(workout.planName?.isNotEmpty ?? false);
+                              
+                              return GestureDetector(
+                                onTap: isDisabled ? null : () => _toggleOption(key),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
                                   ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      isActive
-                                          ? Icons.check_circle_rounded
-                                          : Icons.circle_outlined,
-                                      size: 14,
-                                      color: isDisabled
-                                          ? AppColors.textSecondary.withValues(alpha: 0.3)
-                                          : isActive
-                                              ? AppColors.accent
-                                              : AppColors.textSecondary,
+                                  decoration: BoxDecoration(
+                                    color: isDisabled
+                                        ? AppColors.inputBg.withValues(alpha: 0.5)
+                                        : isActive
+                                            ? AppColors.accent.withValues(alpha: 0.1)
+                                            : AppColors.inputBg,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: isActive && !isDisabled
+                                          ? AppColors.accent
+                                          : Colors.transparent,
                                     ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      key,
-                                      style: TextStyle(
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isActive
+                                            ? Icons.check_circle_rounded
+                                            : Icons.circle_outlined,
+                                        size: 12,
                                         color: isDisabled
                                             ? AppColors.textSecondary.withValues(alpha: 0.3)
                                             : isActive
-                                                ? AppColors.textPrimary
+                                                ? AppColors.accent
                                                 : AppColors.textSecondary,
-                                        fontSize: 12,
-                                        fontWeight: isActive
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        key,
+                                        style: TextStyle(
+                                          color: isDisabled
+                                              ? AppColors.textSecondary.withValues(alpha: 0.3)
+                                              : isActive
+                                                  ? AppColors.textPrimary
+                                                  : AppColors.textSecondary,
+                                          fontSize: 11,
+                                          fontWeight: isActive
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ],
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 24),
+                  ],
 
                   // Options Row
                   Padding(
@@ -491,6 +521,52 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                   ),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  double _calculateScreenshotHeight() {
+    return _calculateContainerHeight() * (280 / 320);
+  }
+
+  double _calculateContainerHeight() {
+    if (_currentTab == 1) {
+      return 480; // Increased to accommodate the transparent badge
+    }
+    double h = 440;
+    if ((widget.workout.planName?.isNotEmpty ?? false) && (_showOptions['Plan'] ?? true)) h += 40;
+    return h;
+  }
+
+  Widget _buildTabButton(String title, int index) {
+    final isActive = _currentTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _currentTab = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? AppColors.darkBg : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            title,
+            style: TextStyle(
+              color: isActive ? AppColors.textPrimary : AppColors.textSecondary,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
         ),
       ),
