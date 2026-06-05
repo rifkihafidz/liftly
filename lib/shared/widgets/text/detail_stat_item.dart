@@ -8,6 +8,7 @@ class DetailStatItem extends StatelessWidget {
   final Color color;
   final String? unit;
   final Color? valueColor;
+  final Color? unitColor;
 
   const DetailStatItem({
     super.key,
@@ -17,6 +18,7 @@ class DetailStatItem extends StatelessWidget {
     required this.color,
     this.unit,
     this.valueColor,
+    this.unitColor,
   });
 
   @override
@@ -62,8 +64,8 @@ class DetailStatItem extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 2),
                 child: Text(
                   unit!,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: unitColor ?? AppColors.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),

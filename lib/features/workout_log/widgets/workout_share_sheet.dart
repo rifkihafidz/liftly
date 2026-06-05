@@ -14,7 +14,7 @@ class WorkoutShareSheet extends StatefulWidget {
   final Map<MuscleGroup, int> workedMuscles;
 
   const WorkoutShareSheet({
-    super.key, 
+    super.key,
     required this.workout,
     required this.workedMuscles,
   });
@@ -26,6 +26,7 @@ class WorkoutShareSheet extends StatefulWidget {
 class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   final ScreenshotController _screenshotController = ScreenshotController();
   bool _isTransparent = false;
+  bool _isTransparentDarkText = true;
   bool _isGenerating = false;
   int _currentTab = 0; // 0 for Log, 1 for Heatmap, 2 for Card
 
@@ -210,7 +211,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                         ),
                       ),
                     ),
-                  
+
                   if (widget.workedMuscles.isNotEmpty)
                     const SizedBox(height: 16),
 
@@ -258,121 +259,139 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(24),
                                   child: _currentTab == 2
-                                      ? _buildCardTabContent(workout, totalVolume, exerciseCount, totalSets)
+                                      ? _buildCardTabContent(workout,
+                                          totalVolume, exerciseCount, totalSets)
                                       : Column(
-                                    children: [
-                                      // Badge - Only show if NOT generating (saving)
-                                      if (_isTransparent && !_isGenerating)
-                                        Align(
-                                          alignment: Alignment.topLeft,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              border: Border.all(
-                                                color: Colors.white,
-                                                width: 1.5,
+                                          children: [
+                                            // Badge - Only show if NOT generating (saving)
+                                            if (_isTransparent &&
+                                                !_isGenerating)
+                                              Align(
+                                                alignment: Alignment.topLeft,
+                                                child: Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    border: Border.all(
+                                                      color: Colors.white,
+                                                      width: 1.5,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            4),
+                                                  ),
+                                                  child: const Text(
+                                                    'TRANSPARENT',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
                                               ),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: const Text(
-                                              'TRANSPARENT',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
+
+                                            if (_currentTab == 0) ...[
+                                              const Spacer(),
+                                              if (_showOptions['Date'] ??
+                                                  true) ...[
+                                                _buildStatGroup(
+                                                  'Date',
+                                                  _formatDateWithTimeRange(
+                                                      workout.effectiveDate),
+                                                  isSmall: true,
+                                                ),
+                                                const SizedBox(height: 10),
+                                              ],
+                                              if ((workout.planName
+                                                          ?.isNotEmpty ??
+                                                      false) &&
+                                                  (_showOptions['Plan'] ??
+                                                      true)) ...[
+                                                _buildStatGroup(
+                                                    'Plan', workout.planName!),
+                                                const SizedBox(height: 8),
+                                              ],
+                                              if (_showOptions['Exercises'] ??
+                                                  true) ...[
+                                                _buildStatGroup('Exercises',
+                                                    '$exerciseCount'),
+                                                const SizedBox(height: 8),
+                                              ],
+                                              if (_showOptions['Total Sets'] ??
+                                                  true) ...[
+                                                _buildStatGroup(
+                                                    'Total Sets', '$totalSets'),
+                                                const SizedBox(height: 8),
+                                              ],
+                                              if (_showOptions[
+                                                      'Total Volume'] ??
+                                                  true) ...[
+                                                _buildStatGroup(
+                                                  'Total Volume',
+                                                  '${_formatNumber(totalVolume)} kg',
+                                                ),
+                                                const SizedBox(height: 8),
+                                              ],
+                                              if ((_showOptions[
+                                                          'Duration (H & m)'] ??
+                                                      true) ||
+                                                  (_showOptions[
+                                                          'Duration (Time)'] ??
+                                                      true)) ...[
+                                                _buildStatGroup(
+                                                  'Duration',
+                                                  _formatFullDuration(
+                                                      workout.startedAt,
+                                                      workout.endedAt),
+                                                ),
+                                                const SizedBox(height: 8),
+                                              ],
+                                            ] else ...[
+                                              // Heatmap Tab Content
+                                              const Spacer(),
+                                              MuscleHeatmap(
+                                                workedMuscles:
+                                                    widget.workedMuscles,
+                                                textColor: _isTransparent
+                                                    ? (_isTransparentDarkText
+                                                        ? Colors.black54
+                                                        : Colors.white70)
+                                                    : null,
                                               ),
+                                            ],
+
+                                            // App Logo/Badge
+                                            Column(
+                                              children: [
+                                                const Icon(
+                                                  Icons.fitness_center_rounded,
+                                                  color: AppColors.accent,
+                                                  size: 28,
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'LIFTLY',
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    color: _isTransparent
+                                                        ? (_isTransparentDarkText
+                                                            ? Colors.black87
+                                                            : Colors.white)
+                                                        : AppColors.textPrimary,
+                                                    fontWeight: FontWeight.w900,
+                                                    fontSize: 14,
+                                                    letterSpacing: 2,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                          ),
+                                          ],
                                         ),
-                                      
-                                      if (_currentTab == 0) ...[
-                                        const Spacer(),
-
-                                        if (_showOptions['Date'] ?? true) ...[
-                                        _buildStatGroup(
-                                          'Date',
-                                          _formatDateWithTimeRange(
-                                              workout.effectiveDate),
-                                          isSmall: true,
-                                        ),
-                                        const SizedBox(height: 10),
-                                      ],
-
-                                      if ((workout.planName?.isNotEmpty ??
-                                              false) &&
-                                          (_showOptions['Plan'] ?? true)) ...[
-                                        _buildStatGroup(
-                                            'Plan', workout.planName!),
-                                        const SizedBox(height: 8),
-                                      ],
-                                      if (_showOptions['Exercises'] ??
-                                          true) ...[
-                                        _buildStatGroup(
-                                            'Exercises', '$exerciseCount'),
-                                        const SizedBox(height: 8),
-                                      ],
-                                      if (_showOptions['Total Sets'] ??
-                                          true) ...[
-                                        _buildStatGroup(
-                                            'Total Sets', '$totalSets'),
-                                        const SizedBox(height: 8),
-                                      ],
-                                      if (_showOptions['Total Volume'] ??
-                                          true) ...[
-                                        _buildStatGroup(
-                                          'Total Volume',
-                                          '${_formatNumber(totalVolume)} kg',
-                                        ),
-                                        const SizedBox(height: 8),
-                                      ],
-                                      if ((_showOptions['Duration (H & m)'] ??
-                                              true) ||
-                                          (_showOptions['Duration (Time)'] ??
-                                              true)) ...[
-                                        _buildStatGroup(
-                                          'Duration',
-                                          _formatFullDuration(workout.startedAt,
-                                              workout.endedAt),
-                                        ),
-                                        const SizedBox(height: 8),
-                                      ],
-                                    ] else ...[
-                                      // Heatmap Tab Content
-                                      const Spacer(),
-                                      MuscleHeatmap(
-                                        workedMuscles: widget.workedMuscles,
-                                      ),
-                                    ],
-
-                                      const Spacer(),
-
-                                      // App Logo/Badge
-                                      Column(
-                                        children: [
-                                          const Icon(
-                                            Icons.fitness_center_rounded,
-                                            color: AppColors.accent,
-                                            size: 28,
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'LIFTLY',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              color: _isTransparent ? Colors.black87 : AppColors.textPrimary,
-                                              fontWeight: FontWeight.w900,
-                                              fontSize: 14,
-                                              letterSpacing: 2,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
                                 ),
                               ),
                             ),
@@ -405,10 +424,13 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                             runSpacing: 6,
                             children: _showOptions.keys.map((key) {
                               final isActive = _showOptions[key] ?? false;
-                              final isDisabled = key == 'Plan' && !(workout.planName?.isNotEmpty ?? false);
-                              
+                              final isDisabled = key == 'Plan' &&
+                                  !(workout.planName?.isNotEmpty ?? false);
+
                               return GestureDetector(
-                                onTap: isDisabled ? null : () => _toggleOption(key),
+                                onTap: isDisabled
+                                    ? null
+                                    : () => _toggleOption(key),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
@@ -416,9 +438,11 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: isDisabled
-                                        ? AppColors.inputBg.withValues(alpha: 0.5)
+                                        ? AppColors.inputBg
+                                            .withValues(alpha: 0.5)
                                         : isActive
-                                            ? AppColors.accent.withValues(alpha: 0.1)
+                                            ? AppColors.accent
+                                                .withValues(alpha: 0.1)
                                             : AppColors.inputBg,
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
@@ -436,7 +460,8 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                             : Icons.circle_outlined,
                                         size: 12,
                                         color: isDisabled
-                                            ? AppColors.textSecondary.withValues(alpha: 0.3)
+                                            ? AppColors.textSecondary
+                                                .withValues(alpha: 0.3)
                                             : isActive
                                                 ? AppColors.accent
                                                 : AppColors.textSecondary,
@@ -446,7 +471,8 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                         key,
                                         style: TextStyle(
                                           color: isDisabled
-                                              ? AppColors.textSecondary.withValues(alpha: 0.3)
+                                              ? AppColors.textSecondary
+                                                  .withValues(alpha: 0.3)
                                               : isActive
                                                   ? AppColors.textPrimary
                                                   : AppColors.textSecondary,
@@ -478,11 +504,23 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                           isActive: !_isTransparent,
                           onTap: () => setState(() => _isTransparent = false),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         _buildOptionButton(
-                          label: 'Transparent',
-                          isActive: _isTransparent,
-                          onTap: () => setState(() => _isTransparent = true),
+                          label: 'Tr. Light',
+                          isActive: _isTransparent && !_isTransparentDarkText,
+                          onTap: () => setState(() {
+                            _isTransparent = true;
+                            _isTransparentDarkText = false;
+                          }),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildOptionButton(
+                          label: 'Tr. Dark',
+                          isActive: _isTransparent && _isTransparentDarkText,
+                          onTap: () => setState(() {
+                            _isTransparent = true;
+                            _isTransparentDarkText = true;
+                          }),
                         ),
                       ],
                     ),
@@ -537,15 +575,18 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
 
   double _calculateContainerHeight() {
     if (_currentTab == 1) {
-      return 480; // Increased to accommodate the transparent badge
+      return 450; // Increased to accommodate the transparent badge
     } else if (_currentTab == 2) {
-      double h = 670; // Base height for Card layout
+      double h = 630; // Base height for Card layout
       if (widget.workout.planName?.isNotEmpty ?? false) h += 32;
       if (_isTransparent && !_isGenerating) h += 32;
       return h;
     }
-    double h = 440;
-    if ((widget.workout.planName?.isNotEmpty ?? false) && (_showOptions['Plan'] ?? true)) h += 40;
+    double h = 445;
+    if ((widget.workout.planName?.isNotEmpty ?? false) &&
+        (_showOptions['Plan'] ?? true)) {
+      h += 40;
+    }
     return h;
   }
 
@@ -583,14 +624,20 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   }
 
   Widget _buildStatGroup(String label, String value, {bool isSmall = false}) {
-    final textColor = _isTransparent ? Colors.black87 : AppColors.textPrimary;
+    final textColor = _isTransparent
+        ? (_isTransparentDarkText ? Colors.black87 : Colors.white)
+        : AppColors.textPrimary;
+    final labelColor = _isTransparent
+        ? (_isTransparentDarkText ? Colors.black54 : Colors.white70)
+        : AppColors.textSecondary;
+
     return Column(
       children: [
         Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
+          style: TextStyle(
+            color: labelColor,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -667,8 +714,15 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
     );
   }
 
-  Widget _buildCardTabContent(WorkoutSession workout, double totalVolume, int exerciseCount, int totalSets) {
-    final textColor = _isTransparent ? Colors.black87 : AppColors.textPrimary;
+  Widget _buildCardTabContent(WorkoutSession workout, double totalVolume,
+      int exerciseCount, int totalSets) {
+    final textColor = _isTransparent
+        ? (_isTransparentDarkText ? Colors.black87 : Colors.white)
+        : AppColors.textPrimary;
+    final labelColor = _isTransparent
+        ? (_isTransparentDarkText ? Colors.black54 : Colors.white70)
+        : AppColors.textSecondary;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -683,7 +737,10 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
             ),
             child: const Text(
               'TRANSPARENT',
-              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold),
             ),
           ),
 
@@ -762,21 +819,24 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                 color: const Color(0xFF10B981),
                 unit: 'kg',
                 valueColor: textColor,
+                unitColor: labelColor,
               ),
             ),
           ],
         ),
         const SizedBox(height: 24),
-        const Text(
+        Text(
           'Muscle Heatmap',
           style: TextStyle(
-            color: AppColors.textSecondary,
+            color: labelColor,
             fontSize: 15,
             fontWeight: FontWeight.bold,
           ),
         ),
-        MuscleHeatmap(workedMuscles: widget.workedMuscles),
-        const Spacer(),
+        MuscleHeatmap(
+          workedMuscles: widget.workedMuscles,
+          textColor: labelColor,
+        ),
         // App Logo/Badge
         Center(
           child: Column(

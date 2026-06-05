@@ -5,10 +5,12 @@ import '../../../core/constants/anatomy_points.dart';
 
 class MuscleHeatmap extends StatelessWidget {
   final Map<MuscleGroup, int> workedMuscles;
+  final Color? textColor;
 
   const MuscleHeatmap({
     super.key,
     required this.workedMuscles,
+    this.textColor,
   });
 
   @override
@@ -45,15 +47,16 @@ class MuscleHeatmap extends StatelessWidget {
                             painter: AnatomyPainter(
                               workedMuscles: workedMuscles,
                               isFront: true,
+                              textColor: textColor,
                             ),
                           ),
                         ),
                       ),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'FRONT',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: textColor ?? AppColors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.0,
@@ -78,15 +81,16 @@ class MuscleHeatmap extends StatelessWidget {
                             painter: AnatomyPainter(
                               workedMuscles: workedMuscles,
                               isFront: false,
+                              textColor: textColor,
                             ),
                           ),
                         ),
                       ),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'BACK',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: textColor ?? AppColors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.0,
@@ -118,8 +122,8 @@ class MuscleHeatmap extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
+          style: TextStyle(
+            color: textColor ?? AppColors.textSecondary,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -132,8 +136,9 @@ class MuscleHeatmap extends StatelessWidget {
 class AnatomyPainter extends CustomPainter {
   final Map<MuscleGroup, int> workedMuscles;
   final bool isFront;
+  final Color? textColor;
 
-  const AnatomyPainter({required this.workedMuscles, required this.isFront});
+  const AnatomyPainter({required this.workedMuscles, required this.isFront, this.textColor});
 
   static const double _vW = 100.0;
 
@@ -155,7 +160,7 @@ class AnatomyPainter extends CustomPainter {
     final shiftX = 0.0;
 
     final basePaint = Paint()
-      ..color = AppColors.textSecondary.withValues(alpha: 0.18)
+      ..color = (textColor ?? AppColors.textSecondary).withValues(alpha: 0.18)
       ..style = PaintingStyle.fill;
 
     Paint getPaint(MuscleGroup group) {
