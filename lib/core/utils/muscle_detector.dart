@@ -22,6 +22,10 @@ class MuscleDetector {
     final fullText = '$name $varStr';
 
     // 1. HIGH PRIORITY: Exceptions & Specific Modifiers
+    if (fullText.contains('calf') || fullText.contains('calves')) {
+      return MuscleGroup.calves;
+    }
+
     if (fullText.contains('reverse pec') ||
         fullText.contains('rear delt') ||
         fullText.contains('face pull') ||
@@ -82,7 +86,7 @@ class MuscleDetector {
         fullText.contains('front raise') ||
         fullText.contains('overhead press') ||
         fullText.contains('raise')) {
-      if (!fullText.contains('calf')) {
+      if (!fullText.contains('calf') && !fullText.contains('calves')) {
         return MuscleGroup.shoulders;
       }
     }
@@ -146,10 +150,7 @@ class MuscleDetector {
       return MuscleGroup.hamstrings;
     }
 
-    // Calves
-    if (fullText.contains('calf')) {
-      return MuscleGroup.calves;
-    }
+
 
     return MuscleGroup.unknown;
   }
