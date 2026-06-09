@@ -31,6 +31,7 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
   List<String> _filteredSuggestions = [];
   bool _isSelecting = false;
   bool _isInteractingWithSuggestions = false;
+  bool _suppressRefocusAfterSelection = false;
   final FocusNode _internalFocusNode = FocusNode();
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
@@ -62,17 +63,20 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
     if (_effectiveFocusNode.hasFocus) {
       _updateSuggestions();
     } else {
-      // Small delay to allow tap/interaction on suggestion to register
-      Future.delayed(const Duration(milliseconds: 200), () {
-        if (mounted && !_effectiveFocusNode.hasFocus) {
-          if (!_isInteractingWithSuggestions) {
-            _removeOverlay();
-          } else {
-            // If lost focus while interacting with overlay, refocused
-            _effectiveFocusNode.requestFocus();
-          }
-        }
-      });
+      if (_suppressRefocusAfterSelection) {
+        // A selection just occurred; ensure overlay removed and
+        // don't refocus. Reset the suppress flag after handling.
+        _removeOverlay();
+        _suppressRefocusAfterSelection = false;
+        return;
+      }
+
+      if (!_isInteractingWithSuggestions) {
+        _removeOverlay();
+      } else {
+        // If lost focus while interacting with overlay, refocused
+        _effectiveFocusNode.requestFocus();
+      }
     }
   }
 
@@ -247,9 +251,21 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
     widget.controller.selection = TextSelection.fromPosition(
       TextPosition(offset: suggestion.length),
     );
-    _isSelecting = false;
+    // Remove overlay and immediately unfocus so the keyboard/overlay
+    // does not continue to block interaction after selection.
+    // Set a suppress flag so the focus-change handler doesn't refocus
+    // while we're intentionally closing the suggestions.
+    _suppressRefocusAfterSelection = true;
     _removeOverlay();
+    _isSelecting = false;
     widget.onChanged?.call(suggestion);
+    if (mounted) {
+      _effectiveFocusNode.unfocus();
+    }
+    // Clear the suppress flag after a short delay to allow normal behavior
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) _suppressRefocusAfterSelection = false;
+    });
   }
 
   @override
@@ -291,6 +307,8 @@ class _SuggestionTextFieldState extends State<SuggestionTextField> {
                   widget.onChanged?.call('');
                   widget.onCleared?.call();
                   _updateSuggestions();
+                  // Ensure field is focused after clearing
+                  _effectiveFocusNode.requestFocus();
                 },
                 child: Container(
                   width: 36,

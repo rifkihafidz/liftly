@@ -164,6 +164,11 @@ class AnatomyPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     Paint getPaint(MuscleGroup group) {
+      // Don't highlight unknown/uncategorized muscles
+      if (group == MuscleGroup.unknown) {
+        return basePaint;
+      }
+      
       if (!workedMuscles.containsKey(group)) return basePaint;
       
       final count = workedMuscles[group]!;

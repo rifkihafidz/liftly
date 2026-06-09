@@ -244,7 +244,7 @@ class _ExerciseDetailCardState extends State<ExerciseDetailCard>
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      'Total: ${widget.formatNumber(segments.fold(0.0, (sum, seg) => sum + seg.volume))} kg',
+                                      'Total: ${widget.formatNumber((segments.fold(0.0, (sum, seg) => sum + seg.volume)) * ((widget.exercise.name.toLowerCase().contains('single') || widget.exercise.variation.toLowerCase().contains('single')) ? 2 : 1))} kg',
                                       style: const TextStyle(
                                         color: AppColors.accent,
                                         fontWeight: FontWeight.bold,
@@ -284,7 +284,7 @@ class _ExerciseDetailCardState extends State<ExerciseDetailCard>
                                         ),
                                       ),
                                       Text(
-                                        'Vol: ${widget.formatNumber(segment.weight * (segment.repsTo - segment.repsFrom + 1))} kg',
+                                        'Vol: ${widget.formatNumber(segment.weight * (segment.repsTo - segment.repsFrom + 1))} kg${widget.exercise.name.toLowerCase().contains('single') || widget.exercise.variation.toLowerCase().contains('single') ? ' x 2' : ''}',
                                         style: TextStyle(
                                           color: AppColors.textSecondary
                                               .withValues(alpha: 0.7),

@@ -70,7 +70,8 @@ class MuscleDetector {
 
     if (fullText.contains('crunch') ||
         fullText.contains('plank') ||
-        fullText.contains('sit up')) {
+        fullText.contains('sit up') ||
+        fullText.contains('mountain climber')) {
       return MuscleGroup.upperAbs;
     }
 

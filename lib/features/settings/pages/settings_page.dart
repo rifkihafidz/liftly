@@ -313,7 +313,7 @@ class _SettingsPageState extends State<SettingsPage> {
               itemBuilder: (context, index) {
                 final file = backups[index];
                 final date = file.createdTime != null
-                    ? DateFormat('dd MMM yyyy, HH:mm').format(file.createdTime!)
+                    ? DateFormat('dd MMM yyyy, HH:mm').format(file.createdTime!.add(const Duration(hours: 7)))
                     : 'Unknown date';
 
                 return ListTile(
