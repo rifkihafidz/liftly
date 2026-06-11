@@ -22,12 +22,12 @@ class MuscleHeatmap extends StatelessWidget {
         children: [
           Wrap(
             alignment: WrapAlignment.center,
-            spacing: 12,
+            spacing: 20,
             runSpacing: 8,
             children: [
-              _buildLegendItem(Colors.yellow, '1-4 sets'),
-              _buildLegendItem(Colors.orange, '5-8 sets'),
-              _buildLegendItem(Colors.red, '>8 sets'),
+              _buildLegendItem(const Color(0xFFFFD600), '1-4 sets'),
+              _buildLegendItem(const Color(0xFFFF7A00), '5-8 sets'),
+              _buildLegendItem(const Color(0xFFE53935), '>8 sets'),
             ],
           ),
           const SizedBox(height: 32),
@@ -52,23 +52,24 @@ class MuscleHeatmap extends StatelessWidget {
                           ),
                         ),
                       ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'FRONT',
-                      style: TextStyle(
-                        color: textColor ?? AppColors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
+                      const SizedBox(height: 12),
+                      Text(
+                        'FRONT',
+                        style: TextStyle(
+                          color: (textColor ?? AppColors.textSecondary)
+                              .withValues(alpha: 0.6),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.0,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
                 // Divider
                 Container(
                   width: 1,
-                  color: AppColors.borderDark,
+                  color: (textColor ?? AppColors.borderDark).withValues(alpha: 0.25),
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                 ),
                 Expanded(
@@ -86,19 +87,20 @@ class MuscleHeatmap extends StatelessWidget {
                           ),
                         ),
                       ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'BACK',
-                      style: TextStyle(
-                        color: textColor ?? AppColors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
+                      const SizedBox(height: 12),
+                      Text(
+                        'BACK',
+                        style: TextStyle(
+                          color: (textColor ?? AppColors.textSecondary)
+                              .withValues(alpha: 0.6),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.0,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
               ],
             ),
           ),
@@ -112,11 +114,18 @@ class MuscleHeatmap extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.5),
+                blurRadius: 4,
+                spreadRadius: 1,
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 8),
@@ -138,55 +147,55 @@ class AnatomyPainter extends CustomPainter {
   final bool isFront;
   final Color? textColor;
 
-  const AnatomyPainter({required this.workedMuscles, required this.isFront, this.textColor});
+  const AnatomyPainter({
+    required this.workedMuscles,
+    required this.isFront,
+    this.textColor,
+  });
 
   static const double _vW = 100.0;
+
+  static const Color _colorLow = Color(0xFFFFD600);
+  static const Color _colorMid = Color(0xFFFF7A00);
+  static const Color _colorHigh = Color(0xFFE53935);
+
+  Color _getIntensityColor(int count) {
+    if (count <= 4) return _colorLow;
+    if (count <= 8) return _colorMid;
+    return _colorHigh;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
     final scaleX = size.width / _vW;
     
-    // Front and back have different original SVG path bounds
-    // The head path for both actually starts at Y = 0.
     final double pathMinY = 0.0;
     final double pathMaxY = isFront ? 212.0 : 222.0;
     final double pathHeight = pathMaxY - pathMinY;
 
-    // Use 95% of available height to avoid clipping bounds
     final double targetHeight = size.height * 0.95;
     final double scaleY = targetHeight / pathHeight;
     final double shiftY = (size.height - targetHeight) / 2 - (pathMinY * scaleY);
 
     final shiftX = 0.0;
 
-    final basePaint = Paint()
-      ..color = (textColor ?? AppColors.textSecondary).withValues(alpha: 0.18)
+    // Use a lighter, more solid grey for the base so the human shape stands out
+    // and looks exactly like the premium reference image.
+    final Color baseColor = const Color(0xFF555555);
+
+    final baseFill = Paint()
+      ..color = baseColor
       ..style = PaintingStyle.fill;
 
-    Paint getPaint(MuscleGroup group) {
-      // Don't highlight unknown/uncategorized muscles
-      if (group == MuscleGroup.unknown) {
-        return basePaint;
-      }
-      
-      if (!workedMuscles.containsKey(group)) return basePaint;
-      
-      final count = workedMuscles[group]!;
-      Color intensityColor;
-      if (count <= 4) {
-        intensityColor = Colors.yellow;
-      } else if (count <= 8) {
-        intensityColor = Colors.orange;
-      } else {
-        intensityColor = Colors.red;
-      }
-      
-      return Paint()
-        ..color = intensityColor
-        ..style = PaintingStyle.fill;
-    }
+    // "Negative Space" separator using the background color (AppColors.darkBg / cardBg)
+    // This creates clean gaps between all polygons, rounding off their sharp edges.
+    final separatorStroke = Paint()
+      ..color = AppColors.cardBg // Matches the background of the bottom sheet/card
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5 * scaleX
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
 
-    // Build a closed Path from a space-separated string of "x y x y ..." coords
     Path buildPath(String pathStr) {
       final path = Path();
       final points = pathStr.split(' ').where((s) => s.isNotEmpty).toList();
@@ -205,12 +214,30 @@ class AnatomyPainter extends CustomPainter {
       return path;
     }
 
-    // Draw muscle group regions from anatomy_points data
     final data = isFront ? AnatomyPoints.anteriorData : AnatomyPoints.posteriorData;
+
+    // We do one single loop to draw each shape (fill first, then gap separator on top).
+    // This perfectly isolates each muscle segment without overlap artifacts.
     data.forEach((group, pathsStr) {
-      final paint = getPaint(group);
+      final isUnknown = group == MuscleGroup.unknown;
+      final isActive = !isUnknown && workedMuscles.containsKey(group);
+
+      final Paint fillPaint;
+      if (isActive) {
+        final count = workedMuscles[group]!;
+        fillPaint = Paint()
+          ..color = _getIntensityColor(count)
+          ..style = PaintingStyle.fill;
+      } else {
+        fillPaint = baseFill;
+      }
+
       for (final p in pathsStr) {
-        canvas.drawPath(buildPath(p), paint);
+        final path = buildPath(p);
+        // Draw the muscle color
+        canvas.drawPath(path, fillPaint);
+        // Draw the background-colored separator on top to carve out gaps
+        canvas.drawPath(path, separatorStroke);
       }
     });
   }
@@ -218,6 +245,7 @@ class AnatomyPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant AnatomyPainter oldDelegate) {
     return oldDelegate.workedMuscles != workedMuscles ||
-        oldDelegate.isFront != isFront;
+        oldDelegate.isFront != isFront ||
+        oldDelegate.textColor != textColor;
   }
 }
