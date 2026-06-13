@@ -22,6 +22,11 @@ class MuscleDetector {
     final fullText = '$name $varStr';
 
     // 1. HIGH PRIORITY: Exceptions & Specific Modifiers
+    if (fullText.contains('chest dip') ||
+        (fullText.contains('dips') && fullText.contains('chest'))) {
+      return MuscleGroup.chest;
+    }
+
     if (fullText.contains('calf') || fullText.contains('calves')) {
       return MuscleGroup.calves;
     }

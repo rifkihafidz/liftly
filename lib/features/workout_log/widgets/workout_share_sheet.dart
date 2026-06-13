@@ -354,6 +354,19 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                             ] else ...[
                                               // Heatmap Tab Content
                                               const Spacer(),
+                                              Text(
+                                                'Muscle Heatmap',
+                                                style: TextStyle(
+                                                  color: _isTransparent
+                                                      ? (_isTransparentDarkText
+                                                          ? Colors.black87
+                                                          : Colors.white)
+                                                      : AppColors.textPrimary,
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
                                               MuscleHeatmap(
                                                 workedMuscles:
                                                     widget.workedMuscles,
@@ -363,6 +376,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                                         : Colors.white70)
                                                     : null,
                                               ),
+                                              const SizedBox(height: 16),
                                             ],
 
                                             // App Logo/Badge
@@ -575,11 +589,20 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
 
   double _calculateContainerHeight() {
     if (_currentTab == 1) {
-      return 450; // Increased to accommodate the transparent badge
+      double h = 510; // Increased to prevent overflow and fit title
+      if (_isTransparent && !_isGenerating) {
+        h += 32; // Accommodate transparent badge
+      }
+      return h;
     } else if (_currentTab == 2) {
-      double h = 630; // Base height for Card layout
-      if (widget.workout.planName?.isNotEmpty ?? false) h += 32;
-      if (_isTransparent && !_isGenerating) h += 32;
+      double h =
+          570; // Base height for Card layout (reduced to fit smaller heatmap)
+      if (widget.workout.planName?.isNotEmpty ?? false) {
+        h += 32;
+      }
+      if (_isTransparent && !_isGenerating) {
+        h += 32;
+      }
       return h;
     }
     double h = 445;
@@ -836,6 +859,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
         MuscleHeatmap(
           workedMuscles: widget.workedMuscles,
           textColor: labelColor,
+          height: 160, // Smaller height to prevent overflow in Card view
         ),
         // App Logo/Badge
         Center(

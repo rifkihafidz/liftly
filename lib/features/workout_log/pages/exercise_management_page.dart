@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_constants.dart';
@@ -269,6 +270,20 @@ class _ExerciseManagementPageState extends State<ExerciseManagementPage> {
         title: const Text('Exercise Management'),
         backgroundColor: AppColors.darkBg,
         elevation: 0,
+        actions: [
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.print),
+              onPressed: () {
+                debugPrint('--- All Exercises & Variations ---');
+                for (final ex in _exercises) {
+                  debugPrint('${ex['name']} - ${ex['variation']}');
+                }
+                debugPrint('----------------------------------');
+              },
+              tooltip: 'Print all exercises to console',
+            ),
+        ],
       ),
       body: Column(
         children: [

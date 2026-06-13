@@ -6,11 +6,13 @@ import '../../../core/constants/anatomy_points.dart';
 class MuscleHeatmap extends StatelessWidget {
   final Map<MuscleGroup, int> workedMuscles;
   final Color? textColor;
+  final double height;
 
   const MuscleHeatmap({
     super.key,
     required this.workedMuscles,
     this.textColor,
+    this.height = 240,
   });
 
   @override
@@ -20,19 +22,33 @@ class MuscleHeatmap extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 20,
-            runSpacing: 8,
-            children: [
-              _buildLegendItem(const Color(0xFFFFD600), '1-4 sets'),
-              _buildLegendItem(const Color(0xFFFF7A00), '5-8 sets'),
-              _buildLegendItem(const Color(0xFFE53935), '>8 sets'),
-            ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.cardBg.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(100), // pill shape
+              border: Border.all(
+                color: AppColors.borderDark.withValues(alpha: 0.5),
+              ),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildLegendItem(const Color(0xFFFFD600), '1-4 sets'),
+                  const SizedBox(width: 16),
+                  _buildLegendItem(const Color(0xFFFF7A00), '5-8 sets'),
+                  const SizedBox(width: 16),
+                  _buildLegendItem(const Color(0xFFE53935), '>8 sets'),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
           SizedBox(
-            height: 240,
+            height: height,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -53,14 +69,23 @@ class MuscleHeatmap extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        'FRONT',
-                        style: TextStyle(
-                          color: (textColor ?? AppColors.textSecondary)
-                              .withValues(alpha: 0.6),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.0,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBg.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppColors.borderDark.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          'FRONT',
+                          style: TextStyle(
+                            color: (textColor ?? AppColors.textPrimary).withValues(alpha: 0.7),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2.0,
+                          ),
                         ),
                       ),
                     ],
@@ -88,14 +113,23 @@ class MuscleHeatmap extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        'BACK',
-                        style: TextStyle(
-                          color: (textColor ?? AppColors.textSecondary)
-                              .withValues(alpha: 0.6),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.0,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBg.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppColors.borderDark.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          'BACK',
+                          style: TextStyle(
+                            color: (textColor ?? AppColors.textPrimary).withValues(alpha: 0.7),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2.0,
+                          ),
                         ),
                       ),
                     ],
@@ -114,14 +148,14 @@ class MuscleHeatmap extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 10,
-          height: 10,
+          width: 12,
+          height: 12,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: 0.5),
+                color: color.withValues(alpha: 0.4),
                 blurRadius: 4,
                 spreadRadius: 1,
               ),
@@ -179,14 +213,6 @@ class AnatomyPainter extends CustomPainter {
 
     final shiftX = 0.0;
 
-    // Use a lighter, more solid grey for the base so the human shape stands out
-    // and looks exactly like the premium reference image.
-    final Color baseColor = const Color(0xFF555555);
-
-    final baseFill = Paint()
-      ..color = baseColor
-      ..style = PaintingStyle.fill;
-
     // "Negative Space" separator using the background color (AppColors.darkBg / cardBg)
     // This creates clean gaps between all polygons, rounding off their sharp edges.
     final separatorStroke = Paint()
@@ -218,26 +244,72 @@ class AnatomyPainter extends CustomPainter {
 
     // We do one single loop to draw each shape (fill first, then gap separator on top).
     // This perfectly isolates each muscle segment without overlap artifacts.
+    
+    // 1. Build a full silhouette for the drop shadow
+    final fullSilhouette = Path();
+    data.forEach((group, pathsStr) {
+      for (final p in pathsStr) {
+        fullSilhouette.addPath(buildPath(p), Offset.zero);
+      }
+    });
+
+    // Draw Drop Shadow
+    final dropShadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.5)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8.0);
+      
+    canvas.drawPath(
+      fullSilhouette.shift(Offset(0, 4.0 * scaleY)), 
+      dropShadowPaint,
+    );
+
+    // 2. Base inactive color with a subtle 3D metallic gradient
+    final baseShader = const LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        Color(0xFF6E6E73), // lighter metallic grey
+        Color(0xFF48484A), // mid metallic grey
+        Color(0xFF2C2C2E), // dark metallic grey
+      ],
+    ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    final baseFill = Paint()
+      ..shader = baseShader
+      ..style = PaintingStyle.fill;
+
+    // 3. Draw Muscles
     data.forEach((group, pathsStr) {
       final isUnknown = group == MuscleGroup.unknown;
       final isActive = !isUnknown && workedMuscles.containsKey(group);
 
-      final Paint fillPaint;
       if (isActive) {
         final count = workedMuscles[group]!;
-        fillPaint = Paint()
-          ..color = _getIntensityColor(count)
+        final intensityColor = _getIntensityColor(count);
+        
+        final fillPaint = Paint()
+          ..color = intensityColor
           ..style = PaintingStyle.fill;
-      } else {
-        fillPaint = baseFill;
-      }
+          
+        final glowPaint = Paint()
+          ..color = intensityColor.withValues(alpha: 0.35)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0 * scaleX
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
 
-      for (final p in pathsStr) {
-        final path = buildPath(p);
-        // Draw the muscle color
-        canvas.drawPath(path, fillPaint);
-        // Draw the background-colored separator on top to carve out gaps
-        canvas.drawPath(path, separatorStroke);
+        for (final p in pathsStr) {
+          final path = buildPath(p);
+          canvas.drawPath(path, glowPaint);
+          canvas.drawPath(path, fillPaint);
+          canvas.drawPath(path, separatorStroke);
+        }
+      } else {
+        for (final p in pathsStr) {
+          final path = buildPath(p);
+          canvas.drawPath(path, baseFill);
+          canvas.drawPath(path, separatorStroke);
+        }
       }
     });
   }
