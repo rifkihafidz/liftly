@@ -307,29 +307,77 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           content: SizedBox(
             width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: backups.length,
-              itemBuilder: (context, index) {
-                final file = backups[index];
-                final date = file.createdTime != null
-                    ? DateFormat('dd MMM yyyy, HH:mm').format(file.createdTime!.add(const Duration(hours: 7)))
-                    : 'Unknown date';
+            child: StatefulBuilder(
+              builder: (context, setDialogState) {
+                if (backups.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      'No backups available.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: backups.length,
+                  itemBuilder: (context, index) {
+                    final file = backups[index];
+                    final date = file.createdTime != null
+                        ? DateFormat('dd MMM yyyy, HH:mm').format(file.createdTime!.add(const Duration(hours: 7)))
+                        : 'Unknown date';
 
-                return ListTile(
-                  title: Text(
-                    file.name ?? 'Unknown',
-                    style: const TextStyle(color: AppColors.textPrimary),
-                  ),
-                  subtitle: Text(
-                    date,
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
-                  leading: const Icon(
-                    Icons.insert_drive_file,
-                    color: AppColors.accent,
-                  ),
-                  onTap: () => Navigator.pop(context, file.id),
+                    return ListTile(
+                      title: Text(
+                        file.name ?? 'Unknown',
+                        style: const TextStyle(color: AppColors.textPrimary),
+                      ),
+                      subtitle: Text(
+                        date,
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                      leading: const Icon(
+                        Icons.insert_drive_file,
+                        color: AppColors.accent,
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                        onPressed: () async {
+                          final confirm = await AppDialogs.showConfirmationDialog(
+                            context: context,
+                            title: 'Delete Backup',
+                            message: 'Are you sure you want to permanently delete this backup from Google Drive?',
+                            confirmText: 'Delete',
+                            isDangerous: true,
+                          );
+                          if (confirm == true) {
+                            if (!context.mounted) return;
+                            AppDialogs.showLoadingDialog(context, 'Deleting...');
+                            try {
+                              await BackupService().deleteBackup(file.id!);
+                              if (context.mounted) {
+                                AppDialogs.hideLoadingDialog(context);
+                                setDialogState(() {
+                                  backups.removeAt(index);
+                                });
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                AppDialogs.hideLoadingDialog(context);
+                                AppDialogs.showErrorDialog(
+                                  context: context,
+                                  title: 'Delete Failed',
+                                  message: e.toString(),
+                                );
+                              }
+                            }
+                          }
+                        },
+                      ),
+                      onTap: () => Navigator.pop(context, file.id),
+                    );
+                  },
                 );
               },
             ),

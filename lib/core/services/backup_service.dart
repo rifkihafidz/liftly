@@ -542,6 +542,29 @@ class BackupService {
       throw RestoreException('Restore failed: ${e.toString()}');
     }
   }
+
+  /// Delete a backup file from Google Drive
+  Future<void> deleteBackup(String fileId) async {
+    if (_currentUser == null) {
+      final reauthed = await _ensureSignedIn();
+      if (!reauthed) throw BackupException('User not signed in');
+    }
+
+    if (_currentUser != null) {
+      await _ensureDriveScope();
+    }
+
+    try {
+      final headers = await _getAuthHeaders();
+      final client = _GoogleAuthClient(headers);
+      final driveApi = drive.DriveApi(client);
+
+      await driveApi.files.delete(fileId);
+    } catch (e) {
+      AppLogger.error('BackupService', 'Delete backup failed', e);
+      throw BackupException('Failed to delete backup: ${e.toString()}');
+    }
+  }
 }
 
 class _GoogleAuthClient extends http.BaseClient {
