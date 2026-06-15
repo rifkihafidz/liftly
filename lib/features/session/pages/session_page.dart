@@ -438,6 +438,16 @@ class _SessionPageState extends State<SessionPage> {
                                       }
                                     },
                                   ),
+                                  const SizedBox(height: 16),
+                                  NotesField(
+                                    initialValue: session.notes,
+                                    label: 'Session Notes (Optional)',
+                                    onChanged: (val) {
+                                      context.read<SessionBloc>().add(
+                                            SessionNotesUpdated(notes: val),
+                                          );
+                                    },
+                                  ),
                                 ],
                               ),
                             ),
@@ -608,6 +618,14 @@ class _SessionPageState extends State<SessionPage> {
                                                     exIndex,
                                                     exercise.name,
                                                   ),
+                                          onUpdateNotes: (notes) {
+                                            context.read<SessionBloc>().add(
+                                                  SessionExerciseNotesUpdated(
+                                                    exerciseIndex: exIndex,
+                                                    newNotes: notes,
+                                                  ),
+                                                );
+                                          },
                                           isLastExercise:
                                               exIndex == exercises.length - 1,
                                         ),

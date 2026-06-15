@@ -160,6 +160,15 @@ class SessionDateTimesUpdated extends SessionEvent {
   List<Object?> get props => [workoutDate, startedAt, endedAt];
 }
 
+class SessionNotesUpdated extends SessionEvent {
+  final String notes;
+
+  const SessionNotesUpdated({required this.notes});
+
+  @override
+  List<Object?> get props => [notes];
+}
+
 class SessionEnded extends SessionEvent {
   const SessionEnded();
 }

@@ -326,6 +326,7 @@ class WorkoutBloc extends Bloc<WorkoutEvent, WorkoutState> {
       isDraft: data['isDraft'] is int
           ? (data['isDraft'] as int) == 1
           : (data['isDraft'] as bool? ?? false),
+      notes: data['notes'] as String? ?? '',
     );
   }
 }

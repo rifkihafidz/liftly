@@ -700,12 +700,14 @@ class _ToFieldState extends State<ToField> {
 
 // Reusable notes field
 class NotesField extends StatefulWidget {
+  final String label;
   final String initialValue;
   final Function(String) onChanged;
   final EdgeInsets scrollPadding;
 
   const NotesField({
     super.key,
+    this.label = 'Notes (Optional)',
     required this.initialValue,
     required this.onChanged,
     this.scrollPadding = EdgeInsets.zero,
@@ -760,7 +762,7 @@ class _NotesFieldState extends State<NotesField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Notes (Optional)',
+          widget.label,
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),

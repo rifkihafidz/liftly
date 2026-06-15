@@ -270,6 +270,8 @@ class WorkoutSession extends Equatable {
   final DateTime updatedAt;
   @HiveField(10, defaultValue: false)
   final bool isDraft;
+  @HiveField(11, defaultValue: '')
+  final String notes;
 
   const WorkoutSession({
     required this.id,
@@ -283,6 +285,7 @@ class WorkoutSession extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.isDraft = false,
+    this.notes = '',
   });
 
   Duration? get duration {
@@ -337,6 +340,7 @@ class WorkoutSession extends Equatable {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isDraft,
+    String? notes,
   }) {
     return WorkoutSession(
       id: id ?? this.id,
@@ -354,6 +358,7 @@ class WorkoutSession extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isDraft: isDraft ?? this.isDraft,
+      notes: notes ?? this.notes,
     );
   }
 
@@ -370,6 +375,7 @@ class WorkoutSession extends Equatable {
         createdAt,
         updatedAt,
         isDraft,
+        notes,
       ];
 
   Map<String, dynamic> toMap() {
@@ -385,6 +391,7 @@ class WorkoutSession extends Equatable {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'isDraft': isDraft,
+      'notes': notes,
     };
   }
 
@@ -420,6 +427,7 @@ class WorkoutSession extends Equatable {
       isDraft: map['isDraft'] is int
           ? (map['isDraft'] as int) == 1
           : (map['isDraft'] as bool? ?? false),
+      notes: map['notes'] as String? ?? '',
     );
   }
 

@@ -45,6 +45,7 @@ class DataManagementService {
         'started_at': w.startedAt?.toIso8601String(),
         'ended_at': w.endedAt?.toIso8601String(),
         'is_draft': w.isDraft ? 1 : 0,
+        'notes': w.notes,
         'created_at': w.createdAt.toIso8601String(),
         'updated_at': w.updatedAt.toIso8601String(),
       });
@@ -59,6 +60,7 @@ class DataManagementService {
           'exercise_order': ex.order, // SQL column was exercise_order
           'skipped': ex.skipped ? 1 : 0,
           'is_template': ex.isTemplate ? 1 : 0,
+          'notes': ex.notes,
         });
 
         for (final s in ex.sets) {
@@ -689,6 +691,7 @@ class DataManagementService {
           'skipped': skipped,
           'isTemplate': isTemplate,
           'sets': sets,
+          'notes': eRow['notes']?.toString() ?? '',
         };
       }).toList();
 
@@ -719,6 +722,7 @@ class DataManagementService {
                 DateTime.now())
             .toIso8601String(),
         'isDraft': false,
+        'notes': wRow['notes']?.toString() ?? '',
       });
 
       if (kIsWeb) await Future.delayed(Duration.zero);

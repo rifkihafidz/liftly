@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
+import '../text/notes_display.dart';
 import '../../../core/models/workout_session.dart';
 
 class ExerciseDetailCard extends StatefulWidget {
@@ -162,142 +163,150 @@ class _ExerciseDetailCardState extends State<ExerciseDetailCard>
                       ),
                       padding: const EdgeInsets.all(20),
                       child: Column(
-                        children: sets.asMap().entries.map((entry) {
-                          final setIndex = entry.key;
-                          final set = entry.value;
-                          final segments = set.segments;
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          NotesDisplay(
+                            notes: widget.exercise.notes,
+                            margin: const EdgeInsets.only(bottom: 16),
+                          ),
+                          ...sets.asMap().entries.map((entry) {
+                            final setIndex = entry.key;
+                            final set = entry.value;
+                            final segments = set.segments;
 
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (setIndex > 0)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  child: Divider(
-                                    height: 1,
-                                    color: Colors.white.withValues(alpha: 0.05),
-                                  ),
-                                ),
-                              Row(
-                                children: [
-                                  Container(
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (setIndex > 0)
+                                  Padding(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
+                                      vertical: 12,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accent.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      'SET ${set.setNumber}',
-                                      style: const TextStyle(
-                                        color: AppColors.accent,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 10,
-                                        letterSpacing: 0.5,
-                                      ),
+                                    child: Divider(
+                                      height: 1,
+                                      color:
+                                          Colors.white.withValues(alpha: 0.05),
                                     ),
                                   ),
-                                  if (segments.length > 1)
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 8),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(
-                                            0xFFF59E0B,
-                                          ).withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'DROP SET',
-                                          style: TextStyle(
-                                            color: Color(0xFFF59E0B),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 10,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
                                       ),
-                                    ),
-                                  const Spacer(),
-                                  // Always show total volume for the set
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accent.withValues(
-                                        alpha: 0.1,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.accent.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
                                       ),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      'Total: ${widget.formatNumber((segments.fold(0.0, (sum, seg) => sum + seg.volume)) * ((widget.exercise.name.toLowerCase().contains('single') || widget.exercise.variation.toLowerCase().contains('single')) ? 2 : 1))} kg',
-                                      style: const TextStyle(
-                                        color: AppColors.accent,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              if (segments.isNotEmpty &&
-                                  segments.first.notes.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Text(
-                                    'Notes: ${segments.first.notes}',
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontStyle: FontStyle.italic,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ...segments.map((segment) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        '${segment.weight} kg × ${segment.repsFrom}-${segment.repsTo}',
+                                      child: Text(
+                                        'SET ${set.setNumber}',
                                         style: const TextStyle(
-                                          color: AppColors.textPrimary,
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 14,
+                                          color: AppColors.accent,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10,
+                                          letterSpacing: 0.5,
                                         ),
                                       ),
-                                      Text(
-                                        'Vol: ${widget.formatNumber(segment.weight * (segment.repsTo - segment.repsFrom + 1))} kg${widget.exercise.name.toLowerCase().contains('single') || widget.exercise.variation.toLowerCase().contains('single') ? ' x 2' : ''}',
-                                        style: TextStyle(
-                                          color: AppColors.textSecondary
-                                              .withValues(alpha: 0.7),
-                                          fontSize: 12,
+                                    ),
+                                    if (segments.length > 1)
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 8),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(
+                                              0xFFF59E0B,
+                                            ).withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'DROP SET',
+                                            style: TextStyle(
+                                              color: Color(0xFFF59E0B),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 10,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ],
+                                    const Spacer(),
+                                    // Always show total volume for the set
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.accent.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'Total: ${widget.formatNumber((segments.fold(0.0, (sum, seg) => sum + seg.volume)) * ((widget.exercise.name.toLowerCase().contains('single') || widget.exercise.variation.toLowerCase().contains('single')) ? 2 : 1))} kg',
+                                        style: const TextStyle(
+                                          color: AppColors.accent,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                if (segments.isNotEmpty &&
+                                    segments.first.notes.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Text(
+                                      'Notes: ${segments.first.notes}',
+                                      style: const TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontStyle: FontStyle.italic,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ),
-                                );
-                              }),
-                            ],
-                          );
-                        }).toList(),
+                                ...segments.map((segment) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          '${segment.weight} kg × ${segment.repsFrom}-${segment.repsTo}',
+                                          style: const TextStyle(
+                                            color: AppColors.textPrimary,
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Vol: ${widget.formatNumber(segment.weight * (segment.repsTo - segment.repsFrom + 1))} kg${widget.exercise.name.toLowerCase().contains('single') || widget.exercise.variation.toLowerCase().contains('single') ? ' x 2' : ''}',
+                                          style: TextStyle(
+                                            color: AppColors.textSecondary
+                                                .withValues(alpha: 0.7),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ],
+                            );
+                          }),
+                        ],
                       ),
                     )
                   : const SizedBox.shrink(),

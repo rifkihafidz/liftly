@@ -126,6 +126,37 @@ class ExerciseViewHeader extends StatelessWidget {
               ],
             ),
           ],
+          if (exercise.notes.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.darkBg,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.edit_rounded,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      exercise.notes,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (pr != null) ...[
             const SizedBox(height: 12),
             const Divider(height: 1, color: AppColors.borderLight),
@@ -281,7 +312,7 @@ class ViewSetRow extends StatelessWidget {
             Row(
               children: [
                 const Icon(
-                  Icons.notes,
+                  Icons.edit_rounded,
                   size: 14,
                   color: AppColors.textSecondary,
                 ),

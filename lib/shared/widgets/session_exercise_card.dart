@@ -23,6 +23,7 @@ class SessionExerciseCard extends StatefulWidget {
   final VoidCallback? onEditName;
   final VoidCallback? onDelete;
   final VoidCallback onSkipToggle;
+  final Function(String)? onUpdateNotes;
   final bool isAlwaysExpanded;
   final bool isLastExercise;
 
@@ -44,6 +45,7 @@ class SessionExerciseCard extends StatefulWidget {
     this.onEditName,
     this.onDelete,
     required this.onSkipToggle,
+    this.onUpdateNotes,
     this.isAlwaysExpanded = false,
     this.isLastExercise = false,
   });
@@ -202,110 +204,14 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> with Automati
 
             // Body (Collapsible) - Skip AnimatedSize when always expanded for better performance
             if (widget.isAlwaysExpanded && !isSkipped)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: Column(
-                  children: [
-                    const Divider(height: 1),
-                    const SizedBox(height: 12),
-                    if (widget.pr != null) ...[
-                      _buildPRSummary(context),
-                      const SizedBox(height: 12)
-                    ],
-                    if (widget.pr != null) const Divider(height: 1),
-                    if (widget.pr != null) const SizedBox(height: 16),
-                    if (widget.pr == null)
-                      Center(
-                        child: Text(
-                          'No previous sessions yet',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                        ),
-                      ),
-                    if (widget.pr == null) const SizedBox(height: 12),
-                    if (widget.pr == null) const Divider(height: 1),
-                    if (widget.pr == null) const SizedBox(height: 16),
-                    for (int setIndex = 0; setIndex < sets.length; setIndex++)
-                      _SetRow(
-                        key: ValueKey('set_row_${sets[setIndex].id}'),
-                        set: sets[setIndex],
-                        setIndex: setIndex,
-                        totalSets: sets.length,
-                        exerciseName: widget.exercise.name,
-                        exerciseVariation: widget.exercise.variation,
-                        scrollTargetKey: setIndex == _scrollToSetIndex
-                            ? _scrollTargetKey
-                            : null,
-                        onUpdateSegment: widget.onUpdateSegment,
-                        onRemoveSet: widget.onRemoveSet,
-                        onAddSet: widget.onAddSet,
-                        onAddDropSet: widget.onAddDropSet,
-                        onRemoveDropSet: widget.onRemoveDropSet,
-                        isLastExercise: widget.isLastExercise,
-                        onHistoryTap: widget.onHistoryTap,
-                      ),
-                  ],
-                ),
-              )
+              _buildExpandedContent(context, sets)
             else
               AnimatedSize(
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeInOut,
                 alignment: Alignment.topCenter,
                 child: _isExpanded && !isSkipped
-                    ? Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: Column(
-                          children: [
-                            const Divider(height: 1),
-                            const SizedBox(height: 12),
-                            if (widget.pr != null) ...[
-                              _buildPRSummary(context),
-                              const SizedBox(height: 12)
-                            ],
-                            if (widget.pr != null) const Divider(height: 1),
-                            if (widget.pr != null) const SizedBox(height: 16),
-                            if (widget.pr == null)
-                              Center(
-                                child: Text(
-                                  'No previous sessions yet',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        color: AppColors.textSecondary,
-                                      ),
-                                ),
-                              ),
-                            if (widget.pr == null) const SizedBox(height: 12),
-                            if (widget.pr == null) const Divider(height: 1),
-                            if (widget.pr == null) const SizedBox(height: 16),
-                            for (int setIndex = 0;
-                                setIndex < sets.length;
-                                setIndex++)
-                              _SetRow(
-                                key: ValueKey('set_row_${sets[setIndex].id}'),
-                                set: sets[setIndex],
-                                setIndex: setIndex,
-                                totalSets: sets.length,
-                                exerciseName: widget.exercise.name,
-                                exerciseVariation: widget.exercise.variation,
-                                scrollTargetKey: setIndex == _scrollToSetIndex
-                                    ? _scrollTargetKey
-                                    : null,
-                                onUpdateSegment: widget.onUpdateSegment,
-                                onRemoveSet: widget.onRemoveSet,
-                                onAddSet: widget.onAddSet,
-                                onAddDropSet: widget.onAddDropSet,
-                                onRemoveDropSet: widget.onRemoveDropSet,
-                                isLastExercise: widget.isLastExercise,
-                                onHistoryTap: widget.onHistoryTap,
-                              ),
-                          ],
-                        ),
-                      )
+                    ? _buildExpandedContent(context, sets)
                     : (!_isExpanded && !isSkipped)
                         ? Padding(
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -577,6 +483,65 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> with Automati
       ],
     );
   }
+
+  Widget _buildExpandedContent(BuildContext context, List<ExerciseSet> sets) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        children: [
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+          if (widget.pr != null) ...[
+            _buildPRSummary(context),
+            const SizedBox(height: 12)
+          ],
+          if (widget.pr != null) const Divider(height: 1),
+          if (widget.pr != null) const SizedBox(height: 16),
+          if (widget.pr == null)
+            Center(
+              child: Text(
+                'No previous sessions yet',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+            ),
+          if (widget.pr == null) const SizedBox(height: 12),
+          if (widget.pr == null) const Divider(height: 1),
+          if (widget.pr == null) const SizedBox(height: 16),
+          if (widget.onUpdateNotes != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: NotesField(
+                key: ValueKey('exercise_notes_${widget.exercise.id}'),
+                label: 'Exercise Notes (Optional)',
+                initialValue: widget.exercise.notes,
+                onChanged: widget.onUpdateNotes!,
+                scrollPadding: const EdgeInsets.only(bottom: 120),
+              ),
+            ),
+          for (int setIndex = 0; setIndex < sets.length; setIndex++)
+            _SetRow(
+              key: ValueKey('set_row_${sets[setIndex].id}'),
+              set: sets[setIndex],
+              setIndex: setIndex,
+              totalSets: sets.length,
+              exerciseName: widget.exercise.name,
+              exerciseVariation: widget.exercise.variation,
+              scrollTargetKey:
+                  setIndex == _scrollToSetIndex ? _scrollTargetKey : null,
+              onUpdateSegment: widget.onUpdateSegment,
+              onRemoveSet: widget.onRemoveSet,
+              onAddSet: widget.onAddSet,
+              onAddDropSet: widget.onAddDropSet,
+              onRemoveDropSet: widget.onRemoveDropSet,
+              isLastExercise: widget.isLastExercise,
+              onHistoryTap: widget.onHistoryTap,
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Extracted widget for a single set row - allows Flutter to skip rebuilding
@@ -653,6 +618,7 @@ class _SetRow extends StatelessWidget {
           if (segments.isNotEmpty)
             NotesField(
               key: ValueKey('notes_${set.id}'),
+              label: 'Set Notes (Optional)',
               initialValue: segments[0].notes,
               onChanged: (v) => onUpdateSegment(setIndex, 0, 'notes', v),
               scrollPadding: targetedPadding,

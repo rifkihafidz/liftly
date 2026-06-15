@@ -159,6 +159,30 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
+                if (entry.$2.notes.isNotEmpty) ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.edit_rounded,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          entry.$2.notes,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontStyle: FontStyle.italic,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 ..._renderSets(context, entry.$2.sets),
                 const SizedBox(height: 24),
               ],

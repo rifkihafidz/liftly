@@ -34,6 +34,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     on<SessionExerciseNameUpdated>(_onExerciseNameUpdated);
     on<SessionExerciseVariationUpdated>(_onExerciseVariationUpdated);
     on<SessionExerciseNotesUpdated>(_onExerciseNotesUpdated);
+    on<SessionNotesUpdated>(_onSessionNotesUpdated);
     on<SessionDiscarded>(_onSessionDiscarded);
     on<SessionExercisesReordered>(_onExercisesReordered);
   }
@@ -635,6 +636,27 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
       workoutDate: event.workoutDate ?? currentState.session.workoutDate,
       startedAt: event.startedAt,
       endedAt: event.endedAt,
+      updatedAt: DateTime.now(),
+    );
+
+    emit(
+      SessionInProgress(
+        session: updatedSession,
+        previousSessions: currentState.previousSessions,
+        exercisePRs: currentState.exercisePRs,
+      ),
+    );
+  }
+
+  Future<void> _onSessionNotesUpdated(
+    SessionNotesUpdated event,
+    Emitter<SessionState> emit,
+  ) async {
+    if (state is! SessionInProgress) return;
+    final currentState = state as SessionInProgress;
+
+    final updatedSession = currentState.session.copyWith(
+      notes: event.notes,
       updatedAt: DateTime.now(),
     );
 

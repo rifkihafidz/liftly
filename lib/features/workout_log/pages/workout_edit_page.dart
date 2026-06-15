@@ -233,6 +233,16 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                                 }
                               },
                             ),
+                            const SizedBox(height: 16),
+                            NotesField(
+                              initialValue: _editedWorkout.notes,
+                              label: 'Session Notes (Optional)',
+                              onChanged: (val) {
+                                setState(() {
+                                  _editedWorkout = _editedWorkout.copyWith(notes: val);
+                                });
+                              },
+                            ),
                           ],
                         ),
                       ),
@@ -995,6 +1005,11 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
                 _currentExercise = _currentExercise.copyWith(
                   skipped: !_currentExercise.skipped,
                 );
+              });
+            },
+            onUpdateNotes: (notes) {
+              setState(() {
+                _currentExercise = _currentExercise.copyWith(notes: notes);
               });
             },
             onUpdateSegment: (setIndex, segmentIndex, field, value) {

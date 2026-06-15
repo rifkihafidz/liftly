@@ -15,6 +15,7 @@ import '../widgets/workout_share_sheet.dart';
 import '../../../core/utils/page_transitions.dart';
 import '../../../shared/widgets/animations/fade_in_slide.dart';
 import '../../../shared/widgets/cards/exercise_detail_card.dart';
+import '../../../shared/widgets/text/notes_display.dart';
 import '../../../shared/widgets/text/detail_stat_item.dart';
 import '../../../core/utils/muscle_detector.dart';
 import '../../../shared/widgets/visuals/muscle_heatmap.dart';
@@ -326,15 +327,13 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                                 Icon(
                                   Icons.bookmark_rounded,
                                   size: 14,
-                                  color:
-                                      AppColors.accent.withValues(alpha: 0.7),
+                                  color: AppColors.accent.withValues(alpha: 0.7),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
                                   workout.planName!,
                                   style: TextStyle(
-                                    color:
-                                        AppColors.accent.withValues(alpha: 0.7),
+                                    color: AppColors.accent.withValues(alpha: 0.7),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -342,6 +341,13 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                               ],
                             ),
                           ],
+                          NotesDisplay(
+                            notes: workout.notes,
+                            margin: const EdgeInsets.only(top: 8),
+                            maxLength: 30,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           const SizedBox(height: 24),
                           // Row 1: Duration & Exercises
                           Row(

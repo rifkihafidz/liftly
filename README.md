@@ -19,6 +19,7 @@
 - **🎨 Premium UI/UX**: Features a consistent dark mode design, glassmorphism effects, and smooth animations.
 - **🔥 Muscle Heatmap**: Interactive visualizer showing targeted muscle groups based on workout intensity.
 - **📤 Advanced Sharing**: Export aesthetic workout summaries and heatmaps with customizable data points and transparent backgrounds.
+- **📝 Comprehensive Notes**: Add context with global session notes, individual exercise notes, and specific set-level notes.
 - **⚡ Performance Optimized**: Handles 1000+ workouts efficiently with intelligent caching.
 
 ## 🚀 Getting Started
@@ -83,7 +84,13 @@ liftly/
 - **[googleapis](https://pub.dev/packages/googleapis)** - Google Drive integration
 - **[excel](https://pub.dev/packages/excel)** - Excel file generation and parsing
 
-## � Changelog
+## 📄 Changelog
+
+### v2.4.9
+- **Feature**: Introduced **Comprehensive Notes** system allowing users to add global session notes, individual exercise notes, and specific set-level notes to capture full workout context.
+- **Data Persistence**: Integrated the new notes system into the local database and updated Excel Backup & Restore functionality to fully preserve note data.
+- **UI/UX**: Refactored UI components to eliminate code duplication, creating reusable `NotesDisplay` elements and simplifying complex collapsible cards.
+- **UI/UX**: Refined the Workout Detail and Edit pages for a cleaner aesthetic.
 
 ### v2.4.0
 - **Feature**: Introduced an interactive **Muscle Heatmap** visualizer (Front & Back anatomy) with dynamic intensity color-coding (Yellow, Orange, Red) based on workout volume.

@@ -348,7 +348,6 @@ class _SettingsPageState extends State<SettingsPage> {
                             context: context,
                             title: 'Delete Backup',
                             message: 'Are you sure you want to permanently delete this backup from Google Drive?',
-                            confirmText: 'Delete',
                             isDangerous: true,
                           );
                           if (confirm == true) {
@@ -365,11 +364,11 @@ class _SettingsPageState extends State<SettingsPage> {
                             } catch (e) {
                               if (context.mounted) {
                                 AppDialogs.hideLoadingDialog(context);
-                                AppDialogs.showErrorDialog(
+                                unawaited(AppDialogs.showErrorDialog(
                                   context: context,
                                   title: 'Delete Failed',
                                   message: e.toString(),
-                                );
+                                ));
                               }
                             }
                           }
