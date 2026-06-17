@@ -841,17 +841,20 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _saveButtonKey = GlobalKey();
 
+  late List<WorkoutSession>? _histories;
+  late PersonalRecord? _pr;
+
   @override
   void initState() {
     super.initState();
     _currentExercise = widget.initialExercise;
+    _histories = widget.histories;
+    _pr = widget.pr;
   }
 
   @override
   void didUpdateWidget(_ExerciseEditDialog oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // If stats updated in parent (e.g. after rename), update local state
-    // to keep _currentExercise in sync with parent's initialExercise
     if (oldWidget.initialExercise != widget.initialExercise) {
       setState(() {
         _currentExercise = widget.initialExercise;
@@ -878,15 +881,37 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
       initialValue: _currentExercise.name,
       initialVariation: _currentExercise.variation,
       suggestions: suggestions,
-      onConfirm: (newName, variation) {
+      onConfirm: (newName, variation) async {
         if (mounted) {
           setState(() {
             _currentExercise = _currentExercise.copyWith(
               name: newName,
               variation: variation,
             );
+            _histories = null;
+            _pr = null;
           });
           widget.onRenamed?.call(newName, variation);
+          
+          final results = await Future.wait([
+            workoutRepository.getLatestExerciseLogs(
+              userId: AppConstants.defaultUserId,
+              exerciseName: newName,
+              exerciseVariation: variation,
+            ),
+            workoutRepository.getExercisePR(
+              userId: AppConstants.defaultUserId,
+              exerciseName: newName,
+              exerciseVariation: variation,
+            ),
+          ]);
+          
+          if (mounted) {
+            setState(() {
+              _histories = results[0] as List<WorkoutSession>?;
+              _pr = results[1] as PersonalRecord?;
+            });
+          }
         }
       },
     );
@@ -947,8 +972,8 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
       children: [
         ExerciseViewHeader(
           exercise: _currentExercise,
-          histories: widget.histories,
-          pr: widget.pr,
+          histories: _histories,
+          pr: _pr,
           onHistoryTap: () => widget.onHistoryTap?.call(
             _currentExercise.name,
             _currentExercise.variation,
@@ -993,8 +1018,8 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
           SessionExerciseCard(
             exercise: _currentExercise,
             exerciseIndex: widget.exerciseIndex,
-            histories: widget.histories,
-            pr: widget.pr,
+            histories: _histories,
+            pr: _pr,
             isAlwaysExpanded: true,
             onHistoryTap: () => widget.onHistoryTap?.call(
               _currentExercise.name,

@@ -327,13 +327,15 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                                 Icon(
                                   Icons.bookmark_rounded,
                                   size: 14,
-                                  color: AppColors.accent.withValues(alpha: 0.7),
+                                  color:
+                                      AppColors.accent.withValues(alpha: 0.7),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
                                   workout.planName!,
                                   style: TextStyle(
-                                    color: AppColors.accent.withValues(alpha: 0.7),
+                                    color:
+                                        AppColors.accent.withValues(alpha: 0.7),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -344,7 +346,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                           NotesDisplay(
                             notes: workout.notes,
                             margin: const EdgeInsets.only(top: 8),
-                            maxLength: 30,
+                            maxLength: 45,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),

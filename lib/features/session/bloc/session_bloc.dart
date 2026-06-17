@@ -292,10 +292,13 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     if (state is! SessionInProgress) return;
     final session = (state as SessionInProgress).session;
     if (event.exerciseIndex >= session.exercises.length) return;
-    final updatedExercise = session.exercises[event.exerciseIndex];
+    
+    final oldExercise = session.exercises[event.exerciseIndex];
+    final effectiveVariation = event.newVariation ?? oldExercise.variation;
+
     await _loadStatsAndEmit(
-      name: updatedExercise.name,
-      variation: updatedExercise.variation,
+      name: event.newName,
+      variation: effectiveVariation,
       userId: session.userId,
       emit: emit,
     );
@@ -319,10 +322,12 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     if (state is! SessionInProgress) return;
     final session = (state as SessionInProgress).session;
     if (event.exerciseIndex >= session.exercises.length) return;
-    final updatedExercise = session.exercises[event.exerciseIndex];
+    
+    final oldExercise = session.exercises[event.exerciseIndex];
+
     await _loadStatsAndEmit(
-      name: updatedExercise.name,
-      variation: updatedExercise.variation,
+      name: oldExercise.name,
+      variation: event.newVariation,
       userId: session.userId,
       emit: emit,
     );
@@ -605,16 +610,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
 
             segments[event.segmentIndex] = updatedSegment;
             sets[event.setIndex] = set.copyWith(segments: segments);
-
-            // Sync exercise-level variation notes with first set's segment notes
-            if (event.field == 'notes' && event.setIndex == 0) {
-              exercises[event.exerciseIndex] = exercise.copyWith(
-                sets: sets,
-                notes: event.value as String,
-              );
-            } else {
-              exercises[event.exerciseIndex] = exercise.copyWith(sets: sets);
-            }
+            exercises[event.exerciseIndex] = exercise.copyWith(sets: sets);
           }
         }
       }

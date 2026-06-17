@@ -263,15 +263,34 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> with Automati
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                widget.exercise.name,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: isSkipped
-                          ? AppColors.textSecondary
-                          : AppColors.textPrimary,
-                      decoration: isSkipped ? TextDecoration.lineThrough : null,
+              GestureDetector(
+                onTap: widget.onEditName,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        widget.exercise.name,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: isSkipped
+                                  ? AppColors.textSecondary
+                                  : AppColors.textPrimary,
+                              decoration:
+                                  isSkipped ? TextDecoration.lineThrough : null,
+                            ),
+                      ),
                     ),
+                    if (widget.onEditName != null) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.edit_rounded,
+                        size: 12,
+                        color: AppColors.textSecondary.withValues(alpha: 0.45),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               // Variation display with edit icon
               if (widget.exercise.variation.isNotEmpty)
@@ -516,6 +535,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> with Automati
                 key: ValueKey('exercise_notes_${widget.exercise.id}'),
                 label: 'Exercise Notes (Optional)',
                 initialValue: widget.exercise.notes,
+                collapsible: true,
                 onChanged: widget.onUpdateNotes!,
                 scrollPadding: const EdgeInsets.only(bottom: 120),
               ),

@@ -442,6 +442,7 @@ class _SessionPageState extends State<SessionPage> {
                                   NotesField(
                                     initialValue: session.notes,
                                     label: 'Session Notes (Optional)',
+                                    collapsible: true,
                                     onChanged: (val) {
                                       context.read<SessionBloc>().add(
                                             SessionNotesUpdated(notes: val),
@@ -506,7 +507,7 @@ class _SessionPageState extends State<SessionPage> {
                                       RepaintBoundary(
                                         key: _getKeyForExercise(exIndex),
                                         child: SessionExerciseCard(
-                                          key: ValueKey(exercise.id),
+                                          key: ValueKey('${exercise.id}_${exercise.name}_${exercise.variation}'),
                                           exercise: exercise,
                                           exerciseIndex: exIndex,
                                           // History is keyed by variation
@@ -547,14 +548,13 @@ class _SessionPageState extends State<SessionPage> {
                                                       .toLowerCase()],
                                             );
                                           },
-                                          onEditVariation: () {
-                                            _showEditVariationDialog(
-                                              context,
-                                              exIndex,
-                                              exercise.name,
-                                              exercise.variation,
-                                            );
-                                          },
+                                          onEditVariation: () =>
+                                              _showEditNameDialog(
+                                            context,
+                                            exIndex,
+                                            exercise.name,
+                                            exercise.variation,
+                                          ),
                                           onAddSet: () {
                                             context.read<SessionBloc>().add(
                                                   SessionSetAdded(
@@ -604,13 +604,12 @@ class _SessionPageState extends State<SessionPage> {
                                                   ),
                                                 );
                                           },
-                                          onEditName: exercise.isTemplate
-                                              ? null
-                                              : () => _showEditNameDialog(
-                                                    context,
-                                                    exIndex,
-                                                    exercise.name,
-                                                  ),
+                                          onEditName: () => _showEditNameDialog(
+                                            context,
+                                            exIndex,
+                                            exercise.name,
+                                            exercise.variation,
+                                          ),
                                           onDelete: exercise.isTemplate
                                               ? null
                                               : () => _confirmDeleteExercise(
@@ -732,29 +731,6 @@ class _SessionPageState extends State<SessionPage> {
     );
   }
 
-  void _showEditVariationDialog(
-    BuildContext context,
-    int index,
-    String exerciseName,
-    String currentVariation,
-  ) {
-    AppDialogs.showExerciseEntryDialog(
-      context: context,
-      title: 'Edit Exercise',
-      initialValue: exerciseName,
-      initialVariation: currentVariation,
-      suggestions: const [],
-      onConfirm: (_, newVariation) {
-        context.read<SessionBloc>().add(
-              SessionExerciseVariationUpdated(
-                exerciseIndex: index,
-                newVariation: newVariation,
-              ),
-            );
-      },
-    );
-  }
-
   void _showUnsavedChangesDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -813,6 +789,7 @@ class _SessionPageState extends State<SessionPage> {
     BuildContext context,
     int index,
     String currentName,
+    String currentVariation,
   ) async {
     final WorkoutRepository workoutRepository = WorkoutRepository();
     List<String> availableExercises = [];
@@ -849,6 +826,7 @@ class _SessionPageState extends State<SessionPage> {
       context: context,
       title: 'Edit Exercise',
       initialValue: currentName,
+      initialVariation: currentVariation,
       suggestions: availableExercises,
       onConfirm: (newName, variation) {
         context.read<SessionBloc>().add(

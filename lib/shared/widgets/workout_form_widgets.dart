@@ -140,9 +140,12 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                           context: context,
                           initialTime: startTime,
                           builder: (context, child) {
+                            final mediaQuery = MediaQuery.of(context);
+                            final size = mediaQuery.size;
                             return MediaQuery(
-                              data: MediaQuery.of(context).copyWith(
+                              data: mediaQuery.copyWith(
                                 alwaysUse24HourFormat: true,
+                                size: Size(size.shortestSide, size.longestSide),
                               ),
                               child: child!,
                             );
@@ -172,9 +175,12 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                           context: context,
                           initialTime: endTime,
                           builder: (context, child) {
+                            final mediaQuery = MediaQuery.of(context);
+                            final size = mediaQuery.size;
                             return MediaQuery(
-                              data: MediaQuery.of(context).copyWith(
+                              data: mediaQuery.copyWith(
                                 alwaysUse24HourFormat: true,
+                                size: Size(size.shortestSide, size.longestSide),
                               ),
                               child: child!,
                             );
@@ -704,6 +710,7 @@ class NotesField extends StatefulWidget {
   final String initialValue;
   final Function(String) onChanged;
   final EdgeInsets scrollPadding;
+  final bool collapsible;
 
   const NotesField({
     super.key,
@@ -711,6 +718,7 @@ class NotesField extends StatefulWidget {
     required this.initialValue,
     required this.onChanged,
     this.scrollPadding = EdgeInsets.zero,
+    this.collapsible = false,
   });
 
   @override
@@ -721,6 +729,7 @@ class _NotesFieldState extends State<NotesField> {
   late TextEditingController controller;
   late FocusNode focusNode;
   Timer? _debounce;
+  late bool _isExpanded;
 
   @override
   void initState() {
@@ -728,6 +737,8 @@ class _NotesFieldState extends State<NotesField> {
     controller = TextEditingController(text: widget.initialValue);
     focusNode = FocusNode();
     focusNode.addListener(_handleFocusChange);
+    // Start collapsed only when collapsible and no existing notes
+    _isExpanded = !widget.collapsible || widget.initialValue.isNotEmpty;
   }
 
   void _handleFocusChange() {
@@ -758,16 +769,96 @@ class _NotesFieldState extends State<NotesField> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.collapsible) {
+      return _buildField(context);
+    }
+
+    // Collapsible mode
+    final hasNotes = controller.text.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          widget.label,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        InkWell(
+          onTap: () {
+            setState(() => _isExpanded = !_isExpanded);
+            if (_isExpanded) {
+              // Auto-focus when expanding
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) focusNode.requestFocus();
+              });
+            } else {
+              focusNode.unfocus();
+            }
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.edit_rounded,
+                  size: 14,
+                  color: hasNotes
+                      ? AppColors.accent
+                      : AppColors.textSecondary.withValues(alpha: 0.6),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    hasNotes && !_isExpanded
+                        ? controller.text
+                        : widget.label,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: hasNotes && !_isExpanded
+                              ? AppColors.textSecondary
+                              : AppColors.textSecondary.withValues(alpha: 0.6),
+                          fontStyle: hasNotes && !_isExpanded
+                              ? FontStyle.italic
+                              : FontStyle.normal,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  _isExpanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: 16,
+                  color: AppColors.textSecondary.withValues(alpha: 0.6),
+                ),
+              ],
+            ),
+          ),
         ),
-        const SizedBox(height: 4),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          child: _isExpanded
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: _buildField(context),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildField(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!widget.collapsible)
+          Text(
+            widget.label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+        if (!widget.collapsible) const SizedBox(height: 4),
         TextField(
           controller: controller,
           focusNode: focusNode,

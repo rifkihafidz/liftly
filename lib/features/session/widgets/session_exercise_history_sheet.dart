@@ -32,19 +32,26 @@ class SessionExerciseHistorySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final validHistories = <(WorkoutSession, SessionExercise)>[];
+    final validHistories = <(WorkoutSession, SessionExercise, int, int)>[];
 
     if (histories != null) {
       for (final h in histories!) {
       // Collect ALL matching exercises in this session (can be >1 after rename/merge)
-      final matchingExercises = h.exercises.where((e) =>
-          e.name.toLowerCase() == exerciseName.toLowerCase() &&
-          e.variation.toLowerCase() == exerciseVariation.toLowerCase());
+      final allExercises = h.exercises;
+      final totalExercises = allExercises.length;
+      final matchingIndices = allExercises
+          .asMap()
+          .entries
+          .where((e) =>
+              e.value.name.toLowerCase() == exerciseName.toLowerCase() &&
+              e.value.variation.toLowerCase() == exerciseVariation.toLowerCase())
+          .toList();
 
-      if (matchingExercises.isEmpty) continue;
+      if (matchingIndices.isEmpty) continue;
 
       // Merge sets if there are multiple entries with the same name in one session
-      final merged = matchingExercises.reduce((a, b) {
+      final firstIndex = matchingIndices.first.key;
+      final merged = matchingIndices.map((e) => e.value).reduce((a, b) {
         final mergedSets = <ExerciseSet>[...a.sets, ...b.sets]
             .asMap()
             .entries
@@ -52,7 +59,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
             .toList();
         return a.copyWith(sets: mergedSets);
       });
-      validHistories.add((h, merged));
+      validHistories.add((h, merged, firstIndex + 1, totalExercises));
       }
     }
 
@@ -141,16 +148,59 @@ class SessionExerciseHistorySheet extends StatelessWidget {
               for (final entry in validHistories) ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Session on ${_formatDate(entry.$1.workoutDate)}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Session on ${_formatDate(entry.$1.workoutDate)}',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
                           ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                'Exercise order:',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.textSecondary
+                                          .withValues(alpha: 0.6),
+                                      fontSize: 11,
+                                    ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color:
+                                      AppColors.accent.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${entry.$3}/${entry.$4}',
+                                  style: const TextStyle(
+                                    color: AppColors.accent,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     Text(
-                      'Total Volume: ${_formatNumber(entry.$2.totalVolume)} kg',
+                      '${_formatNumber(entry.$2.totalVolume)} kg',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppColors.textSecondary,
