@@ -730,6 +730,7 @@ class _NotesFieldState extends State<NotesField> {
   late FocusNode focusNode;
   Timer? _debounce;
   late bool _isExpanded;
+  bool _autoFocusOnExpand = false;
 
   @override
   void initState() {
@@ -780,16 +781,11 @@ class _NotesFieldState extends State<NotesField> {
       children: [
         InkWell(
           onTap: () {
-            setState(() => _isExpanded = !_isExpanded);
-            if (_isExpanded) {
-              // Delay slightly so the widget is in the tree, then request focus and force keyboard
-              Future.delayed(const Duration(milliseconds: 50), () {
-                if (mounted && _isExpanded) {
-                  focusNode.requestFocus();
-                  SystemChannels.textInput.invokeMethod('TextInput.show');
-                }
-              });
-            } else {
+            setState(() {
+              _isExpanded = !_isExpanded;
+              _autoFocusOnExpand = _isExpanded;
+            });
+            if (!_isExpanded) {
               focusNode.unfocus();
             }
           },
@@ -865,6 +861,7 @@ class _NotesFieldState extends State<NotesField> {
         TextField(
           controller: controller,
           focusNode: focusNode,
+          autofocus: _autoFocusOnExpand,
           scrollPadding: widget.scrollPadding,
           maxLines: 2,
           textCapitalization: TextCapitalization.sentences,
