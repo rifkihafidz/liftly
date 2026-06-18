@@ -7,6 +7,7 @@ enum MuscleGroup {
   forearms,
   quads,
   hamstrings,
+  glutes,
   calves,
   upperAbs,
   lowerAbs,
@@ -54,9 +55,12 @@ class MuscleDetector {
       return MuscleGroup.triceps;
     }
 
-    if (fullText.contains('abductor')) {
-      return MuscleGroup
-          .quads; // Or glutes, grouped to Quads/Legs for simplicity
+    if (fullText.contains('glute') ||
+        fullText.contains('hip thrust') ||
+        fullText.contains('kickback') ||
+        fullText.contains('bridge') ||
+        fullText.contains('abductor')) {
+      return MuscleGroup.glutes;
     }
 
     if (fullText.contains('adductor')) {
@@ -103,8 +107,8 @@ class MuscleDetector {
         fullText.contains('pushdown') ||
         fullText.contains('extension') ||
         fullText.contains('dips')) {
-      if (!fullText.contains('leg') && !fullText.contains('lat')) {
-        // ignore leg extension, lat pushdown
+      if (!fullText.contains('leg') && !fullText.contains('lat') && !fullText.contains('row')) {
+        // ignore leg extension, lat pushdown, cable row triceps rope
         return MuscleGroup.triceps;
       }
     }
@@ -178,7 +182,9 @@ class MuscleDetector {
       case MuscleGroup.quads:
         return 'Quads';
       case MuscleGroup.hamstrings:
-        return 'Hamstrings & Glutes';
+        return 'Hamstrings';
+      case MuscleGroup.glutes:
+        return 'Glutes';
       case MuscleGroup.calves:
         return 'Calves';
       case MuscleGroup.upperAbs:

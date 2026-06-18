@@ -82,6 +82,8 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   }
 
   void _onScroll() {
+    if (_selectedPlanName != null || _selectedDateRange != null) return; // Disable pagination when filtering
+    
     if (_isBottom && !_isLoadingMore) {
       final state = context.read<WorkoutBloc>().state;
       if (state is WorkoutsLoaded && !state.hasReachedMax) {
@@ -103,9 +105,9 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
     return currentScroll >= (maxScroll * 0.7);
   }
 
-  void _loadWorkouts() {
+  void _loadWorkouts({bool fetchAll = false}) {
     context.read<WorkoutBloc>().add(
-          const WorkoutsFetched(limit: 20),
+          WorkoutsFetched(limit: fetchAll ? 10000 : 20),
         );
   }
 
@@ -414,6 +416,12 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                               _selectedDateRange = tempDateRange;
                             });
                             Navigator.pop(context);
+                            
+                            if (_selectedPlanName != null || _selectedDateRange != null) {
+                              _loadWorkouts(fetchAll: true);
+                            } else {
+                              _loadWorkouts();
+                            }
                           },
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.accent,
@@ -739,10 +747,13 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
             Padding(
               padding: const EdgeInsets.only(top: 24),
               child: TextButton(
-                onPressed: () => setState(() {
-                  _selectedPlanName = null;
-                  _selectedDateRange = null;
-                }),
+                onPressed: () {
+                  setState(() {
+                    _selectedPlanName = null;
+                    _selectedDateRange = null;
+                  });
+                  _loadWorkouts();
+                },
                 child: const Text('Clear Filter'),
               ),
             ),
