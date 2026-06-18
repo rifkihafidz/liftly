@@ -730,7 +730,6 @@ class _NotesFieldState extends State<NotesField> {
   late FocusNode focusNode;
   Timer? _debounce;
   late bool _isExpanded;
-  bool _autoFocusOnExpand = false;
 
   @override
   void initState() {
@@ -781,11 +780,13 @@ class _NotesFieldState extends State<NotesField> {
       children: [
         InkWell(
           onTap: () {
-            setState(() {
-              _isExpanded = !_isExpanded;
-              _autoFocusOnExpand = _isExpanded;
-            });
-            if (!_isExpanded) {
+            final expanding = !_isExpanded;
+            setState(() => _isExpanded = expanding);
+            if (expanding) {
+              // TextField is always in tree (Offstage), so focusNode is
+              // already attached — requestFocus reliably triggers keyboard.
+              focusNode.requestFocus();
+            } else {
               focusNode.unfocus();
             }
           },
@@ -831,16 +832,20 @@ class _NotesFieldState extends State<NotesField> {
             ),
           ),
         ),
+        // Keep TextField in tree at all times using Offstage so that the
+        // FocusNode stays attached to the native text input connection.
+        // This ensures requestFocus() immediately shows the keyboard.
         AnimatedSize(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeInOut,
           alignment: Alignment.topCenter,
-          child: _isExpanded
-              ? Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: _buildField(context),
-                )
-              : const SizedBox.shrink(),
+          child: Offstage(
+            offstage: !_isExpanded,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: _buildField(context),
+            ),
+          ),
         ),
       ],
     );
@@ -861,7 +866,6 @@ class _NotesFieldState extends State<NotesField> {
         TextField(
           controller: controller,
           focusNode: focusNode,
-          autofocus: _autoFocusOnExpand,
           scrollPadding: widget.scrollPadding,
           maxLines: 2,
           textCapitalization: TextCapitalization.sentences,
