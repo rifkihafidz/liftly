@@ -512,24 +512,39 @@ class BackupService {
       ) as drive.Media;
 
       // 3. Read bytes with progress
-      final bytes = <int>[];
+      final chunks = <List<int>>[];
       int downloaded = 0;
       await for (final chunk in mediaResponse.stream) {
-        bytes.addAll(chunk);
+        chunks.add(chunk);
         downloaded += chunk.length;
         if (totalSize > 0) {
           final progress = 0.1 + (0.2 * (downloaded / totalSize));
           onProgress?.call(progress,
               'Downloading (${(downloaded / 1024).toStringAsFixed(1)} KB)...');
         }
+        // Yield shortly to give UI enough time to render progress bar and dots
+        await Future.delayed(const Duration(milliseconds: 5));
       }
 
-      if (bytes.isEmpty) throw RestoreException('Selected file is empty');
+      if (chunks.isEmpty) throw RestoreException('Selected file is empty');
 
-      // 4. Import using DataManagementService
+      // 4. Yield to event loop before heavy byte conversion
       onProgress?.call(0.3, 'Processing backup data...');
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final fileBytes = Uint8List(downloaded);
+      int offset = 0;
+      for (final chunk in chunks) {
+        fileBytes.setAll(offset, chunk);
+        offset += chunk.length;
+      }
+
+      // Yield again after conversion before importing
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      // 5. Import using DataManagementService
       await DataManagementService.importDataFromBytes(
-        Uint8List.fromList(bytes),
+        fileBytes,
         onProgress: (p, msg) {
           // Map DataManagementService progress (0.0-1.0) to (0.3-1.0)
           final mappedProgress = 0.3 + (0.7 * p);

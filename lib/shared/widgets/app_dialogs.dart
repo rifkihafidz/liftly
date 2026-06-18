@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
@@ -380,21 +381,24 @@ class AppDialogs {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(color: AppColors.accent),
-                const SizedBox(height: 24),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 240),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(color: AppColors.accent),
+                  const SizedBox(height: 24),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -415,34 +419,43 @@ class AppDialogs {
       barrierDismissible: false,
       builder: (context) => PopScope(
         canPop: false,
-        child: AlertDialog(
+        child: Dialog(
           backgroundColor: AppColors.cardBg,
-          title: Text(
-            title,
-            style: const TextStyle(color: AppColors.textPrimary),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ValueListenableBuilder<String>(
-                valueListenable: status,
-                builder: (_, s, __) => Text(
-                  s,
-                  style: const TextStyle(color: AppColors.textSecondary),
-                ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 240),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _AnimatedDotsText(status: status),
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder<double>(
+                    valueListenable: progress,
+                    builder: (_, value, __) => LinearProgressIndicator(
+                      value: value,
+                      backgroundColor: AppColors.darkBg,
+                      color: AppColors.accent,
+                      borderRadius: BorderRadius.circular(4),
+                      minHeight: 6,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              ValueListenableBuilder<double>(
-                valueListenable: progress,
-                builder: (_, value, __) => LinearProgressIndicator(
-                  value: value,
-                  backgroundColor: AppColors.darkBg,
-                  color: AppColors.accent,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -752,6 +765,52 @@ class _TextInputDialogState extends State<_TextInputDialog> {
           child: const Text('Confirm'),
         ),
       ],
+    );
+  }
+}
+
+class _AnimatedDotsText extends StatefulWidget {
+  final ValueListenable<String> status;
+  const _AnimatedDotsText({required this.status});
+
+  @override
+  State<_AnimatedDotsText> createState() => _AnimatedDotsTextState();
+}
+
+class _AnimatedDotsTextState extends State<_AnimatedDotsText> {
+  int _dotsIndex = 0;
+  Timer? _timer;
+  late String _currentText;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentText = widget.status.value;
+    widget.status.addListener(_onStatusChanged);
+    _timer = Timer.periodic(const Duration(milliseconds: 450), (_) {
+      if (mounted) setState(() => _dotsIndex = (_dotsIndex + 1) % 3);
+    });
+  }
+
+  void _onStatusChanged() {
+    if (mounted) setState(() => _currentText = widget.status.value);
+  }
+
+  @override
+  void dispose() {
+    widget.status.removeListener(_onStatusChanged);
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const dots = ['.', '..', '...'];
+    // Strip any trailing dots from the source message to avoid "......."
+    final cleanText = _currentText.replaceAll(RegExp(r'\.+$'), '');
+    return Text(
+      '$cleanText${dots[_dotsIndex]}',
+      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
     );
   }
 }

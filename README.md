@@ -86,8 +86,13 @@ liftly/
 
 ## 📄 Changelog
 
+### v2.6.0
+- **Feature**: Added **Muscle Recovery Heatmap** to track and visualize muscle fatigue and recovery status based on recent workout history.
+- **UI/UX**: Redesigned the **Cloud Backup & Restore** UI with cleaner card-based layouts and smoother, non-blocking progress dialog animations.
+- **UI/UX**: Standardized dialog widths to prevent layout flickering and ensure consistent visual feedback during background processes.
+- **Performance**: Optimized database clearing and chunked parsing processes during backup restoration to guarantee a completely freeze-free UI experience.
+
 ### v2.4.9
-- **Feature**: Introduced **Comprehensive Notes** system allowing users to add global session notes, individual exercise notes, and specific set-level notes to capture full workout context.
 - **Data Persistence**: Integrated the new notes system into the local database and updated Excel Backup & Restore functionality to fully preserve note data.
 - **UI/UX**: Refactored UI components to eliminate code duplication, creating reusable `NotesDisplay` elements and simplifying complex collapsible cards.
 - **UI/UX**: Refined the Workout Detail and Edit pages for a cleaner aesthetic.

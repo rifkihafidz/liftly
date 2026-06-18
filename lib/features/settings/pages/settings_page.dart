@@ -301,9 +301,10 @@ class _SettingsPageState extends State<SettingsPage> {
         context: context,
         builder: (context) => AlertDialog(
           backgroundColor: AppColors.cardBg,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text(
             'Select Backup',
-            style: TextStyle(color: AppColors.textPrimary),
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
           ),
           content: SizedBox(
             width: double.maxFinite,
@@ -319,62 +320,103 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   );
                 }
-                return ListView.builder(
+                return ListView.separated(
                   shrinkWrap: true,
                   itemCount: backups.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final file = backups[index];
                     final date = file.createdTime != null
                         ? DateFormat('dd MMM yyyy, HH:mm').format(file.createdTime!.add(const Duration(hours: 7)))
                         : 'Unknown date';
+                    final fileName = file.name ?? 'Unknown';
 
-                    return ListTile(
-                      title: Text(
-                        file.name ?? 'Unknown',
-                        style: const TextStyle(color: AppColors.textPrimary),
-                      ),
-                      subtitle: Text(
-                        date,
-                        style: const TextStyle(color: AppColors.textSecondary),
-                      ),
-                      leading: const Icon(
-                        Icons.insert_drive_file,
-                        color: AppColors.accent,
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                        onPressed: () async {
-                          final confirm = await AppDialogs.showConfirmationDialog(
-                            context: context,
-                            title: 'Delete Backup',
-                            message: 'Are you sure you want to permanently delete this backup from Google Drive?',
-                            isDangerous: true,
-                          );
-                          if (confirm == true) {
-                            if (!context.mounted) return;
-                            AppDialogs.showLoadingDialog(context, 'Deleting...');
-                            try {
-                              await BackupService().deleteBackup(file.id!);
-                              if (context.mounted) {
-                                AppDialogs.hideLoadingDialog(context);
-                                setDialogState(() {
-                                  backups.removeAt(index);
-                                });
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                AppDialogs.hideLoadingDialog(context);
-                                unawaited(AppDialogs.showErrorDialog(
-                                  context: context,
-                                  title: 'Delete Failed',
-                                  message: e.toString(),
-                                ));
-                              }
-                            }
-                          }
-                        },
-                      ),
+                    return InkWell(
                       onTap: () => Navigator.pop(context, file.id),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.darkBg.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.accent.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.insert_drive_file_rounded, color: AppColors.accent, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    fileName,
+                                    style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    date,
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                              onPressed: () async {
+                                final confirm = await AppDialogs.showConfirmationDialog(
+                                  context: context,
+                                  title: 'Delete Backup',
+                                  message: 'Are you sure you want to permanently delete this backup from Google Drive?',
+                                  isDangerous: true,
+                                );
+                                if (confirm == true) {
+                                  if (!context.mounted) return;
+                                  AppDialogs.showLoadingDialog(context, 'Deleting...');
+                                  try {
+                                    await BackupService().deleteBackup(file.id!);
+                                    if (context.mounted) {
+                                      AppDialogs.hideLoadingDialog(context);
+                                      setDialogState(() {
+                                        backups.removeAt(index);
+                                      });
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      AppDialogs.hideLoadingDialog(context);
+                                      unawaited(AppDialogs.showErrorDialog(
+                                        context: context,
+                                        title: 'Delete Failed',
+                                        message: e.toString(),
+                                      ));
+                                    }
+                                  }
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 );
@@ -409,40 +451,12 @@ class _SettingsPageState extends State<SettingsPage> {
           final statusNotifier =
               ValueNotifier<String>('Starting Cloud restore...');
 
-          unawaited(showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => PopScope(
-              canPop: false,
-              child: AlertDialog(
-                backgroundColor: AppColors.cardBg,
-                title: const Text(AppConstants.titleRestoreCloud,
-                    style: TextStyle(color: AppColors.textPrimary)),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ValueListenableBuilder<String>(
-                      valueListenable: statusNotifier,
-                      builder: (context, status, _) => Text(
-                        status,
-                        style: const TextStyle(color: AppColors.textSecondary),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ValueListenableBuilder<double>(
-                      valueListenable: progressNotifier,
-                      builder: (context, value, _) => LinearProgressIndicator(
-                        value: value,
-                        backgroundColor: AppColors.darkBg,
-                        color: AppColors.accent,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ));
+          AppDialogs.showProgressDialog(
+            context,
+            title: AppConstants.titleRestoreCloud,
+            progress: progressNotifier,
+            status: statusNotifier,
+          );
 
           await Future.delayed(const Duration(milliseconds: 300));
 

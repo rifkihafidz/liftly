@@ -368,10 +368,12 @@ class DataManagementService {
         });
 
         onProgress?.call(0.4, 'Clearing existing data...');
+        await Future.delayed(const Duration(milliseconds: 50));
         await clearAllData();
       }
 
       onProgress?.call(0.5, 'Importing workouts...');
+      await Future.delayed(const Duration(milliseconds: 50));
 
       final rawWorkouts = result['workouts'] as List<dynamic>;
       final rawPlans = result['plans'] as List<dynamic>;
@@ -390,13 +392,13 @@ class DataManagementService {
         parsedWorkouts.addAll(batch
             .map((w) => WorkoutSession.fromMap(w as Map<String, dynamic>)));
 
-        // Yield to UI
-        await Future.delayed(Duration.zero);
-
         // Update Progress (0.5 to 0.9 range)
         final p = 0.5 + (0.4 * (end / rawWorkouts.length));
         onProgress?.call(
             p, 'Importing workouts ($end/${rawWorkouts.length})...');
+            
+        // Yield to UI to show the updated progress BEFORE next heavy parsing chunk
+        await Future.delayed(const Duration(milliseconds: 15));
       }
 
       onProgress?.call(0.9, 'Importing plans...');

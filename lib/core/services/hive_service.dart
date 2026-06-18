@@ -244,6 +244,7 @@ class HiveService {
     };
 
     await _workoutBox.putAll(workoutMap);
+    await Future.delayed(Duration.zero); // yield to event loop
     await _metaBox.putAll(metaMap);
 
     // Clear all caches on import
@@ -743,12 +744,25 @@ class HiveService {
 
   // ================= Utility =================
 
+  static Future<void> _chunkedClear(Box box) async {
+    if (box.isEmpty) return;
+    final keys = box.keys.toList();
+    for (int i = 0; i < keys.length; i += 200) {
+      final end = (i + 200 < keys.length) ? i + 200 : keys.length;
+      await box.deleteAll(keys.sublist(i, end));
+      // Yield to UI to keep animations running smoothly
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+    await box.clear(); // Guarantee truncation
+  }
+
   static Future<void> clearAllData() async {
     await init();
-    await _workoutBox.clear();
-    await _planBox.clear();
-    await _settingsBox.clear();
-    await _metaBox.clear();
+    await _chunkedClear(_workoutBox);
+    await _chunkedClear(_planBox);
+    await _chunkedClear(_settingsBox);
+    await _chunkedClear(_metaBox);
+    
     _prCache.clear();
     _exerciseHistoryCache.clear();
     _lastExerciseLogCache.clear();

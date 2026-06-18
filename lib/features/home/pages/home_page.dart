@@ -13,7 +13,13 @@ import '../../session/pages/workout_history_page.dart';
 import '../../plans/pages/plans_page.dart';
 import '../../stats/pages/stats_page.dart';
 import '../../session/pages/session_page.dart';
+import '../../workout_log/bloc/workout_bloc.dart';
+import '../../workout_log/bloc/workout_event.dart';
+import '../../workout_log/bloc/workout_state.dart';
+import '../../../core/utils/recovery_analyzer.dart';
+import '../../../shared/widgets/visuals/recovery_heatmap.dart';
 import '../../../shared/widgets/app_dialogs.dart';
+import '../../../core/utils/muscle_detector.dart';
 import '../../settings/pages/settings_page.dart';
 import '../../../core/utils/page_transitions.dart';
 import '../../../shared/widgets/animations/scale_button_wrapper.dart';
@@ -32,6 +38,7 @@ class _HomePageState extends State<HomePage> {
   String _quote = '';
   late ScrollController _scrollController;
   int? _lastActiveTab;
+  bool _isRecoveryExpanded = false;
 
   @override
   void didChangeDependencies() {
@@ -52,6 +59,8 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _scrollController = ScrollController();
     _quote = _getRandomQuote();
+    // Fetch recent workouts for recovery heatmap
+    context.read<WorkoutBloc>().add(const WorkoutsFetched(limit: 30));
   }
 
   @override
@@ -201,6 +210,168 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    // Visual Recovery & Fatigue Heatmap
+                    FadeInSlide(
+                      index: 4,
+                      child: BlocBuilder<WorkoutBloc, WorkoutState>(
+                        builder: (context, state) {
+                          if (state is WorkoutsLoaded) {
+                            final recoveryLevels =
+                                RecoveryAnalyzer.calculateRecovery(
+                                    state.workouts);
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                InkWell(
+                                  onTap: () => setState(() =>
+                                      _isRecoveryExpanded =
+                                          !_isRecoveryExpanded),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 8.0, horizontal: 4.0),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                            Icons.battery_charging_full_rounded,
+                                            color: AppColors.accent,
+                                            size: 20),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Muscle Recovery',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
+                                                color: AppColors.textPrimary,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                        const Spacer(),
+                                        Icon(
+                                          _isRecoveryExpanded
+                                              ? Icons.keyboard_arrow_up_rounded
+                                              : Icons
+                                                  .keyboard_arrow_down_rounded,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                AnimatedSize(
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                  child: _isRecoveryExpanded
+                                      ? Column(
+                                          children: [
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: AppColors.cardBg,
+                                                borderRadius:
+                                                    BorderRadius.circular(24),
+                                                border: Border.all(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.05),
+                                                ),
+                                              ),
+                                              padding: const EdgeInsets.all(16),
+                                              child: Column(
+                                                children: [
+                                                  RecoveryHeatmap(
+                                                    recoveryLevels:
+                                                        recoveryLevels,
+                                                    height: 220,
+                                                  ),
+                                                  const SizedBox(height: 12),
+                                                  Wrap(
+                                                    spacing: 8,
+                                                    runSpacing: 8,
+                                                    alignment:
+                                                        WrapAlignment.center,
+                                                    children: () {
+                                                      final list =
+                                                          recoveryLevels.entries
+                                                              .toList();
+                                                      list.sort((a, b) => a
+                                                          .value
+                                                          .compareTo(b.value));
+                                                      return list.map((e) {
+                                                        final percentage =
+                                                            (e.value * 100)
+                                                                .toInt();
+                                                        Color chipColor;
+                                                        if (e.value < 0.5) {
+                                                          chipColor = Color.lerp(
+                                                              const Color(
+                                                                  0xFFE53935),
+                                                              const Color(
+                                                                  0xFFFFB300),
+                                                              e.value * 2)!;
+                                                        } else {
+                                                          chipColor = Color.lerp(
+                                                              const Color(
+                                                                  0xFFFFB300),
+                                                              const Color(
+                                                                  0xFF43A047),
+                                                              (e.value - 0.5) *
+                                                                  2)!;
+                                                        }
+                                                        return Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal:
+                                                                      10,
+                                                                  vertical: 5),
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: chipColor
+                                                                .withValues(
+                                                                    alpha:
+                                                                        0.15),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        20),
+                                                            border: Border.all(
+                                                                color: chipColor
+                                                                    .withValues(
+                                                                        alpha:
+                                                                            0.4)),
+                                                          ),
+                                                          child: Text(
+                                                            '${MuscleDetector.getMuscleName(e.key)} $percentage%',
+                                                            style: TextStyle(
+                                                              color: chipColor,
+                                                              fontSize: 11,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      }).toList();
+                                                    }(),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 24),
+                                          ],
+                                        )
+                                      : const SizedBox(
+                                          height: 12, width: double.infinity),
+                                ),
+                              ],
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -214,7 +385,7 @@ class _HomePageState extends State<HomePage> {
                   return SliverGrid(
                     delegate: SliverChildListDelegate([
                       FadeInSlide(
-                        index: 4,
+                        index: 5,
                         child: MenuGridItem(
                           title: 'History',
                           subtitle: 'Past sessions',
@@ -236,7 +407,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       FadeInSlide(
-                        index: 5,
+                        index: 6,
                         child: MenuGridItem(
                           title: 'Statistics',
                           subtitle: 'Your progress',
@@ -257,7 +428,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       FadeInSlide(
-                        index: 6,
+                        index: 7,
                         child: MenuGridItem(
                           title: 'Plans',
                           subtitle: 'Routines',
@@ -278,7 +449,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       FadeInSlide(
-                        index: 7,
+                        index: 8,
                         child: MenuGridItem(
                           title: 'Settings',
                           subtitle: 'Preferences',
