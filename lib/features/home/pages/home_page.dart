@@ -38,7 +38,6 @@ class _HomePageState extends State<HomePage> {
   String _quote = '';
   late ScrollController _scrollController;
   int? _lastActiveTab;
-  bool _isRecoveryExpanded = false;
 
   @override
   void didChangeDependencies() {
@@ -212,172 +211,9 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 24),
 
                     // Visual Recovery & Fatigue Heatmap
-                    FadeInSlide(
+                    const FadeInSlide(
                       index: 4,
-                      child: BlocBuilder<WorkoutBloc, WorkoutState>(
-                        builder: (context, state) {
-                          if (state is WorkoutsLoaded) {
-                            final recoveryLevels =
-                                RecoveryAnalyzer.calculateRecovery(
-                                    state.workouts);
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                InkWell(
-                                  onTap: () => setState(() =>
-                                      _isRecoveryExpanded =
-                                          !_isRecoveryExpanded),
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 8.0, horizontal: 4.0),
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                            Icons.battery_charging_full_rounded,
-                                            color: AppColors.accent,
-                                            size: 20),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Muscle Recovery',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleMedium
-                                              ?.copyWith(
-                                                color: AppColors.textPrimary,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                        ),
-                                        const Spacer(),
-                                        AnimatedRotation(
-                                          turns: _isRecoveryExpanded ? 0.5 : 0.0,
-                                          duration: const Duration(milliseconds: 350),
-                                          curve: Curves.easeInOutCubic,
-                                          child: const Icon(
-                                            Icons.keyboard_arrow_down_rounded,
-                                            color: AppColors.textSecondary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                AnimatedSize(
-                                  duration: const Duration(milliseconds: 380),
-                                  curve: Curves.easeInOutCubic,
-                                  child: AnimatedOpacity(
-                                    opacity: _isRecoveryExpanded ? 1.0 : 0.0,
-                                    duration: const Duration(milliseconds: 280),
-                                    curve: Curves.easeInOut,
-                                    child: _isRecoveryExpanded
-                                        ? Column(
-                                            children: [
-                                              const SizedBox(height: 12),
-                                              Container(
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.cardBg,
-                                                  borderRadius:
-                                                      BorderRadius.circular(24),
-                                                  border: Border.all(
-                                                    color: Colors.white
-                                                        .withValues(alpha: 0.05),
-                                                  ),
-                                                ),
-                                                padding: const EdgeInsets.all(16),
-                                                child: Column(
-                                                  children: [
-                                                    RecoveryHeatmap(
-                                                      recoveryLevels:
-                                                          recoveryLevels,
-                                                      height: 220,
-                                                    ),
-                                                    const SizedBox(height: 12),
-                                                    Wrap(
-                                                      spacing: 8,
-                                                      runSpacing: 8,
-                                                      alignment:
-                                                          WrapAlignment.center,
-                                                      children: () {
-                                                        final list =
-                                                            recoveryLevels.entries
-                                                                .toList();
-                                                        list.sort((a, b) => a
-                                                            .value
-                                                            .compareTo(b.value));
-                                                        return list.map((e) {
-                                                          final percentage =
-                                                              (e.value * 100)
-                                                                  .toInt();
-                                                          Color chipColor;
-                                                          if (e.value < 0.5) {
-                                                            chipColor = Color.lerp(
-                                                                const Color(
-                                                                    0xFFE53935),
-                                                                const Color(
-                                                                    0xFFFFB300),
-                                                                e.value * 2)!;
-                                                          } else {
-                                                            chipColor = Color.lerp(
-                                                                const Color(
-                                                                    0xFFFFB300),
-                                                                const Color(
-                                                                    0xFF43A047),
-                                                                (e.value - 0.5) *
-                                                                    2)!;
-                                                          }
-                                                          return Container(
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .symmetric(
-                                                                    horizontal:
-                                                                        10,
-                                                                    vertical: 5),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                              color: chipColor
-                                                                  .withValues(
-                                                                      alpha:
-                                                                          0.15),
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          20),
-                                                              border: Border.all(
-                                                                  color: chipColor
-                                                                      .withValues(
-                                                                          alpha:
-                                                                              0.4)),
-                                                            ),
-                                                            child: Text(
-                                                              '${MuscleDetector.getMuscleName(e.key)} $percentage%',
-                                                              style: TextStyle(
-                                                                color: chipColor,
-                                                                fontSize: 11,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                              ),
-                                                            ),
-                                                          );
-                                                        }).toList();
-                                                      }(),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              const SizedBox(height: 24),
-                                            ],
-                                          )
-                                        : const SizedBox(
-                                            height: 0, width: double.infinity),
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
+                      child: _MuscleRecoverySection(),
                     ),
                   ],
                 ),
@@ -507,6 +343,159 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─── Isolated widget so setState for expand/collapse does NOT rebuild
+// the parent _HomePageState (which would re-trigger FadeInSlide animations).
+class _MuscleRecoverySection extends StatefulWidget {
+  const _MuscleRecoverySection();
+
+  @override
+  State<_MuscleRecoverySection> createState() => _MuscleRecoverySectionState();
+}
+
+class _MuscleRecoverySectionState extends State<_MuscleRecoverySection> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<WorkoutBloc, WorkoutState>(
+      builder: (context, state) {
+        if (state is! WorkoutsLoaded) return const SizedBox.shrink();
+
+        final recoveryLevels =
+            RecoveryAnalyzer.calculateRecovery(state.workouts);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    vertical: 8.0, horizontal: 4.0),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.battery_charging_full_rounded,
+                      color: AppColors.accent,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Muscle Recovery',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const Spacer(),
+                    AnimatedRotation(
+                      turns: _isExpanded ? 0.5 : 0.0,
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeInOutCubic,
+                      child: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 380),
+              curve: Curves.easeInOutCubic,
+              child: AnimatedOpacity(
+                opacity: _isExpanded ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeInOut,
+                child: _isExpanded
+                    ? Column(
+                        children: [
+                          const SizedBox(height: 12),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.cardBg,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.05),
+                              ),
+                            ),
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                RecoveryHeatmap(
+                                  recoveryLevels: recoveryLevels,
+                                  height: 220,
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  alignment: WrapAlignment.center,
+                                  children: () {
+                                    final list =
+                                        recoveryLevels.entries.toList();
+                                    list.sort(
+                                        (a, b) => a.value.compareTo(b.value));
+                                    return list.map((e) {
+                                      final percentage =
+                                          (e.value * 100).toInt();
+                                      Color chipColor;
+                                      if (e.value < 0.5) {
+                                        chipColor = Color.lerp(
+                                            const Color(0xFFE53935),
+                                            const Color(0xFFFFB300),
+                                            e.value * 2)!;
+                                      } else {
+                                        chipColor = Color.lerp(
+                                            const Color(0xFFFFB300),
+                                            const Color(0xFF43A047),
+                                            (e.value - 0.5) * 2)!;
+                                      }
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: chipColor.withValues(
+                                              alpha: 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          border: Border.all(
+                                              color: chipColor.withValues(
+                                                  alpha: 0.4)),
+                                        ),
+                                        child: Text(
+                                          '${MuscleDetector.getMuscleName(e.key)} $percentage%',
+                                          style: TextStyle(
+                                            color: chipColor,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      );
+                                    }).toList();
+                                  }(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      )
+                    : const SizedBox(height: 0, width: double.infinity),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -9,7 +9,6 @@ import '../../workout_log/bloc/workout_state.dart';
 import '../../workout_log/pages/workout_detail_page.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../core/utils/page_transitions.dart';
-import '../../../shared/widgets/animations/fade_in_slide.dart';
 import '../../../shared/widgets/cards/workout_session_card.dart';
 import '../../../shared/widgets/navigation/active_tab_scope.dart';
 
@@ -671,29 +670,24 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
             children: [
               // Use a constant-ish header to avoid rebuilds
               _MonthHeader(title: monthYear.toUpperCase()),
-              ...monthWorkouts.asMap().entries.map((entry) {
-                final exerciseIndex = entry.key;
-                final session = entry.value;
-                return FadeInSlide(
-                  index: exerciseIndex,
-                  child: RepaintBoundary(
-                    child: WorkoutSessionCard(
-                      session: session,
-                      onTap: () async {
-                        final result = await Navigator.push<bool>(
-                          context,
-                          SmoothPageRoute(
-                            page: WorkoutDetailPage(
-                              workout: session,
-                            ),
+              ...monthWorkouts.map((session) {
+                return RepaintBoundary(
+                  child: WorkoutSessionCard(
+                    session: session,
+                    onTap: () async {
+                      final result = await Navigator.push<bool>(
+                        context,
+                        SmoothPageRoute(
+                          page: WorkoutDetailPage(
+                            workout: session,
                           ),
-                        );
-                        // If workout was deleted, refresh the list
-                        if (result == true && mounted) {
-                          // Bloc will automatically update the list
-                        }
-                      },
-                    ),
+                        ),
+                      );
+                      // If workout was deleted, refresh the list
+                      if (result == true && mounted) {
+                        // Bloc will automatically update the list
+                      }
+                    },
                   ),
                 );
               }),

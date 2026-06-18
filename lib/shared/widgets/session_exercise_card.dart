@@ -67,9 +67,10 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> with Automati
     super.dispose();
   }
 
+  static final _numberFormat = NumberFormat('#,###.##', 'pt_BR');
+
   String _formatNumber(double value) {
-    final formatter = NumberFormat('#,###.##', 'pt_BR');
-    return formatter.format(value);
+    return _numberFormat.format(value);
   }
 
   @override
@@ -422,12 +423,15 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> with Automati
         // Expand/Collapse Chevron
         const SizedBox(width: 4),
         if (!widget.isAlwaysExpanded)
-          Icon(
-            _isExpanded
-                ? Icons.keyboard_arrow_up_rounded
-                : Icons.keyboard_arrow_down_rounded,
-            color: AppColors.textSecondary,
-            size: 24,
+          AnimatedRotation(
+            turns: _isExpanded ? 0.5 : 0.0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOutCubic,
+            child: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: AppColors.textSecondary,
+              size: 24,
+            ),
           ),
       ],
     );

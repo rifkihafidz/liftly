@@ -295,25 +295,25 @@ class _StartWorkoutPageState extends State<StartWorkoutPage> {
             );
           }
 
-          final plansToUse = state is PlansLoaded ? state.plans : _sortedPlans;
-          final sortedPlans = List<WorkoutPlan>.from(plansToUse);
-          switch (_sortOption) {
-            case PlanSortOption.recent:
-              sortedPlans.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-              break;
-            case PlanSortOption.oldest:
-              sortedPlans.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-              break;
-            case PlanSortOption.alphabetical:
-              sortedPlans.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-              break;
-            case PlanSortOption.alphabeticalDesc:
-              sortedPlans.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
-              break;
+          // Sync from BLoC state when freshly loaded; keep using cached list on subsequent builds
+          if (state is PlansLoaded) {
+            final plans = List<WorkoutPlan>.from(state.plans);
+            switch (_sortOption) {
+              case PlanSortOption.recent:
+                plans.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                break;
+              case PlanSortOption.oldest:
+                plans.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+                break;
+              case PlanSortOption.alphabetical:
+                plans.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+                break;
+              case PlanSortOption.alphabeticalDesc:
+                plans.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+                break;
+            }
+            _sortedPlans = plans;
           }
-
-          // Persistence for next build if state changes to loading/error
-          _sortedPlans = sortedPlans;
 
           if (_sortedPlans.isNotEmpty &&
               _currentPageIndex >=
