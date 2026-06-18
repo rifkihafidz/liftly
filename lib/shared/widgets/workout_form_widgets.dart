@@ -782,9 +782,12 @@ class _NotesFieldState extends State<NotesField> {
           onTap: () {
             setState(() => _isExpanded = !_isExpanded);
             if (_isExpanded) {
-              // Auto-focus when expanding, delay to allow AnimatedSize to finish
-              Future.delayed(const Duration(milliseconds: 250), () {
-                if (mounted && _isExpanded) focusNode.requestFocus();
+              // Delay slightly so the widget is in the tree, then request focus and force keyboard
+              Future.delayed(const Duration(milliseconds: 50), () {
+                if (mounted && _isExpanded) {
+                  focusNode.requestFocus();
+                  SystemChannels.textInput.invokeMethod('TextInput.show');
+                }
               });
             } else {
               focusNode.unfocus();
