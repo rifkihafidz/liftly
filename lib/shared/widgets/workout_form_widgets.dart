@@ -782,9 +782,9 @@ class _NotesFieldState extends State<NotesField> {
           onTap: () {
             setState(() => _isExpanded = !_isExpanded);
             if (_isExpanded) {
-              // Auto-focus when expanding
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) focusNode.requestFocus();
+              // Auto-focus when expanding, delay to allow AnimatedSize to finish
+              Future.delayed(const Duration(milliseconds: 250), () {
+                if (mounted && _isExpanded) focusNode.requestFocus();
               });
             } else {
               focusNode.unfocus();
