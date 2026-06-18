@@ -249,121 +249,128 @@ class _HomePageState extends State<HomePage> {
                                               ),
                                         ),
                                         const Spacer(),
-                                        Icon(
-                                          _isRecoveryExpanded
-                                              ? Icons.keyboard_arrow_up_rounded
-                                              : Icons
-                                                  .keyboard_arrow_down_rounded,
-                                          color: AppColors.textSecondary,
+                                        AnimatedRotation(
+                                          turns: _isRecoveryExpanded ? 0.5 : 0.0,
+                                          duration: const Duration(milliseconds: 350),
+                                          curve: Curves.easeInOutCubic,
+                                          child: const Icon(
+                                            Icons.keyboard_arrow_down_rounded,
+                                            color: AppColors.textSecondary,
+                                          ),
                                         ),
                                       ],
                                     ),
                                   ),
                                 ),
                                 AnimatedSize(
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeInOut,
-                                  child: _isRecoveryExpanded
-                                      ? Column(
-                                          children: [
-                                            const SizedBox(height: 12),
-                                            Container(
-                                              decoration: BoxDecoration(
-                                                color: AppColors.cardBg,
-                                                borderRadius:
-                                                    BorderRadius.circular(24),
-                                                border: Border.all(
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.05),
+                                  duration: const Duration(milliseconds: 380),
+                                  curve: Curves.easeInOutCubic,
+                                  child: AnimatedOpacity(
+                                    opacity: _isRecoveryExpanded ? 1.0 : 0.0,
+                                    duration: const Duration(milliseconds: 280),
+                                    curve: Curves.easeInOut,
+                                    child: _isRecoveryExpanded
+                                        ? Column(
+                                            children: [
+                                              const SizedBox(height: 12),
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.cardBg,
+                                                  borderRadius:
+                                                      BorderRadius.circular(24),
+                                                  border: Border.all(
+                                                    color: Colors.white
+                                                        .withValues(alpha: 0.05),
+                                                  ),
+                                                ),
+                                                padding: const EdgeInsets.all(16),
+                                                child: Column(
+                                                  children: [
+                                                    RecoveryHeatmap(
+                                                      recoveryLevels:
+                                                          recoveryLevels,
+                                                      height: 220,
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                    Wrap(
+                                                      spacing: 8,
+                                                      runSpacing: 8,
+                                                      alignment:
+                                                          WrapAlignment.center,
+                                                      children: () {
+                                                        final list =
+                                                            recoveryLevels.entries
+                                                                .toList();
+                                                        list.sort((a, b) => a
+                                                            .value
+                                                            .compareTo(b.value));
+                                                        return list.map((e) {
+                                                          final percentage =
+                                                              (e.value * 100)
+                                                                  .toInt();
+                                                          Color chipColor;
+                                                          if (e.value < 0.5) {
+                                                            chipColor = Color.lerp(
+                                                                const Color(
+                                                                    0xFFE53935),
+                                                                const Color(
+                                                                    0xFFFFB300),
+                                                                e.value * 2)!;
+                                                          } else {
+                                                            chipColor = Color.lerp(
+                                                                const Color(
+                                                                    0xFFFFB300),
+                                                                const Color(
+                                                                    0xFF43A047),
+                                                                (e.value - 0.5) *
+                                                                    2)!;
+                                                          }
+                                                          return Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                                    horizontal:
+                                                                        10,
+                                                                    vertical: 5),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: chipColor
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.15),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          20),
+                                                              border: Border.all(
+                                                                  color: chipColor
+                                                                      .withValues(
+                                                                          alpha:
+                                                                              0.4)),
+                                                            ),
+                                                            child: Text(
+                                                              '${MuscleDetector.getMuscleName(e.key)} $percentage%',
+                                                              style: TextStyle(
+                                                                color: chipColor,
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                            ),
+                                                          );
+                                                        }).toList();
+                                                      }(),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
-                                              padding: const EdgeInsets.all(16),
-                                              child: Column(
-                                                children: [
-                                                  RecoveryHeatmap(
-                                                    recoveryLevels:
-                                                        recoveryLevels,
-                                                    height: 220,
-                                                  ),
-                                                  const SizedBox(height: 12),
-                                                  Wrap(
-                                                    spacing: 8,
-                                                    runSpacing: 8,
-                                                    alignment:
-                                                        WrapAlignment.center,
-                                                    children: () {
-                                                      final list =
-                                                          recoveryLevels.entries
-                                                              .toList();
-                                                      list.sort((a, b) => a
-                                                          .value
-                                                          .compareTo(b.value));
-                                                      return list.map((e) {
-                                                        final percentage =
-                                                            (e.value * 100)
-                                                                .toInt();
-                                                        Color chipColor;
-                                                        if (e.value < 0.5) {
-                                                          chipColor = Color.lerp(
-                                                              const Color(
-                                                                  0xFFE53935),
-                                                              const Color(
-                                                                  0xFFFFB300),
-                                                              e.value * 2)!;
-                                                        } else {
-                                                          chipColor = Color.lerp(
-                                                              const Color(
-                                                                  0xFFFFB300),
-                                                              const Color(
-                                                                  0xFF43A047),
-                                                              (e.value - 0.5) *
-                                                                  2)!;
-                                                        }
-                                                        return Container(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                                  horizontal:
-                                                                      10,
-                                                                  vertical: 5),
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            color: chipColor
-                                                                .withValues(
-                                                                    alpha:
-                                                                        0.15),
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        20),
-                                                            border: Border.all(
-                                                                color: chipColor
-                                                                    .withValues(
-                                                                        alpha:
-                                                                            0.4)),
-                                                          ),
-                                                          child: Text(
-                                                            '${MuscleDetector.getMuscleName(e.key)} $percentage%',
-                                                            style: TextStyle(
-                                                              color: chipColor,
-                                                              fontSize: 11,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
-                                                          ),
-                                                        );
-                                                      }).toList();
-                                                    }(),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(height: 24),
-                                          ],
-                                        )
-                                      : const SizedBox(
-                                          height: 12, width: double.infinity),
+                                              const SizedBox(height: 24),
+                                            ],
+                                          )
+                                        : const SizedBox(
+                                            height: 0, width: double.infinity),
+                                  ),
                                 ),
                               ],
                             );
