@@ -358,15 +358,27 @@ class _MuscleRecoverySection extends StatefulWidget {
 
 class _MuscleRecoverySectionState extends State<_MuscleRecoverySection> {
   bool _isExpanded = false;
+  // Cache recovery result so it is not recalculated on every setState call
+  // (e.g. expand/collapse toggle). Invalidated when the workout list changes.
+  Map<MuscleGroup, double>? _cachedRecoveryLevels;
+  List<dynamic>? _lastWorkoutsRef;
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<WorkoutBloc, WorkoutState>(
+      // Only rebuild when WorkoutsLoaded list changes — skip loading/error
+      // states so a background fetch does not trigger a repaint here.
+      buildWhen: (prev, next) => next is WorkoutsLoaded,
       builder: (context, state) {
         if (state is! WorkoutsLoaded) return const SizedBox.shrink();
 
-        final recoveryLevels =
-            RecoveryAnalyzer.calculateRecovery(state.workouts);
+        // Recompute only when the workout list reference changes.
+        if (_lastWorkoutsRef != state.workouts) {
+          _lastWorkoutsRef = state.workouts;
+          _cachedRecoveryLevels =
+              RecoveryAnalyzer.calculateRecovery(state.workouts);
+        }
+        final recoveryLevels = _cachedRecoveryLevels!;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,71 +432,77 @@ class _MuscleRecoverySectionState extends State<_MuscleRecoverySection> {
                     ? Column(
                         children: [
                           const SizedBox(height: 12),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.cardBg,
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.05),
+                          // RepaintBoundary ensures the heavy heatmap +
+                          // chip grid gets its own GPU compositing layer.
+                          // During scroll, Flutter translates this layer
+                          // without re-invoking any painters.
+                          RepaintBoundary(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.cardBg,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                ),
                               ),
-                            ),
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              children: [
-                                RecoveryHeatmap(
-                                  recoveryLevels: recoveryLevels,
-                                  height: 220,
-                                ),
-                                const SizedBox(height: 12),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  alignment: WrapAlignment.center,
-                                  children: () {
-                                    final list =
-                                        recoveryLevels.entries.toList();
-                                    list.sort(
-                                        (a, b) => a.value.compareTo(b.value));
-                                    return list.map((e) {
-                                      final percentage =
-                                          (e.value * 100).toInt();
-                                      Color chipColor;
-                                      if (e.value < 0.5) {
-                                        chipColor = Color.lerp(
-                                            const Color(0xFFE53935),
-                                            const Color(0xFFFFB300),
-                                            e.value * 2)!;
-                                      } else {
-                                        chipColor = Color.lerp(
-                                            const Color(0xFFFFB300),
-                                            const Color(0xFF43A047),
-                                            (e.value - 0.5) * 2)!;
-                                      }
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 5),
-                                        decoration: BoxDecoration(
-                                          color: chipColor.withValues(
-                                              alpha: 0.15),
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                          border: Border.all(
-                                              color: chipColor.withValues(
-                                                  alpha: 0.4)),
-                                        ),
-                                        child: Text(
-                                          '${MuscleDetector.getMuscleName(e.key)} $percentage%',
-                                          style: TextStyle(
-                                            color: chipColor,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  RecoveryHeatmap(
+                                    recoveryLevels: recoveryLevels,
+                                    height: 220,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    alignment: WrapAlignment.center,
+                                    children: () {
+                                      final list =
+                                          recoveryLevels.entries.toList();
+                                      list.sort(
+                                          (a, b) => a.value.compareTo(b.value));
+                                      return list.map((e) {
+                                        final percentage =
+                                            (e.value * 100).toInt();
+                                        Color chipColor;
+                                        if (e.value < 0.5) {
+                                          chipColor = Color.lerp(
+                                              const Color(0xFFE53935),
+                                              const Color(0xFFFFB300),
+                                              e.value * 2)!;
+                                        } else {
+                                          chipColor = Color.lerp(
+                                              const Color(0xFFFFB300),
+                                              const Color(0xFF43A047),
+                                              (e.value - 0.5) * 2)!;
+                                        }
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: chipColor.withValues(
+                                                alpha: 0.15),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                                color: chipColor.withValues(
+                                                    alpha: 0.4)),
                                           ),
-                                        ),
-                                      );
-                                    }).toList();
-                                  }(),
-                                ),
-                              ],
+                                          child: Text(
+                                            '${MuscleDetector.getMuscleName(e.key)} $percentage%',
+                                            style: TextStyle(
+                                              color: chipColor,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList();
+                                    }(),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                           const SizedBox(height: 24),

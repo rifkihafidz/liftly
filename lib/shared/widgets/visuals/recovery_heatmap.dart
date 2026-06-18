@@ -37,11 +37,11 @@ class RecoveryHeatmap extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildLegendItem(const Color(0xFFE53935), 'Fatigued'), // Red
+                  _buildLegendItem(const Color(0xFFE53935), 'Fatigued'),
                   const SizedBox(width: 16),
-                  _buildLegendItem(const Color(0xFFFFB300), 'Recovering'), // Amber
+                  _buildLegendItem(const Color(0xFFFFB300), 'Recovering'),
                   const SizedBox(width: 16),
-                  _buildLegendItem(const Color(0xFF43A047), 'Fresh'), // Green
+                  _buildLegendItem(const Color(0xFF43A047), 'Fresh'),
                 ],
               ),
             ),
@@ -59,18 +59,25 @@ class RecoveryHeatmap extends StatelessWidget {
                       Expanded(
                         child: AspectRatio(
                           aspectRatio: 100 / 220,
-                          child: CustomPaint(
-                            painter: RecoveryAnatomyPainter(
-                              recoveryLevels: recoveryLevels,
-                              isFront: true,
-                              textColor: textColor,
+                          // RepaintBoundary isolates the CustomPaint onto its own
+                          // compositing layer — during scroll the layer is just
+                          // translated cheaply instead of re-painted.
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              isComplex: true,
+                              painter: RecoveryAnatomyPainter(
+                                recoveryLevels: recoveryLevels,
+                                isFront: true,
+                                textColor: textColor,
+                              ),
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.cardBg.withValues(alpha: 0.8),
                           borderRadius: BorderRadius.circular(8),
@@ -81,7 +88,8 @@ class RecoveryHeatmap extends StatelessWidget {
                         child: Text(
                           'FRONT',
                           style: TextStyle(
-                            color: (textColor ?? AppColors.textPrimary).withValues(alpha: 0.7),
+                            color: (textColor ?? AppColors.textPrimary)
+                                .withValues(alpha: 0.7),
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 2.0,
@@ -93,7 +101,8 @@ class RecoveryHeatmap extends StatelessWidget {
                 ),
                 Container(
                   width: 1,
-                  color: (textColor ?? AppColors.borderDark).withValues(alpha: 0.25),
+                  color: (textColor ?? AppColors.borderDark)
+                      .withValues(alpha: 0.25),
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                 ),
                 Expanded(
@@ -102,18 +111,22 @@ class RecoveryHeatmap extends StatelessWidget {
                       Expanded(
                         child: AspectRatio(
                           aspectRatio: 100 / 220,
-                          child: CustomPaint(
-                            painter: RecoveryAnatomyPainter(
-                              recoveryLevels: recoveryLevels,
-                              isFront: false,
-                              textColor: textColor,
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              isComplex: true,
+                              painter: RecoveryAnatomyPainter(
+                                recoveryLevels: recoveryLevels,
+                                isFront: false,
+                                textColor: textColor,
+                              ),
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.cardBg.withValues(alpha: 0.8),
                           borderRadius: BorderRadius.circular(8),
@@ -124,7 +137,8 @@ class RecoveryHeatmap extends StatelessWidget {
                         child: Text(
                           'BACK',
                           style: TextStyle(
-                            color: (textColor ?? AppColors.textPrimary).withValues(alpha: 0.7),
+                            color: (textColor ?? AppColors.textPrimary)
+                                .withValues(alpha: 0.7),
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 2.0,
@@ -189,47 +203,42 @@ class RecoveryAnatomyPainter extends CustomPainter {
   static const double _vW = 100.0;
 
   // Colors for interpolation
-  static const Color _colorFatigued = Color(0xFFE53935); // Red (0% recovery)
-  static const Color _colorRecovering = Color(0xFFFFB300); // Amber (50% recovery)
-  static const Color _colorFresh = Color(0xFF43A047); // Green (100% recovery)
+  static const Color _colorFatigued = Color(0xFFE53935);
+  static const Color _colorRecovering = Color(0xFFFFB300);
+  static const Color _colorFresh = Color(0xFF43A047);
+
+  // ─── Path cache keyed by (isFront, scaleX, scaleY, shiftY) ────────────────
+  // Maps raw path string → scaled Path so string parsing only runs once per
+  // unique canvas size. Using a static map means front and back painters share
+  // the same cache across rebuilds.
+  static final Map<String, Path> _pathCache = {};
 
   Color _getRecoveryColor(double recovery) {
     if (recovery < 0.5) {
-      // Interpolate between Red and Amber
       return Color.lerp(_colorFatigued, _colorRecovering, recovery * 2)!;
     } else {
-      // Interpolate between Amber and Green
       return Color.lerp(_colorRecovering, _colorFresh, (recovery - 0.5) * 2)!;
     }
   }
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final scaleX = size.width / _vW;
-    
-    final double pathMinY = 0.0;
-    final double pathMaxY = isFront ? 212.0 : 222.0;
-    final double pathHeight = pathMaxY - pathMinY;
-
-    final double targetHeight = size.height * 0.95;
-    final double scaleY = targetHeight / pathHeight;
-    final double shiftY = (size.height - targetHeight) / 2 - (pathMinY * scaleY);
-
-    final shiftX = 0.0;
-
-    final separatorStroke = Paint()
-      ..color = AppColors.cardBg
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5 * scaleX
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
-
-    Path buildPath(String pathStr) {
+  /// Builds (or returns cached) a scaled [Path] from a coordinate string.
+  Path _getPath(
+    String pathStr,
+    double scaleX,
+    double scaleY,
+    double shiftY,
+  ) {
+    // Cache key encodes the string and the scale so different canvas sizes
+    // each have their own entry.
+    final key =
+        '$pathStr|${scaleX.toStringAsFixed(4)}|${scaleY.toStringAsFixed(4)}|${shiftY.toStringAsFixed(4)}';
+    return _pathCache.putIfAbsent(key, () {
       final path = Path();
-      final points = pathStr.split(' ').where((s) => s.isNotEmpty).toList();
+      final points =
+          pathStr.split(' ').where((s) => s.isNotEmpty).toList(growable: false);
       for (var i = 0; i < points.length; i += 2) {
         if (i + 1 < points.length) {
-          final x = ((double.tryParse(points[i]) ?? 0) + shiftX) * scaleX;
+          final x = (double.tryParse(points[i]) ?? 0) * scaleX;
           final y = (double.tryParse(points[i + 1]) ?? 0) * scaleY + shiftY;
           if (i == 0) {
             path.moveTo(x, y);
@@ -240,46 +249,74 @@ class RecoveryAnatomyPainter extends CustomPainter {
       }
       path.close();
       return path;
-    }
+    });
+  }
 
-    final data = isFront ? AnatomyPoints.anteriorData : AnatomyPoints.posteriorData;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scaleX = size.width / _vW;
 
+    final double pathMaxY = isFront ? 212.0 : 222.0;
+    final double targetHeight = size.height * 0.95;
+    final double scaleY = targetHeight / pathMaxY;
+    final double shiftY = (size.height - targetHeight) / 2;
+
+    final separatorStroke = Paint()
+      ..color = AppColors.cardBg
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5 * scaleX
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+
+    final data =
+        isFront ? AnatomyPoints.anteriorData : AnatomyPoints.posteriorData;
+
+    // ── Drop shadow (using the combined silhouette) ─────────────────────────
+    // Build silhouette once using the path cache.
     final fullSilhouette = Path();
     data.forEach((group, pathsStr) {
       for (final p in pathsStr) {
-        fullSilhouette.addPath(buildPath(p), Offset.zero);
+        fullSilhouette.addPath(
+            _getPath(p, scaleX, scaleY, shiftY), Offset.zero);
       }
     });
 
+    // Lightweight shadow: a single blurred filled path.
+    // MaskFilter.blur is kept only on the shadow (one draw call) rather than
+    // per-muscle-group glow, which was the main GPU bottleneck.
     final dropShadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.5)
+      ..color = Colors.black.withValues(alpha: 0.45)
       ..style = PaintingStyle.fill
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8.0);
-      
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6.0);
+
     canvas.drawPath(
-      fullSilhouette.shift(Offset(0, 4.0 * scaleY)), 
+      fullSilhouette.shift(Offset(0, 3.5 * scaleY)),
       dropShadowPaint,
     );
 
+    // ── Per-muscle-group rendering ──────────────────────────────────────────
     data.forEach((group, pathsStr) {
       final isUnknown = group == MuscleGroup.unknown;
       final recovery = recoveryLevels[group] ?? 1.0;
+      final color =
+          isUnknown ? const Color(0xFF48484A) : _getRecoveryColor(recovery);
 
-      final color = isUnknown ? const Color(0xFF48484A) : _getRecoveryColor(recovery);
-      
       final fillPaint = Paint()
         ..color = color
         ..style = PaintingStyle.fill;
-        
-      final glowPaint = Paint()
-        ..color = color.withValues(alpha: 0.3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0 * scaleX
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
+
+      // Replaced MaskFilter.blur glow (GPU-heavy, called per path) with a
+      // cheap opaque stroke — visually similar, nearly zero GPU cost.
+      final edgePaint = isUnknown
+          ? null
+          : (Paint()
+            ..color = color.withValues(alpha: 0.55)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.8 * scaleX);
 
       for (final p in pathsStr) {
-        final path = buildPath(p);
-        if (!isUnknown) canvas.drawPath(path, glowPaint);
+        final path = _getPath(p, scaleX, scaleY, shiftY);
+        if (edgePaint != null) canvas.drawPath(path, edgePaint);
         canvas.drawPath(path, fillPaint);
         canvas.drawPath(path, separatorStroke);
       }

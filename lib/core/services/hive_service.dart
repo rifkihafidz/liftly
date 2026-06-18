@@ -756,6 +756,30 @@ class HiveService {
     await box.clear(); // Guarantee truncation
   }
 
+  /// Re-runs all integrity checks and migrations without deleting any data.
+  ///
+  /// This is equivalent to what happens on first launch after an update:
+  ///   1. Metadata integrity check  — rebuilds the workout index if meta is empty.
+  ///   2. Variation-field migration — resets the marker so the migration runs
+  ///      again (safe; it writes the marker back immediately and is idempotent).
+  ///
+  /// No workout, plan, or preference data is removed.
+  static Future<void> forceRunMigrations() async {
+    await init();
+
+    // 1. Re-run metadata integrity check (rebuilds meta box from workout box
+    //    if meta box is empty or stale).
+    await _checkMetadataIntegrity();
+
+    // 2. Reset variation migration marker so it re-runs.
+    const migrationKey = 'variation_migration_complete';
+    await _settingsBox.delete(migrationKey);
+    await _migrateVariationField();
+
+    // 3. Rebuild the in-memory workout index so next page load is fast.
+    _invalidateWorkoutCache();
+  }
+
   static Future<void> clearAllData() async {
     await init();
     await _chunkedClear(_workoutBox);

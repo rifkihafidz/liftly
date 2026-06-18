@@ -652,6 +652,51 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _handleForceUpdate(BuildContext context) async {
+    final confirmed = await AppDialogs.showConfirmationDialog(
+      context: context,
+      title: 'Force Update Version',
+      message:
+          'This will re-run all database integrity checks and migrations.\n\nYour workouts, plans, and preferences will NOT be deleted. Only internal indexes and migration flags will be refreshed.',
+      confirmText: 'Run Update',
+    );
+
+    if (confirmed != true) return;
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    if (!context.mounted) return;
+
+    AppDialogs.showLoadingDialog(context, 'Applying updates...');
+    try {
+      await HiveService.forceRunMigrations();
+      if (context.mounted) {
+        AppDialogs.hideLoadingDialog(context);
+        // Refresh all blocs so UI reflects any fixed data
+        context.read<PlanBloc>().add(const PlansFetchRequested());
+        context.read<WorkoutBloc>().add(const WorkoutsFetched());
+        context.read<StatsBloc>().add(const StatsFetched());
+
+        unawaited(AppDialogs.showSuccessDialog(
+          context: context,
+          title: 'Update Successful',
+          message:
+              'All integrity checks and migrations have been applied. Your data is intact.',
+        ));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppDialogs.hideLoadingDialog(context);
+        await AppDialogs.showErrorDialog(
+          context: context,
+          title: 'Update Failed',
+          message: e.toString(),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -806,6 +851,17 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                           );
                         },
+                      ),
+                    ),
+                     const SizedBox(height: AppConstants.itemSpacing),
+                    FadeInSlide(
+                      index: 9,
+                      child: MenuListItem(
+                        title: 'Force Update Version',
+                        subtitle: 'Re-run migrations without deleting data',
+                        icon: Icons.system_update_alt_rounded,
+                        color: Colors.teal,
+                        onTap: () => _handleForceUpdate(context),
                       ),
                     ),
                     const SizedBox(height: AppConstants.sectionSpacing),
