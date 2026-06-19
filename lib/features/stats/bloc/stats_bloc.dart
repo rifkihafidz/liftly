@@ -168,10 +168,17 @@ Future<Map<String, dynamic>> _calculateStatsIsolate(
       // Store original case for later display
       originalExerciseData[key] = (exercise.name, exercise.variation);
 
+      final firstIndex = workout.exercises.indexWhere((e) =>
+          e.name.toLowerCase() == exName &&
+          e.variation.toLowerCase() == variation &&
+          !e.skipped);
+
       final metrics = StatisticsService.calculateSessionMetrics(
         exercise,
         workout.effectiveDate,
         exercise.sets,
+        exerciseOrder: firstIndex != -1 ? firstIndex + 1 : null,
+        totalExercises: workout.exercises.length,
       );
 
       exerciseStats[key]!.add(metrics);

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -5,6 +6,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../shared/widgets/app_dialogs.dart';
+import '../../../core/utils/app_logger.dart';
 
 import '../../home/pages/main_navigation_wrapper.dart';
 import '../bloc/workout_bloc.dart';
@@ -254,6 +256,18 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                         ),
                         onPressed: () => _showShareSheet(context),
                       ),
+                      if (kDebugMode)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.bug_report_rounded,
+                            color: AppColors.accent,
+                          ),
+                          tooltip: 'Print detail session (Debug)',
+                          onPressed: () {
+                            AppLogger.info('WorkoutDetail', '=== WORKOUT DETAIL DEBUG ===');
+                            AppLogger.info('WorkoutDetail', workout.toMap().toString());
+                          },
+                        ),
                       IconButton(
                         icon: const Icon(
                           Icons.edit_rounded,

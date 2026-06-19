@@ -7,6 +7,8 @@ class PersonalRecord extends Equatable {
   final int maxWeightReps;
   final String? maxWeightDate;
   final String maxWeightNotes;
+  final int? maxWeightOrder;
+  final int? maxWeightTotalEx;
 
   // Metric 2: Max Volume Set (Best volume in a single set - aggregated segments)
   final double maxVolume;
@@ -15,12 +17,16 @@ class PersonalRecord extends Equatable {
   final String? maxVolumeDate;
   final String maxVolumeBreakdown; // ex: "(10 kg x 10 + 5 kg x 2)"
   final String maxVolumeNotes;
+  final int? maxVolumeOrder;
+  final int? maxVolumeTotalEx;
 
   // Metric 3: Best Session (Highest total volume in one workout)
   final double bestSessionVolume;
   final int bestSessionReps; // Added for bodyweight/zero-weight fallback
   final String? bestSessionDate;
   final List<ExerciseSet>? bestSessionSets;
+  final int? bestSessionOrder;
+  final int? bestSessionTotalEx;
 
   // We avoid storing complex objects like ExerciseSet here to keep it lighter for now
   // or we can keep it if needed for UI details.
@@ -40,16 +46,22 @@ class PersonalRecord extends Equatable {
     this.maxWeightReps = 0,
     this.maxWeightDate,
     this.maxWeightNotes = '',
+    this.maxWeightOrder,
+    this.maxWeightTotalEx,
     this.maxVolume = 0,
     this.maxVolumeWeight = 0,
     this.maxVolumeReps = 0,
     this.maxVolumeDate,
     this.maxVolumeBreakdown = '',
     this.maxVolumeNotes = '',
+    this.maxVolumeOrder,
+    this.maxVolumeTotalEx,
     this.bestSessionVolume = 0,
     this.bestSessionReps = 0,
     this.bestSessionDate,
     this.bestSessionSets,
+    this.bestSessionOrder,
+    this.bestSessionTotalEx,
   });
 
   @override
@@ -60,15 +72,21 @@ class PersonalRecord extends Equatable {
         maxWeightReps,
         maxWeightDate,
         maxWeightNotes,
+        maxWeightOrder,
+        maxWeightTotalEx,
         maxVolume,
         maxVolumeWeight,
         maxVolumeReps,
         maxVolumeDate,
         maxVolumeBreakdown,
         maxVolumeNotes,
+        maxVolumeOrder,
+        maxVolumeTotalEx,
         bestSessionVolume,
         bestSessionReps,
         bestSessionDate,
         bestSessionSets,
+        bestSessionOrder,
+        bestSessionTotalEx,
       ];
 }

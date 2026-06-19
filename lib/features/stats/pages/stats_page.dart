@@ -883,6 +883,8 @@ class _StatsPageState extends State<StatsPage> {
                                   entry.value.maxWeight,
                                   'kg',
                                   reps: entry.value.maxWeightReps,
+                                  order: entry.value.maxWeightOrder,
+                                  totalEx: entry.value.maxWeightTotalEx,
                                 ),
                                 const SizedBox(height: 4),
                                 // Best Volume Set (Max Vol)
@@ -892,6 +894,8 @@ class _StatsPageState extends State<StatsPage> {
                                   entry.value.maxVolume,
                                   'kg',
                                   details: entry.value.maxVolumeBreakdown,
+                                  order: entry.value.maxVolumeOrder,
+                                  totalEx: entry.value.maxVolumeTotalEx,
                                 ),
                               ],
                             ),
@@ -971,16 +975,41 @@ class _StatsPageState extends State<StatsPage> {
     String unit, {
     int? reps,
     String? details,
+    int? order,
+    int? totalEx,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-                fontSize: 10,
+        Row(
+          children: [
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                  ),
+            ),
+            if (order != null && totalEx != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Order: $order/$totalEx',
+                  style: const TextStyle(
+                    color: AppColors.accent,
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
+                  ),
+                ),
               ),
+            ],
+          ],
         ),
         const SizedBox(height: 2),
         Row(

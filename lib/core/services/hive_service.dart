@@ -450,26 +450,32 @@ class HiveService {
       ..sort((a, b) => a.workoutDate.compareTo(b.workoutDate)); // Ascending
 
     for (final w in workouts) {
-      final matchingExercises = w.exercises.where((e) =>
-          e.name.toLowerCase() == exerciseName.toLowerCase() &&
-          e.variation.toLowerCase() == exerciseVariation.toLowerCase() &&
-          !e.skipped);
+        final matchingExercises = w.exercises.where((e) =>
+            e.name.toLowerCase() == exerciseName.toLowerCase() &&
+            e.variation.toLowerCase() == exerciseVariation.toLowerCase() &&
+            !e.skipped).toList();
 
-      if (matchingExercises.isNotEmpty) {
-        final mergedEx = matchingExercises.reduce((a, b) {
-          final mergedSets = <ExerciseSet>[...a.sets, ...b.sets]
-              .asMap()
-              .entries
-              .map((e) => e.value.copyWith(setNumber: e.key + 1))
-              .toList();
-          return a.copyWith(sets: mergedSets);
-        });
+        if (matchingExercises.isNotEmpty) {
+          final firstIndex = w.exercises.indexWhere((e) =>
+              e.name.toLowerCase() == exerciseName.toLowerCase() &&
+              e.variation.toLowerCase() == exerciseVariation.toLowerCase() &&
+              !e.skipped);
+          final mergedEx = matchingExercises.reduce((a, b) {
+            final mergedSets = <ExerciseSet>[...a.sets, ...b.sets]
+                .asMap()
+                .entries
+                .map((e) => e.value.copyWith(setNumber: e.key + 1))
+                .toList();
+            return a.copyWith(sets: mergedSets);
+          });
 
-        final metrics = StatisticsService.calculateSessionMetrics(
-          mergedEx,
-          w.workoutDate,
-          mergedEx.sets,
-        );
+          final metrics = StatisticsService.calculateSessionMetrics(
+            mergedEx,
+            w.workoutDate,
+            mergedEx.sets,
+            exerciseOrder: firstIndex != -1 ? firstIndex + 1 : null,
+            totalExercises: w.exercises.length,
+          );
         history.add(metrics);
       }
     }
@@ -638,6 +644,7 @@ class HiveService {
         final group = entry.value;
 
         // Merge sets if multiple entries share the same name in this session
+        final firstIndex = w.exercises.indexOf(group.first);
         final mergedEx = group.reduce((a, b) {
           final mergedSets = <ExerciseSet>[...a.sets, ...b.sets]
               .asMap()
@@ -654,6 +661,8 @@ class HiveService {
           mergedEx,
           w.workoutDate,
           mergedEx.sets,
+          exerciseOrder: firstIndex != -1 ? firstIndex + 1 : null,
+          totalExercises: w.exercises.length,
         );
 
         exerciseHistories[key]!.add(metrics);

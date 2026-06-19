@@ -18,8 +18,10 @@ class StatisticsService {
   static Map<String, dynamic> calculateSessionMetrics(
     SessionExercise ex,
     DateTime workoutDate,
-    List<ExerciseSet> sets,
-  ) {
+    List<ExerciseSet> sets, {
+    int? exerciseOrder,
+    int? totalExercises,
+  }) {
     double sessionMaxWeight = 0;
     int sessionMaxWeightReps = 0;
     String sessionMaxWeightNotes = '';
@@ -96,6 +98,8 @@ class StatisticsService {
       'bestSetVolumeWeight': bestSetVolumeWeight,
       'bestSetVolumeReps': bestSetVolumeReps,
       'sets': sets,
+      'exerciseOrder': exerciseOrder,
+      'totalExercises': totalExercises,
     };
   }
 
@@ -111,6 +115,8 @@ class StatisticsService {
     int globalMaxWeightReps = 0;
     String? globalMaxWeightDate;
     String globalMaxWeightNotes = '';
+    int? globalMaxWeightOrder;
+    int? globalMaxWeightTotalEx;
 
     double globalMaxSetVolume = 0;
     double globalMaxSetVolumeWeight = 0;
@@ -118,11 +124,15 @@ class StatisticsService {
     String? globalMaxSetVolumeDate;
     String globalMaxSetVolumeBreakdown = '';
     String globalMaxSetVolumeNotes = '';
+    int? globalMaxVolumeOrder;
+    int? globalMaxVolumeTotalEx;
 
     double globalBestSessionVolume = 0;
     int globalBestSessionReps = 0;
     String? globalBestSessionDate;
     List<ExerciseSet>? globalBestSessionSets;
+    int? globalBestSessionOrder;
+    int? globalBestSessionTotalEx;
 
     for (final record in history) {
       final recordDate = record['workoutDate'] as String?;
@@ -137,11 +147,15 @@ class StatisticsService {
         globalMaxWeightReps = rMaxWeightReps;
         globalMaxWeightDate = recordDate;
         globalMaxWeightNotes = rMaxWeightNotes;
+        globalMaxWeightOrder = record['exerciseOrder'] as int?;
+        globalMaxWeightTotalEx = record['totalExercises'] as int?;
       } else if (rMaxWeight == globalMaxWeight &&
           rMaxWeightReps > globalMaxWeightReps) {
         globalMaxWeightReps = rMaxWeightReps;
         globalMaxWeightDate = recordDate;
         globalMaxWeightNotes = rMaxWeightNotes;
+        globalMaxWeightOrder = record['exerciseOrder'] as int?;
+        globalMaxWeightTotalEx = record['totalExercises'] as int?;
       }
 
       // 2. Max Set Volume
@@ -156,6 +170,8 @@ class StatisticsService {
         globalMaxSetVolumeBreakdown =
             record['bestSetVolumeBreakdown'] as String;
         globalMaxSetVolumeNotes = record['bestSetVolumeNotes'] as String? ?? '';
+        globalMaxVolumeOrder = record['exerciseOrder'] as int?;
+        globalMaxVolumeTotalEx = record['totalExercises'] as int?;
       }
 
       // 3. Best Session Volume
@@ -176,6 +192,8 @@ class StatisticsService {
         globalBestSessionReps = rSessionReps;
         globalBestSessionDate = recordDate;
         globalBestSessionSets = (record['sets'] as List?)?.cast<ExerciseSet>();
+        globalBestSessionOrder = record['exerciseOrder'] as int?;
+        globalBestSessionTotalEx = record['totalExercises'] as int?;
       }
     }
 
@@ -191,16 +209,22 @@ class StatisticsService {
       maxWeightReps: globalMaxWeightReps,
       maxWeightDate: globalMaxWeightDate,
       maxWeightNotes: globalMaxWeightNotes,
+      maxWeightOrder: globalMaxWeightOrder,
+      maxWeightTotalEx: globalMaxWeightTotalEx,
       maxVolume: globalMaxSetVolume,
       maxVolumeWeight: globalMaxSetVolumeWeight,
       maxVolumeReps: globalMaxSetVolumeReps,
       maxVolumeDate: globalMaxSetVolumeDate,
       maxVolumeBreakdown: globalMaxSetVolumeBreakdown,
       maxVolumeNotes: globalMaxSetVolumeNotes,
+      maxVolumeOrder: globalMaxVolumeOrder,
+      maxVolumeTotalEx: globalMaxVolumeTotalEx,
       bestSessionVolume: globalBestSessionVolume,
       bestSessionReps: globalBestSessionReps,
       bestSessionDate: globalBestSessionDate,
       bestSessionSets: globalBestSessionSets,
+      bestSessionOrder: globalBestSessionOrder,
+      bestSessionTotalEx: globalBestSessionTotalEx,
       exerciseName: exerciseName,
       variation: variation,
     );

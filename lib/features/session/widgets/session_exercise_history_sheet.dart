@@ -36,30 +36,31 @@ class SessionExerciseHistorySheet extends StatelessWidget {
 
     if (histories != null) {
       for (final h in histories!) {
-      // Collect ALL matching exercises in this session (can be >1 after rename/merge)
-      final allExercises = h.exercises;
-      final totalExercises = allExercises.length;
-      final matchingIndices = allExercises
-          .asMap()
-          .entries
-          .where((e) =>
-              e.value.name.toLowerCase() == exerciseName.toLowerCase() &&
-              e.value.variation.toLowerCase() == exerciseVariation.toLowerCase())
-          .toList();
-
-      if (matchingIndices.isEmpty) continue;
-
-      // Merge sets if there are multiple entries with the same name in one session
-      final firstIndex = matchingIndices.first.key;
-      final merged = matchingIndices.map((e) => e.value).reduce((a, b) {
-        final mergedSets = <ExerciseSet>[...a.sets, ...b.sets]
+        // Collect ALL matching exercises in this session (can be >1 after rename/merge)
+        final allExercises = h.exercises;
+        final totalExercises = allExercises.length;
+        final matchingIndices = allExercises
             .asMap()
             .entries
-            .map((e) => e.value.copyWith(setNumber: e.key + 1))
+            .where((e) =>
+                e.value.name.toLowerCase() == exerciseName.toLowerCase() &&
+                e.value.variation.toLowerCase() ==
+                    exerciseVariation.toLowerCase())
             .toList();
-        return a.copyWith(sets: mergedSets);
-      });
-      validHistories.add((h, merged, firstIndex + 1, totalExercises));
+
+        if (matchingIndices.isEmpty) continue;
+
+        // Merge sets if there are multiple entries with the same name in one session
+        final firstIndex = matchingIndices.first.key;
+        final merged = matchingIndices.map((e) => e.value).reduce((a, b) {
+          final mergedSets = <ExerciseSet>[...a.sets, ...b.sets]
+              .asMap()
+              .entries
+              .map((e) => e.value.copyWith(setNumber: e.key + 1))
+              .toList();
+          return a.copyWith(sets: mergedSets);
+        });
+        validHistories.add((h, merged, firstIndex + 1, totalExercises));
       }
     }
 
@@ -148,52 +149,25 @@ class SessionExerciseHistorySheet extends StatelessWidget {
               for (final entry in validHistories) ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Session on ${_formatDate(entry.$1.workoutDate)}',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
                           Row(
                             children: [
                               Text(
-                                'Exercise order:',
+                                'Session on ${_formatDate(entry.$1.workoutDate)}',
                                 style: Theme.of(context)
                                     .textTheme
-                                    .bodySmall
+                                    .titleMedium
                                     ?.copyWith(
-                                      color: AppColors.textSecondary
-                                          .withValues(alpha: 0.6),
-                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
                                     ),
                               ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color:
-                                      AppColors.accent.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  '${entry.$3}/${entry.$4}',
-                                  style: const TextStyle(
-                                    color: AppColors.accent,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                              ),
+                              const SizedBox(width: 8),
+                              _buildExerciseOrderBadge(entry.$3, entry.$4),
                             ],
                           ),
                         ],
@@ -209,30 +183,8 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                if (entry.$2.notes.isNotEmpty) ...[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.edit_rounded,
-                        size: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          entry.$2.notes,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontStyle: FontStyle.italic,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                ],
+                _buildNoteRow(context, 'Session Note', entry.$1.notes),
+                _buildNoteRow(context, 'Exercise Note', entry.$2.notes),
                 ..._renderSets(context, entry.$2.sets),
                 const SizedBox(height: 24),
               ],
@@ -252,15 +204,46 @@ class SessionExerciseHistorySheet extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Best Session${bestSessionDate != null ? " (${_formatDate(DateTime.parse(bestSessionDate))})" : ""}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.accent,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Best Session${bestSessionDate != null ? " (${_formatDate(DateTime.parse(bestSessionDate))})" : ""}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.accent,
+                                ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
+                        if (bestSessionDate != null &&
+                            ((pr?.bestSessionOrder != null &&
+                                    pr?.bestSessionTotalEx != null) ||
+                                _getExerciseOrder(
+                                        validHistories, bestSessionDate) !=
+                                    null)) ...[
+                          const SizedBox(width: 8),
+                          _buildExerciseOrderBadge(
+                            pr?.bestSessionOrder ??
+                                _getExerciseOrder(
+                                        validHistories, bestSessionDate)!
+                                    .$1,
+                            pr?.bestSessionTotalEx ??
+                                _getExerciseOrder(
+                                        validHistories, bestSessionDate)!
+                                    .$2,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
-                    'Total Volume: ${_formatNumber(bestSessionVol)} kg',
+                    'Total Vol: ${_formatNumber(bestSessionVol)} kg',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.accent,
@@ -281,42 +264,57 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                     ),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildPRCard(
-                      context,
-                      label: 'Best Heavy Set',
-                      value: '${_formatNumber(pr!.maxWeight)} kg',
-                      details: '${pr!.maxWeightReps} reps',
-                      icon: Icons.fitness_center_rounded,
-                      date: pr!.maxWeightDate,
-                      notes: pr!.maxWeightNotes.isNotEmpty
-                          ? pr!.maxWeightNotes
-                          : (exerciseVariation.isNotEmpty
-                              ? exerciseVariation
-                              : null),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _buildPRCard(
+                        context,
+                        label: 'Best Heavy Set',
+                        value: '${_formatNumber(pr!.maxWeight)} kg',
+                        details: '${pr!.maxWeightReps} reps',
+                        icon: Icons.fitness_center_rounded,
+                        date: pr!.maxWeightDate,
+                        variation: exerciseVariation,
+                        exerciseOrder: (pr!.maxWeightOrder != null &&
+                                pr!.maxWeightTotalEx != null)
+                            ? (pr!.maxWeightOrder!, pr!.maxWeightTotalEx!)
+                            : _getExerciseOrder(
+                                validHistories, pr!.maxWeightDate),
+                        sessionNotes:
+                            _getSessionNotes(validHistories, pr!.maxWeightDate),
+                        exerciseNotes: _getExerciseNotes(
+                            validHistories, pr!.maxWeightDate),
+                        setNotes: pr!.maxWeightNotes,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildPRCard(
-                      context,
-                      label: 'Best Volume Set',
-                      value: '${_formatNumber(pr!.maxVolume)} kg',
-                      details: pr!.maxVolumeBreakdown.isNotEmpty
-                          ? pr!.maxVolumeBreakdown
-                          : '${_formatNumber(pr!.maxVolumeWeight)} kg x ${pr!.maxVolumeReps}',
-                      icon: Icons.auto_graph_rounded,
-                      date: pr!.maxVolumeDate,
-                      notes: pr!.maxVolumeNotes.isNotEmpty
-                          ? pr!.maxVolumeNotes
-                          : (exerciseVariation.isNotEmpty
-                              ? exerciseVariation
-                              : null),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildPRCard(
+                        context,
+                        label: 'Best Volume Set',
+                        value: '${_formatNumber(pr!.maxVolume)} kg',
+                        details: pr!.maxVolumeBreakdown.isNotEmpty
+                            ? pr!.maxVolumeBreakdown
+                            : '${_formatNumber(pr!.maxVolumeWeight)} kg x ${pr!.maxVolumeReps}',
+                        icon: Icons.auto_graph_rounded,
+                        date: pr!.maxVolumeDate,
+                        variation: exerciseVariation,
+                        exerciseOrder: (pr!.maxVolumeOrder != null &&
+                                pr!.maxVolumeTotalEx != null)
+                            ? (pr!.maxVolumeOrder!, pr!.maxVolumeTotalEx!)
+                            : _getExerciseOrder(
+                                validHistories, pr!.maxVolumeDate),
+                        sessionNotes:
+                            _getSessionNotes(validHistories, pr!.maxVolumeDate),
+                        exerciseNotes: _getExerciseNotes(
+                            validHistories, pr!.maxVolumeDate),
+                        setNotes: pr!.maxVolumeNotes,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
             ],
@@ -346,15 +344,10 @@ class SessionExerciseHistorySheet extends StatelessWidget {
           reps = '${seg.repsFrom}';
         }
 
-        String notesStr = '';
-        if (seg.notes.isNotEmpty) {
-          notesStr = ' (${seg.notes})';
-        }
-
         final isDropSet = seg.segmentOrder > 0;
         final displaySetNumber = s.setNumber > 0 ? s.setNumber : index + 1;
 
-        return Padding(
+        final setRow = Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Row(
             children: [
@@ -382,7 +375,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
               ],
               Flexible(
                 child: Text(
-                  '$weight kg × $reps$notesStr',
+                  '$weight kg × $reps',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
@@ -411,8 +404,107 @@ class SessionExerciseHistorySheet extends StatelessWidget {
             ],
           ),
         );
-      });
+
+        return <Widget>[
+          setRow,
+          if (seg.notes.isNotEmpty)
+            _buildNoteRow(context, 'Set Note', seg.notes,
+                leftPadding: isDropSet ? 32 : 28),
+        ];
+      }).expand<Widget>((widgets) => widgets as Iterable<Widget>);
     }).toList();
+  }
+
+  String? _getSessionNotes(
+      List<(WorkoutSession, SessionExercise, int, int)> histories,
+      String? date) {
+    if (date == null) return null;
+    try {
+      final entry = histories
+          .firstWhere((e) => e.$1.workoutDate.toIso8601String() == date);
+      return entry.$1.notes.isNotEmpty ? entry.$1.notes : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? _getExerciseNotes(
+      List<(WorkoutSession, SessionExercise, int, int)> histories,
+      String? date) {
+    if (date == null) return null;
+    try {
+      final entry = histories
+          .firstWhere((e) => e.$1.workoutDate.toIso8601String() == date);
+      return entry.$2.notes.isNotEmpty ? entry.$2.notes : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  (int, int)? _getExerciseOrder(
+      List<(WorkoutSession, SessionExercise, int, int)> histories,
+      String? date) {
+    if (date == null) return null;
+    try {
+      final entry = histories
+          .firstWhere((e) => e.$1.workoutDate.toIso8601String() == date);
+      return (entry.$3, entry.$4);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _buildExerciseOrderBadge(int order, int total) {
+    return Container(
+      padding: const EdgeInsets.only(
+        left: 6,
+        right: 6,
+        top: 2,
+        bottom: 4,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        'Order: $order/$total',
+        style: const TextStyle(
+          color: AppColors.accent,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoteRow(BuildContext context, String label, String note,
+      {double leftPadding = 0}) {
+    if (note.trim().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.only(bottom: 8, left: leftPadding),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(fontSize: 12, height: 1.4),
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: TextStyle(
+                color: AppColors.textSecondary.withValues(alpha: 0.8),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            TextSpan(
+              text: note.trim(),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildPRCard(
@@ -423,7 +515,11 @@ class SessionExerciseHistorySheet extends StatelessWidget {
     required IconData icon,
     bool isFullWidth = false,
     String? date,
-    String? notes,
+    String? variation,
+    (int, int)? exerciseOrder,
+    String? sessionNotes,
+    String? exerciseNotes,
+    String? setNotes,
   }) {
     return Container(
       width: isFullWidth ? double.infinity : null,
@@ -486,25 +582,75 @@ class SessionExerciseHistorySheet extends StatelessWidget {
               fontSize: 11,
             ),
           ),
-          if (date != null)
-            Text(
-              _formatDate(DateTime.parse(date)),
-              style: TextStyle(
-                color: AppColors.textSecondary.withValues(alpha: 0.8),
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
+          if (date != null) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _formatDate(DateTime.parse(date)),
+                    style: TextStyle(
+                      color: AppColors.textSecondary.withValues(alpha: 0.8),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (exerciseOrder != null) ...[
+                  const SizedBox(width: 6),
+                  _buildExerciseOrderBadge(exerciseOrder.$1, exerciseOrder.$2),
+                ],
+              ],
             ),
-          if (notes != null) ...[
+          ],
+          if (variation != null && variation.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              notes,
+              variation,
               style: TextStyle(
                 color: AppColors.accent.withValues(alpha: 0.7),
                 fontSize: 10,
                 fontStyle: FontStyle.italic,
               ),
               maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          if (sessionNotes != null && sessionNotes.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Session: $sessionNotes',
+              style: TextStyle(
+                color: AppColors.accent.withValues(alpha: 0.7),
+                fontSize: 10,
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          if (exerciseNotes != null && exerciseNotes.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Exercise: $exerciseNotes',
+              style: TextStyle(
+                color: AppColors.accent.withValues(alpha: 0.7),
+                fontSize: 10,
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          if (setNotes != null && setNotes.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Set: $setNotes',
+              style: TextStyle(
+                color: AppColors.accent.withValues(alpha: 0.7),
+                fontSize: 10,
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ],
