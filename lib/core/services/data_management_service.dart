@@ -226,13 +226,16 @@ class DataManagementService {
   /// Import data from a selected file (Processing step)
   static Future<String> importFile(PlatformFile file,
       {String targetUserId = '1',
+      bool clearData = true,
       Function(double progress, String message)? onProgress}) async {
     try {
       Map<String, dynamic> result;
 
       if (kIsWeb) {
-        onProgress?.call(0.05, 'Clearing existing data...');
-        await clearAllData();
+        if (clearData) {
+          onProgress?.call(0.05, 'Clearing existing data...');
+          await clearAllData();
+        }
 
         onProgress?.call(0.1, 'Reading file bytes (Web)...');
         final bytes = file.bytes;
@@ -282,8 +285,10 @@ class DataManagementService {
 
         // Clear data on main thread (Hive boxes are not shared across isolates in this implementation easily without re-opening)
         // Since we are about to import, we should clear UI-facing data first.
-        onProgress?.call(0.4, 'Clearing existing data...');
-        await DataManagementService.clearAllData();
+        if (clearData) {
+          onProgress?.call(0.4, 'Clearing existing data...');
+          await DataManagementService.clearAllData();
+        }
       }
 
       onProgress?.call(0.5, 'Importing workouts...');
@@ -345,13 +350,16 @@ class DataManagementService {
   /// Generic import logic from bytes
   static Future<String> importDataFromBytes(Uint8List bytes,
       {String targetUserId = '1',
+      bool clearData = true,
       Function(double progress, String message)? onProgress}) async {
     try {
       Map<String, dynamic> result;
 
       if (kIsWeb) {
-        onProgress?.call(0.05, 'Clearing existing data...');
-        await clearAllData();
+        if (clearData) {
+          onProgress?.call(0.05, 'Clearing existing data...');
+          await clearAllData();
+        }
 
         onProgress?.call(0.1, 'Reading data (Web)...');
         result = await _processImportShared(
@@ -367,9 +375,11 @@ class DataManagementService {
           'userId': targetUserId,
         });
 
-        onProgress?.call(0.4, 'Clearing existing data...');
-        await Future.delayed(const Duration(milliseconds: 50));
-        await clearAllData();
+        if (clearData) {
+          onProgress?.call(0.4, 'Clearing existing data...');
+          await Future.delayed(const Duration(milliseconds: 50));
+          await clearAllData();
+        }
       }
 
       onProgress?.call(0.5, 'Importing workouts...');

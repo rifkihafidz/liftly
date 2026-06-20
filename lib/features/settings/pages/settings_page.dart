@@ -505,21 +505,62 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _handleImport(BuildContext context) async {
     try {
-      final result = await AppDialogs.showConfirmationDialog(
-        context: context,
-        title: AppConstants.titleImportData,
-        message:
-            'Importing data will PERMANENTLY DELETE all current existing records and replace them with the backup data. This action cannot be undone. Are you sure?',
-        confirmText: 'Clear & Import',
-        isDangerous: true,
-      );
-
-      if (result != true) return;
-      if (!context.mounted) return;
-
       // 1. Pick file first (UI responsive)
       final file = await DataManagementService.pickImportFile();
       if (file == null) return; // Cancelled
+
+      if (!context.mounted) return;
+
+      final isPlanOnly = file.name.toLowerCase().contains('plan');
+      bool clearData = true;
+
+      if (isPlanOnly) {
+        final choice = await showDialog<String>(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppColors.cardBg,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Import Plans', style: TextStyle(color: AppColors.textPrimary)),
+            content: const Text(
+              'You are importing a plans-only backup. Would you like to keep your current data (everything) and just add the plans, or clear all data?',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, 'cancel'),
+                child: const Text('Cancel'),
+              ),
+              FilledButton.tonal(
+                onPressed: () => Navigator.pop(context, 'keep'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.success.withValues(alpha: 0.1),
+                  foregroundColor: AppColors.success,
+                ),
+                child: const Text('Keep Data'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, 'clear'),
+                style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+                child: const Text('Clear All'),
+              ),
+            ],
+          ),
+        );
+
+        if (choice == null || choice == 'cancel') return;
+        clearData = choice == 'clear';
+      } else {
+        final result = await AppDialogs.showConfirmationDialog(
+          context: context,
+          title: AppConstants.titleImportData,
+          message:
+              'Importing data will PERMANENTLY DELETE all current existing records and replace them with the backup data. This action cannot be undone. Are you sure?',
+          confirmText: 'Clear & Import',
+          isDangerous: true,
+        );
+
+        if (result != true) return;
+      }
 
       if (!context.mounted) return;
 
@@ -569,6 +610,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
       final importResult = await DataManagementService.importFile(
         file,
+        clearData: clearData,
         onProgress: (progress, message) {
           progressNotifier.value = progress;
           statusNotifier.value = message;
