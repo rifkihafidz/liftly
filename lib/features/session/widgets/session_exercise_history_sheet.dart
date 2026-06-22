@@ -243,7 +243,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Total Vol: ${_formatNumber(bestSessionVol)} kg',
+                    'Total: ${_formatNumber(bestSessionVol)} kg',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.accent,

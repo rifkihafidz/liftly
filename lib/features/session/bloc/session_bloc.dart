@@ -139,9 +139,28 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
 
       await Future.wait(historyFutures);
 
+      final exercisesWithNotes = session.exercises.map((ex) {
+        final statsKey = '${ex.name}:${ex.variation}'.toLowerCase();
+        final logs = previousSessions[statsKey];
+        if (logs != null && logs.isNotEmpty) {
+          final latestLog = logs.first;
+          try {
+            final matchingEx = latestLog.exercises.firstWhere(
+              (e) => e.name.toLowerCase() == ex.name.toLowerCase() && e.variation.toLowerCase() == ex.variation.toLowerCase(),
+            );
+            if (matchingEx.notes.isNotEmpty && ex.notes.isEmpty) {
+              return ex.copyWith(notes: matchingEx.notes);
+            }
+          } catch (_) {}
+        }
+        return ex;
+      }).toList();
+
+      final updatedSession = session.copyWith(exercises: exercisesWithNotes);
+
       emit(
         SessionInProgress(
-          session: session,
+          session: updatedSession,
           previousSessions: previousSessions,
           exercisePRs: exercisePRs,
         ),
@@ -376,14 +395,33 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
         Map<String, List<WorkoutSession>>.from(currentState.previousSessions);
     final updatedExercisePRs =
         Map<String, PersonalRecord>.from(currentState.exercisePRs);
+    WorkoutSession currentSession = currentState.session;
 
     if (results[0] != null && (results[0] as List).isNotEmpty) {
-      updatedPreviousSessions[statsKey] = results[0] as List<WorkoutSession>;
+      final logs = results[0] as List<WorkoutSession>;
+      updatedPreviousSessions[statsKey] = logs;
+      
+      final latestLog = logs.first;
+      try {
+        final matchingEx = latestLog.exercises.firstWhere(
+          (e) => e.name.toLowerCase() == name.toLowerCase() && e.variation.toLowerCase() == variation.toLowerCase(),
+        );
+        if (matchingEx.notes.isNotEmpty) {
+           final updatedExercises = currentSession.exercises.map((ex) {
+             if (ex.name.toLowerCase() == name.toLowerCase() && ex.variation.toLowerCase() == variation.toLowerCase() && ex.notes.isEmpty) {
+               return ex.copyWith(notes: matchingEx.notes);
+             }
+             return ex;
+           }).toList();
+           currentSession = currentSession.copyWith(exercises: updatedExercises);
+        }
+      } catch (_) {}
     }
     if (results[1] != null) {
       updatedExercisePRs[statsKey] = results[1] as PersonalRecord;
     }
     emit(currentState.copyWith(
+      session: currentSession,
       previousSessions: updatedPreviousSessions,
       exercisePRs: updatedExercisePRs,
     ));
