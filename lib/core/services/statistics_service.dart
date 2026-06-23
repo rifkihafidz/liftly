@@ -82,6 +82,14 @@ class StatisticsService {
         bestSetVolumeNotes = setNotes.join(', ');
         bestSetVolumeWeight = firstSegmentWeight;
         bestSetVolumeReps = totalSetReps;
+      } else if (bestSetVolume == 0 && currentSetVolume == 0) {
+        if (totalSetReps > bestSetVolumeReps) {
+          bestSetVolume = currentSetVolume;
+          bestSetVolumeBreakdown = breakdownParts.join(' + ');
+          bestSetVolumeNotes = setNotes.join(', ');
+          bestSetVolumeWeight = firstSegmentWeight;
+          bestSetVolumeReps = totalSetReps;
+        }
       }
     }
 
@@ -160,18 +168,32 @@ class StatisticsService {
 
       // 2. Max Set Volume
       final rBestSetVol = (record['bestSetVolume'] as num).toDouble();
+      final rBestSetVolReps = (record['bestSetVolumeReps'] as num?)?.toInt() ?? 0;
+      
       if (rBestSetVol > globalMaxSetVolume) {
         globalMaxSetVolume = rBestSetVol;
         globalMaxSetVolumeWeight =
             (record['bestSetVolumeWeight'] as num).toDouble();
-        globalMaxSetVolumeReps =
-            (record['bestSetVolumeReps'] as num?)?.toInt() ?? 0;
+        globalMaxSetVolumeReps = rBestSetVolReps;
         globalMaxSetVolumeDate = recordDate;
         globalMaxSetVolumeBreakdown =
             record['bestSetVolumeBreakdown'] as String;
         globalMaxSetVolumeNotes = record['bestSetVolumeNotes'] as String? ?? '';
         globalMaxVolumeOrder = record['exerciseOrder'] as int?;
         globalMaxVolumeTotalEx = record['totalExercises'] as int?;
+      } else if (globalMaxSetVolume == 0 && rBestSetVol == 0) {
+        if (rBestSetVolReps > globalMaxSetVolumeReps) {
+          globalMaxSetVolume = rBestSetVol;
+          globalMaxSetVolumeWeight =
+              (record['bestSetVolumeWeight'] as num).toDouble();
+          globalMaxSetVolumeReps = rBestSetVolReps;
+          globalMaxSetVolumeDate = recordDate;
+          globalMaxSetVolumeBreakdown =
+              record['bestSetVolumeBreakdown'] as String;
+          globalMaxSetVolumeNotes = record['bestSetVolumeNotes'] as String? ?? '';
+          globalMaxVolumeOrder = record['exerciseOrder'] as int?;
+          globalMaxVolumeTotalEx = record['totalExercises'] as int?;
+        }
       }
 
       // 3. Best Session Volume
