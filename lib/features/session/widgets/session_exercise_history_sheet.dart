@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:liftly/core/utils/app_formatters.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../core/models/personal_record.dart';
 
-class SessionExerciseHistorySheet extends StatelessWidget {
+class SessionExerciseHistorySheet extends StatefulWidget {
   final String exerciseName;
   final String exerciseVariation;
   final List<WorkoutSession>? histories;
@@ -18,39 +18,40 @@ class SessionExerciseHistorySheet extends StatelessWidget {
     this.pr,
   });
 
-  String _formatNumber(double value) {
-    final formatter = NumberFormat(
-      '#,###.##',
-      'pt_BR',
-    ); // USes . for thousand, , for decimal
-    return formatter.format(value);
-  }
+  @override
+  State<SessionExerciseHistorySheet> createState() => _SessionExerciseHistorySheetState();
+}
 
-  String _formatDate(DateTime date) {
-    return DateFormat('dd MMM yyyy').format(date);
-  }
+class _SessionExerciseHistorySheetState extends State<SessionExerciseHistorySheet> {
+  late final List<(WorkoutSession, SessionExercise, int, int)> _validHistories;
+  List<ExerciseSet>? _bestSets;
+  String? _bestSessionDate;
+  double _bestSessionVol = 0;
+  bool _showBestSessionSection = false;
 
   @override
-  Widget build(BuildContext context) {
-    final validHistories = <(WorkoutSession, SessionExercise, int, int)>[];
+  void initState() {
+    super.initState();
+    _calculateHistories();
+  }
 
-    if (histories != null) {
-      for (final h in histories!) {
-        // Collect ALL matching exercises in this session (can be >1 after rename/merge)
+  void _calculateHistories() {
+    _validHistories = [];
+
+    if (widget.histories != null) {
+      for (final h in widget.histories!) {
         final allExercises = h.exercises;
         final totalExercises = allExercises.length;
         final matchingIndices = allExercises
             .asMap()
             .entries
             .where((e) =>
-                e.value.name.toLowerCase() == exerciseName.toLowerCase() &&
-                e.value.variation.toLowerCase() ==
-                    exerciseVariation.toLowerCase())
+                e.value.name.toLowerCase() == widget.exerciseName.toLowerCase() &&
+                e.value.variation.toLowerCase() == widget.exerciseVariation.toLowerCase())
             .toList();
 
         if (matchingIndices.isEmpty) continue;
 
-        // Merge sets if there are multiple entries with the same name in one session
         final firstIndex = matchingIndices.first.key;
         final merged = matchingIndices.map((e) => e.value).reduce((a, b) {
           final mergedSets = <ExerciseSet>[...a.sets, ...b.sets]
@@ -60,30 +61,38 @@ class SessionExerciseHistorySheet extends StatelessWidget {
               .toList();
           return a.copyWith(sets: mergedSets);
         });
-        validHistories.add((h, merged, firstIndex + 1, totalExercises));
+        _validHistories.add((h, merged, firstIndex + 1, totalExercises));
       }
     }
 
-    final showHistory = validHistories.isNotEmpty;
+    final showHistory = _validHistories.isNotEmpty;
 
-    // Resolve Best Session sets for the active variation
-    List<ExerciseSet>? bestSets;
-    String? bestSessionDate;
-    double bestSessionVol = 0;
-
-    if (pr?.bestSessionSets != null) {
-      bestSets = pr!.bestSessionSets;
-      bestSessionDate = pr!.bestSessionDate;
-      bestSessionVol = pr!.bestSessionVolume;
+    if (widget.pr?.bestSessionSets != null) {
+      _bestSets = widget.pr!.bestSessionSets;
+      _bestSessionDate = widget.pr!.bestSessionDate;
+      _bestSessionVol = widget.pr!.bestSessionVolume;
     } else if (showHistory) {
-      final firstHistory = validHistories.first;
-      bestSets = firstHistory.$2.sets;
-      bestSessionDate = firstHistory.$1.workoutDate.toIso8601String();
-      bestSessionVol = firstHistory.$2.totalVolume;
+      final firstHistory = _validHistories.first;
+      _bestSets = firstHistory.$2.sets;
+      _bestSessionDate = firstHistory.$1.workoutDate.toIso8601String();
+      _bestSessionVol = firstHistory.$2.totalVolume;
     }
 
-    final showBestSessionSection =
-        bestSets != null && bestSets.isNotEmpty && bestSessionVol > 0;
+    _showBestSessionSection =
+        _bestSets != null && _bestSets!.isNotEmpty && _bestSessionVol > 0;
+  }
+
+  String _formatNumber(double value) {
+    return AppFormatters.weightFormatter.format(value);
+  }
+
+  String _formatDate(DateTime date) {
+    return AppFormatters.dateShort.format(date);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showHistory = _validHistories.isNotEmpty;
 
     return SingleChildScrollView(
       child: Padding(
@@ -111,7 +120,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        exerciseName,
+                        widget.exerciseName,
                         style: Theme.of(
                           context,
                         )
@@ -119,11 +128,11 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                             .titleLarge
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                      if (exerciseVariation.isNotEmpty)
+                      if (widget.exerciseVariation.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            exerciseVariation,
+                            widget.exerciseVariation,
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyMedium
@@ -146,7 +155,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             if (showHistory) ...[
-              for (final entry in validHistories) ...[
+              for (final entry in _validHistories) ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -200,7 +209,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                   ),
                 ),
               ),
-            if (showBestSessionSection) ...[
+            if (_showBestSessionSection) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -209,7 +218,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            'Best Session${bestSessionDate != null ? " (${_formatDate(DateTime.parse(bestSessionDate))})" : ""}',
+                            'Best Session${_bestSessionDate != null ? " (${_formatDate(DateTime.parse(_bestSessionDate!))})" : ""}',
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
@@ -220,21 +229,21 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (bestSessionDate != null &&
-                            ((pr?.bestSessionOrder != null &&
-                                    pr?.bestSessionTotalEx != null) ||
+                        if (_bestSessionDate != null &&
+                            ((widget.pr?.bestSessionOrder != null &&
+                                    widget.pr?.bestSessionTotalEx != null) ||
                                 _getExerciseOrder(
-                                        validHistories, bestSessionDate) !=
+                                        _validHistories, _bestSessionDate) !=
                                     null)) ...[
                           const SizedBox(width: 8),
                           _buildExerciseOrderBadge(
-                            pr?.bestSessionOrder ??
+                            widget.pr?.bestSessionOrder ??
                                 _getExerciseOrder(
-                                        validHistories, bestSessionDate)!
+                                        _validHistories, _bestSessionDate)!
                                     .$1,
-                            pr?.bestSessionTotalEx ??
+                            widget.pr?.bestSessionTotalEx ??
                                 _getExerciseOrder(
-                                        validHistories, bestSessionDate)!
+                                        _validHistories, _bestSessionDate)!
                                     .$2,
                           ),
                         ],
@@ -243,7 +252,7 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Total: ${_formatNumber(bestSessionVol)} kg',
+                    'Total: ${_formatNumber(_bestSessionVol)} kg',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.accent,
@@ -252,10 +261,10 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              ..._renderSets(context, bestSets),
+              ..._renderSets(context, _bestSets ?? []),
               const SizedBox(height: 24),
             ],
-            if (pr != null) ...[
+            if (widget.pr != null) ...[
               Text(
                 'Personal Record (PR)',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -272,21 +281,21 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                       child: _buildPRCard(
                         context,
                         label: 'Best Heavy Set',
-                        value: '${_formatNumber(pr!.maxWeight)} kg',
-                        details: '${pr!.maxWeightReps} reps',
+                        value: '${_formatNumber(widget.pr!.maxWeight)} kg',
+                        details: '${widget.pr!.maxWeightReps} reps',
                         icon: Icons.fitness_center_rounded,
-                        date: pr!.maxWeightDate,
-                        variation: exerciseVariation,
-                        exerciseOrder: (pr!.maxWeightOrder != null &&
-                                pr!.maxWeightTotalEx != null)
-                            ? (pr!.maxWeightOrder!, pr!.maxWeightTotalEx!)
+                        date: widget.pr!.maxWeightDate,
+                        variation: widget.exerciseVariation,
+                        exerciseOrder: (widget.pr!.maxWeightOrder != null &&
+                                widget.pr!.maxWeightTotalEx != null)
+                            ? (widget.pr!.maxWeightOrder!, widget.pr!.maxWeightTotalEx!)
                             : _getExerciseOrder(
-                                validHistories, pr!.maxWeightDate),
+                                _validHistories, widget.pr!.maxWeightDate),
                         sessionNotes:
-                            _getSessionNotes(validHistories, pr!.maxWeightDate),
+                            _getSessionNotes(_validHistories, widget.pr!.maxWeightDate),
                         exerciseNotes: _getExerciseNotes(
-                            validHistories, pr!.maxWeightDate),
-                        setNotes: pr!.maxWeightNotes,
+                            _validHistories, widget.pr!.maxWeightDate),
+                        setNotes: widget.pr!.maxWeightNotes,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -294,23 +303,23 @@ class SessionExerciseHistorySheet extends StatelessWidget {
                       child: _buildPRCard(
                         context,
                         label: 'Best Volume Set',
-                        value: '${_formatNumber(pr!.maxVolume)} kg',
-                        details: pr!.maxVolumeBreakdown.isNotEmpty
-                            ? pr!.maxVolumeBreakdown
-                            : '${_formatNumber(pr!.maxVolumeWeight)} kg x ${pr!.maxVolumeReps}',
+                        value: '${_formatNumber(widget.pr!.maxVolume)} kg',
+                        details: widget.pr!.maxVolumeBreakdown.isNotEmpty
+                            ? widget.pr!.maxVolumeBreakdown
+                            : '${_formatNumber(widget.pr!.maxVolumeWeight)} kg x ${widget.pr!.maxVolumeReps}',
                         icon: Icons.auto_graph_rounded,
-                        date: pr!.maxVolumeDate,
-                        variation: exerciseVariation,
-                        exerciseOrder: (pr!.maxVolumeOrder != null &&
-                                pr!.maxVolumeTotalEx != null)
-                            ? (pr!.maxVolumeOrder!, pr!.maxVolumeTotalEx!)
+                        date: widget.pr!.maxVolumeDate,
+                        variation: widget.exerciseVariation,
+                        exerciseOrder: (widget.pr!.maxVolumeOrder != null &&
+                                widget.pr!.maxVolumeTotalEx != null)
+                            ? (widget.pr!.maxVolumeOrder!, widget.pr!.maxVolumeTotalEx!)
                             : _getExerciseOrder(
-                                validHistories, pr!.maxVolumeDate),
+                                _validHistories, widget.pr!.maxVolumeDate),
                         sessionNotes:
-                            _getSessionNotes(validHistories, pr!.maxVolumeDate),
+                            _getSessionNotes(_validHistories, widget.pr!.maxVolumeDate),
                         exerciseNotes: _getExerciseNotes(
-                            validHistories, pr!.maxVolumeDate),
-                        setNotes: pr!.maxVolumeNotes,
+                            _validHistories, widget.pr!.maxVolumeDate),
+                        setNotes: widget.pr!.maxVolumeNotes,
                       ),
                     ),
                   ],

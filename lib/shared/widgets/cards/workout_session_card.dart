@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
+import '../../../core/utils/app_formatters.dart';
 import '../animations/scale_button_wrapper.dart';
 import '../chips/stat_badge.dart';
 
@@ -22,8 +22,7 @@ class WorkoutSessionCard extends StatelessWidget {
     final volume = session.totalVolume;
     final planName = session.planName ?? '-';
 
-    final volumeFormatter = NumberFormat('#,##0.##', 'pt_BR');
-    final formattedVolume = volumeFormatter.format(volume);
+    final formattedVolume = AppFormatters.weightFormatter.format(volume);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -48,9 +47,7 @@ class WorkoutSessionCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              DateFormat(
-                                'EEEE, dd MMMM yyyy',
-                              ).format(session.effectiveDate),
+                              AppFormatters.dateFull.format(session.effectiveDate),
                               style: const TextStyle(
                                 color: AppColors.textPrimary,
                                 fontWeight: FontWeight.w700,
@@ -70,7 +67,7 @@ class WorkoutSessionCard extends StatelessWidget {
                                 session.endedAt != null) ...[
                               const SizedBox(height: 2),
                               Text(
-                                '${DateFormat('HH:mm').format(session.startedAt!)} - ${DateFormat('HH:mm').format(session.endedAt!)}',
+                                '${AppFormatters.timeShort.format(session.startedAt!)} - ${AppFormatters.timeShort.format(session.endedAt!)}',
                                 style: const TextStyle(
                                   color: AppColors.textSecondary,
                                   fontSize: 12,

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:liftly/core/utils/app_formatters.dart';
 import '../../core/constants/colors.dart';
 import '../../core/models/workout_session.dart';
 import '../../core/models/personal_record.dart';
@@ -67,10 +67,8 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> with Automati
     super.dispose();
   }
 
-  static final _numberFormat = NumberFormat('#,###.##', 'pt_BR');
-
   String _formatNumber(double value) {
-    return _numberFormat.format(value);
+    return AppFormatters.weightFormatter.format(value);
   }
 
   @override

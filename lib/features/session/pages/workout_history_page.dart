@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:liftly/core/utils/app_formatters.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../shared/widgets/shimmer_widgets.dart';
 import '../../workout_log/bloc/workout_bloc.dart';
@@ -229,7 +229,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                                 label: Text(
                                   tempDateRange != null &&
                                           !_isStandardRange(tempDateRange!)
-                                      ? '${DateFormat('MMM d').format(tempDateRange!.start)} - ${DateFormat('MMM d').format(tempDateRange!.end)}'
+                                      ? '${AppFormatters.dateMonthDayShort.format(tempDateRange!.start)} - ${AppFormatters.dateMonthDayShort.format(tempDateRange!.end)}'
                                       : 'Custom Range',
                                 ),
                                 backgroundColor: AppColors.inputBg,
@@ -576,7 +576,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                 _cachedGroupedWorkouts = {};
                 for (final workout in filtered) {
                   final monthYear =
-                      DateFormat('MMMM yyyy').format(workout.effectiveDate);
+                      AppFormatters.dateMonthYear.format(workout.effectiveDate);
                   if (!_cachedGroupedWorkouts.containsKey(monthYear)) {
                     _cachedGroupedWorkouts[monthYear] = [];
                   }

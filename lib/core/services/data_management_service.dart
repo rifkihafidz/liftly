@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'package:liftly/core/utils/app_formatters.dart';
 import 'dart:io';
 import 'dart:isolate';
 import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
 import 'package:liftly/core/models/workout_plan.dart';
 import 'package:liftly/core/models/workout_session.dart';
 import 'package:liftly/core/services/hive_service.dart';
@@ -171,7 +171,7 @@ class DataManagementService {
           exportOnlyPlans ? 0 : (allData['workouts'] as List).length;
       final planCount = (allData['plans'] as List).length;
 
-      final dateStr = DateFormat('ddMMyyyy_HHmmss').format(DateTime.now());
+      final dateStr = AppFormatters.legacyBackupTimestamp.format(DateTime.now());
       final prefix = exportOnlyPlans ? 'plans' : 'backup';
       final fileName = '${prefix}_liftly_$dateStr.xlsx';
 

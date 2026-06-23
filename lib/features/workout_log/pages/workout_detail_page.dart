@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:liftly/core/utils/app_formatters.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/workout_session.dart';
@@ -63,7 +63,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
   }
 
   String formatNumber(double number) {
-    final formatter = NumberFormat('#,##0.##', 'pt_BR');
+    final formatter = AppFormatters.weightFormatter;
     return formatter.format(number);
   }
 
@@ -323,7 +323,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  '${DateFormat('EEEE, dd MMMM yyyy').format(workoutDate)} ${startedAt != null && endedAt != null ? '(${DateFormat('HH:mm').format(startedAt)} - ${DateFormat('HH:mm').format(endedAt)})' : ''}',
+                                  '${AppFormatters.dateFull.format(workoutDate)} ${startedAt != null && endedAt != null ? '(${AppFormatters.timeShort.format(startedAt)} - ${AppFormatters.timeShort.format(endedAt)})' : ''}',
                                   style: const TextStyle(
                                     color: AppColors.textPrimary,
                                     fontSize: 14,

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import '../../../core/utils/app_formatters.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
 
@@ -198,7 +198,7 @@ class ExerciseListSummaryCard extends StatelessWidget {
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(
-                                '${totalVol > 0 ? NumberFormat('#,##0.##', 'pt_BR').format(totalVol) : "-"} kg',
+                                '${totalVol > 0 ? AppFormatters.weightFormatter.format(totalVol) : "-"} kg',
                                 style: const TextStyle(
                                   color: AppColors.textSecondary,
                                   fontSize: 13,

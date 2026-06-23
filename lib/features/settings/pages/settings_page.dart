@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:liftly/core/utils/app_formatters.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/backup_service.dart';
@@ -327,7 +327,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   itemBuilder: (context, index) {
                     final file = backups[index];
                     final date = file.createdTime != null
-                        ? DateFormat('dd MMM yyyy, HH:mm').format(file.createdTime!.add(const Duration(hours: 7)))
+                        ? AppFormatters.dateTimeShort.format(file.createdTime!.add(const Duration(hours: 7)))
                         : 'Unknown date';
                     final fileName = file.name ?? 'Unknown';
 

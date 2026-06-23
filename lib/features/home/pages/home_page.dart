@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:liftly/core/utils/app_formatters.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:liftly/core/constants/app_constants.dart';
 import 'main_navigation_wrapper.dart';
 import '../../../core/constants/colors.dart';
@@ -106,7 +106,7 @@ class _HomePageState extends State<HomePage> {
                 context: context,
                 title: 'Resume Draft?',
                 message:
-                    'You have an unfinished workout from ${DateFormat('EEEE, dd MMMM yyyy').format(draft.createdAt)}. Do you want to resume it?',
+                    'You have an unfinished workout from ${AppFormatters.dateFull.format(draft.createdAt)}. Do you want to resume it?',
                 confirmText: 'Resume',
                 cancelText: 'New Workout',
               );
@@ -157,9 +157,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     FadeInSlide(
                       child: Text(
-                        DateFormat(
-                          'EEEE, dd MMMM yyyy',
-                        ).format(DateTime.now()).toUpperCase(),
+                        AppFormatters.dateFull.format(DateTime.now()).toUpperCase(),
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               color: AppColors.accent,
                               fontWeight: FontWeight.bold,

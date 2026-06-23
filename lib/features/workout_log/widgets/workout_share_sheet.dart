@@ -1,6 +1,6 @@
 import '../../../core/utils/app_logger.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:liftly/core/utils/app_formatters.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/colors.dart';
@@ -48,7 +48,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   }
 
   String _formatDateWithTimeRange(DateTime date) {
-    return DateFormat('EEEE, dd MMMM yyyy').format(date);
+    return AppFormatters.dateFull.format(date);
   }
 
   String _formatDuration(DateTime? startedAt, DateTime? endedAt) {
@@ -61,8 +61,8 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
 
   String _formatTimeRange(DateTime? startedAt, DateTime? endedAt) {
     if (startedAt == null || endedAt == null) return '-';
-    final startTimeStr = DateFormat('HH:mm').format(startedAt);
-    final endTimeStr = DateFormat('HH:mm').format(endedAt);
+    final startTimeStr = AppFormatters.timeShort.format(startedAt);
+    final endTimeStr = AppFormatters.timeShort.format(endedAt);
     return '$startTimeStr - $endTimeStr';
   }
 

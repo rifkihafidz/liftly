@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:liftly/core/utils/app_formatters.dart';
 import '../../session/widgets/session_exercise_history_sheet.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
@@ -31,7 +31,6 @@ class StatsPage extends StatefulWidget {
 
 class _StatsPageState extends State<StatsPage> {
   late ScrollController _scrollController;
-  int _prCurrentPage = 0; // Pagination for personal records
   late ScreenshotController _sharePreviewController;
 
   /// True until the first fresh StatsLoaded (or StatsError) from OUR
@@ -110,9 +109,6 @@ class _StatsPageState extends State<StatsPage> {
             currentSelections: currentSelections,
             onApply: (selected) {
               statsBloc.add(StatsPRFiltered(selectedExercises: selected));
-              setState(() {
-                _prCurrentPage = 0; // Reset pagination
-              });
             },
           ),
         );
@@ -736,19 +732,74 @@ class _StatsPageState extends State<StatsPage> {
     List<WorkoutSession> allSessions,
     PrSortOrder sortOrder,
   ) {
-    // Apply filter
-    final prsList = (filter == null || filter.isEmpty)
-        ? records.entries.toList()
-        : records.entries.where((e) => filter.contains(e.key)).toList();
+    return _PersonalRecordsGridWidget(
+      records: records,
+      filter: filter,
+      allSessions: allSessions,
+      sortOrder: sortOrder,
+    );
+  }
+}
 
-    // Sort
-    prsList.sort((a, b) {
-      if (sortOrder == PrSortOrder.az) {
-        return a.key.toLowerCase().compareTo(b.key.toLowerCase());
-      } else {
-        return b.key.toLowerCase().compareTo(a.key.toLowerCase());
+class _PersonalRecordsGridWidget extends StatefulWidget {
+  final Map<String, PersonalRecord> records;
+  final Set<String>? filter;
+  final List<WorkoutSession> allSessions;
+  final PrSortOrder sortOrder;
+
+  const _PersonalRecordsGridWidget({
+    required this.records,
+    this.filter,
+    required this.allSessions,
+    required this.sortOrder,
+  });
+
+  @override
+  State<_PersonalRecordsGridWidget> createState() =>
+      _PersonalRecordsGridWidgetState();
+}
+
+class _PersonalRecordsGridWidgetState extends State<_PersonalRecordsGridWidget> {
+  int _prCurrentPage = 0;
+  
+  // Cache for PR List
+  Map<String, PersonalRecord>? _lastRecords;
+  Set<String>? _lastFilter;
+  PrSortOrder? _lastSortOrder;
+  List<MapEntry<String, PersonalRecord>> _cachedPrsList = [];
+
+  @override
+  Widget build(BuildContext context) {
+    if (_lastRecords != widget.records ||
+        _lastFilter != widget.filter ||
+        _lastSortOrder != widget.sortOrder) {
+      
+      // Reset pagination if filter changes
+      if (_lastFilter != widget.filter) {
+        _prCurrentPage = 0;
       }
-    });
+
+      _lastRecords = widget.records;
+      _lastFilter = widget.filter;
+      _lastSortOrder = widget.sortOrder;
+
+      // Apply filter
+      final list = (widget.filter == null || widget.filter!.isEmpty)
+          ? widget.records.entries.toList()
+          : widget.records.entries.where((e) => widget.filter!.contains(e.key)).toList();
+
+      // Sort
+      list.sort((a, b) {
+        if (widget.sortOrder == PrSortOrder.az) {
+          return a.key.toLowerCase().compareTo(b.key.toLowerCase());
+        } else {
+          return b.key.toLowerCase().compareTo(a.key.toLowerCase());
+        }
+      });
+      _cachedPrsList = list;
+    }
+    
+    final prsList = _cachedPrsList;
     final itemsPerPage = 4;
     final totalPages = (prsList.length / itemsPerPage).ceil();
 
@@ -1071,7 +1122,7 @@ String _formatNumber(double num) {
   } else if (num >= 1000) {
     return '${(num / 1000).toStringAsFixed(1).replaceAll('.', ',')}k';
   }
-  return NumberFormat('#,##0.##', 'pt_BR').format(num);
+  return AppFormatters.weightFormatter.format(num);
 }
 
 double _calculateTotalVolume(List<WorkoutSession> sessions) {
@@ -1472,7 +1523,7 @@ class _VolumeChartCard extends StatelessWidget {
     } else if (num >= 1000) {
       return '${(num / 1000).toStringAsFixed(0)}k';
     }
-    return NumberFormat('#,##0.##', 'pt_BR').format(num);
+    return AppFormatters.weightFormatter.format(num);
   }
 
   @override
@@ -1508,10 +1559,10 @@ class _VolumeChartCard extends StatelessWidget {
         final monday = now.subtract(Duration(days: now.weekday - 1));
         final sunday = monday.add(const Duration(days: 6));
         title =
-            'Volume Trend (${DateFormat('dd MMM').format(monday)} - ${DateFormat('dd MMM').format(sunday)})';
+            'Volume Trend (${AppFormatters.dateDayMonth.format(monday)} - ${AppFormatters.dateDayMonth.format(sunday)})';
         break;
       case TimePeriod.month:
-        title = 'Volume Trend (${DateFormat('MMMM yyyy').format(now)})';
+        title = 'Volume Trend (${AppFormatters.dateMonthYear.format(now)})';
         break;
       case TimePeriod.year:
         title = 'Volume Trend (${now.year})';
@@ -1561,12 +1612,17 @@ class _VolumeChartCard extends StatelessWidget {
       case TimePeriod.allTime:
         // All Time: Group by Year (Show range from 2024 to current year + 1 for context)
         final currentYear = now.year;
-        final yearsFromData = sessions.map((s) => s.effectiveDate.year).toList()
-          ..sort();
-        final firstDataYear =
-            yearsFromData.isEmpty ? currentYear : yearsFromData.first;
-        final lastDataYear =
-            yearsFromData.isEmpty ? currentYear : yearsFromData.last;
+        int firstDataYear = currentYear;
+        int lastDataYear = currentYear;
+        if (sessions.isNotEmpty) {
+          firstDataYear = sessions.first.effectiveDate.year;
+          lastDataYear = sessions.first.effectiveDate.year;
+          for (var s in sessions) {
+            final y = s.effectiveDate.year;
+            if (y < firstDataYear) firstDataYear = y;
+            if (y > lastDataYear) lastDataYear = y;
+          }
+        }
 
         // Broaden range: start at 2024 (or earlier if data exists), end at currentYear + 1
         final firstYear = firstDataYear < 2024 ? firstDataYear : 2024;
@@ -1703,7 +1759,7 @@ class _VolumeChartCard extends StatelessWidget {
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       String titleTooltip = labels[group.x.toInt()];
                       if (timePeriod == TimePeriod.month) {
-                        final monthStr = DateFormat('MMM').format(now);
+                        final monthStr = AppFormatters.dateMonthShort.format(now);
                         titleTooltip = '$monthStr $titleTooltip';
                       }
 
@@ -1717,7 +1773,7 @@ class _VolumeChartCard extends StatelessWidget {
                         children: [
                           TextSpan(
                             text:
-                                '${NumberFormat('#,##0.##', 'pt_BR').format(rod.toY)} kg',
+                                '${AppFormatters.weightFormatter.format(rod.toY)} kg',
                             style: const TextStyle(
                               color: AppColors.success,
                               fontWeight: FontWeight.bold,
@@ -1834,7 +1890,7 @@ class _VolumeChartCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total Volume: ${NumberFormat('#,##0.##', 'pt_BR').format(totalVolume)} kg',
+                'Total Volume: ${AppFormatters.weightFormatter.format(totalVolume)} kg',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
@@ -1842,7 +1898,7 @@ class _VolumeChartCard extends StatelessWidget {
                     ),
               ),
               Text(
-                'Avg / Session: ${NumberFormat('#,##0.##', 'pt_BR').format(
+                'Avg / Session: ${AppFormatters.weightFormatter.format(
                   sessions.isEmpty ? 0.0 : totalVolume / sessions.length,
                 )} kg',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1934,7 +1990,7 @@ class _WorkoutFrequencyCard extends StatelessWidget {
         // Group by weeks in current month
         final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
 
-        title = 'Workout Frequency (${DateFormat('MMMM yyyy').format(now)})';
+        title = 'Workout Frequency (${AppFormatters.dateMonthYear.format(now)})';
 
         // Calculate weeks
         final int totalDays = lastDayOfMonth.day;
@@ -3636,13 +3692,13 @@ class _PRSharePreview extends StatelessWidget {
     if (v == v.roundToDouble() && v < 10000) {
       return v.toInt().toString();
     }
-    return NumberFormat('#,##0.#', 'pt_BR').format(v);
+    return AppFormatters.weightFormatterOneDecimal.format(v);
   }
 
   @override
   Widget build(BuildContext context) {
     final dateLabel =
-        DateFormat('d MMM yyyy').format(DateTime.now()).toUpperCase();
+        AppFormatters.dateShortSingleDay.format(DateTime.now()).toUpperCase();
     final isHeaviest = metric == _PRMetric.heaviest;
     final accent = isHeaviest ? AppColors.accent : AppColors.success;
     final label = isHeaviest ? 'HEAVIEST' : 'BEST VOLUME';

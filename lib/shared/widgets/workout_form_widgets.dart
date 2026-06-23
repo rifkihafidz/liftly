@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:liftly/core/utils/app_formatters.dart';
 import 'package:flutter/services.dart';
 import '../../core/constants/colors.dart';
-import 'package:intl/intl.dart';
 
 // Reusable datetime dialog untuk session/workout form
 class WorkoutDateTimeDialog extends StatefulWidget {
@@ -27,7 +27,7 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
   late TimeOfDay endTime;
 
   String _formatDate(DateTime date) {
-    return DateFormat('EEEE, dd MMMM yyyy').format(date);
+    return AppFormatters.dateFull.format(date);
   }
 
   @override
@@ -127,7 +127,7 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                     child: _buildPickerSection(
                       context,
                       label: 'Started At',
-                      value: DateFormat('HH:mm').format(DateTime(
+                      value: AppFormatters.timeShort.format(DateTime(
                         selectedDate.year,
                         selectedDate.month,
                         selectedDate.day,
@@ -162,7 +162,7 @@ class _WorkoutDateTimeDialogState extends State<WorkoutDateTimeDialog> {
                     child: _buildPickerSection(
                       context,
                       label: 'Ended At',
-                      value: DateFormat('HH:mm').format(DateTime(
+                      value: AppFormatters.timeShort.format(DateTime(
                         selectedDate.year,
                         selectedDate.month,
                         selectedDate.day,
@@ -917,7 +917,7 @@ class DateTimeInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formattedTime =
-        dateTime != null ? DateFormat('HH:mm').format(dateTime!) : '--:--';
+        dateTime != null ? AppFormatters.timeShort.format(dateTime!) : '--:--';
 
     return GestureDetector(
       onTap: onTap,
@@ -969,16 +969,16 @@ class WorkoutDateTimeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Format Date
-    final dateStr = DateFormat('EEEE, dd MMMM yyyy').format(workoutDate);
+    final dateStr = AppFormatters.dateFull.format(workoutDate);
 
     // Format Time Range
     String timeRange = 'Set Time';
     if (startedAt != null && endedAt != null) {
-      final startStr = DateFormat('HH:mm').format(startedAt!);
-      final endStr = DateFormat('HH:mm').format(endedAt!);
+      final startStr = AppFormatters.timeShort.format(startedAt!);
+      final endStr = AppFormatters.timeShort.format(endedAt!);
       timeRange = '$startStr - $endStr';
     } else if (startedAt != null) {
-      final startStr = DateFormat('HH:mm').format(startedAt!);
+      final startStr = AppFormatters.timeShort.format(startedAt!);
       timeRange = '$startStr - ?';
     }
 

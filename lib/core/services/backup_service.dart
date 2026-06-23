@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'package:liftly/core/utils/app_formatters.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
 
 import 'data_management_service.dart';
 import 'hive_service.dart';
@@ -390,7 +390,7 @@ class BackupService {
 
       onProgress?.call(0.6, 'Uploading to Google Drive...');
       final folderId = await _getOrCreateBackupFolder(driveApi);
-      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final timestamp = AppFormatters.backupTimestamp.format(DateTime.now());
       final prefix = exportOnlyPlans ? 'plans' : 'liftly_data';
       final fileName = '${prefix}_$timestamp.xlsx';
 
