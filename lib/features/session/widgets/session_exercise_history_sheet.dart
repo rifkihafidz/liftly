@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:liftly/core/utils/app_formatters.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/models/workout_session.dart';
@@ -19,10 +20,12 @@ class SessionExerciseHistorySheet extends StatefulWidget {
   });
 
   @override
-  State<SessionExerciseHistorySheet> createState() => _SessionExerciseHistorySheetState();
+  State<SessionExerciseHistorySheet> createState() =>
+      _SessionExerciseHistorySheetState();
 }
 
-class _SessionExerciseHistorySheetState extends State<SessionExerciseHistorySheet> {
+class _SessionExerciseHistorySheetState
+    extends State<SessionExerciseHistorySheet> {
   late final List<(WorkoutSession, SessionExercise, int, int)> _validHistories;
   List<ExerciseSet>? _bestSets;
   String? _bestSessionDate;
@@ -46,8 +49,10 @@ class _SessionExerciseHistorySheetState extends State<SessionExerciseHistoryShee
             .asMap()
             .entries
             .where((e) =>
-                e.value.name.toLowerCase() == widget.exerciseName.toLowerCase() &&
-                e.value.variation.toLowerCase() == widget.exerciseVariation.toLowerCase())
+                e.value.name.toLowerCase() ==
+                    widget.exerciseName.toLowerCase() &&
+                e.value.variation.toLowerCase() ==
+                    widget.exerciseVariation.toLowerCase())
             .toList();
 
         if (matchingIndices.isEmpty) continue;
@@ -88,6 +93,131 @@ class _SessionExerciseHistorySheetState extends State<SessionExerciseHistoryShee
 
   String _formatDate(DateTime date) {
     return AppFormatters.dateShort.format(date);
+  }
+
+  Future<void> _copyLast2Sessions() async {
+    if (_validHistories.isEmpty) return;
+
+    final buffer = StringBuffer();
+    buffer.writeln('Last 2 session:');
+
+    final toCopy = _validHistories.take(2).toList();
+    for (int i = 0; i < toCopy.length; i++) {
+      final entry = toCopy[i];
+      final session = entry.$1;
+      final exercise = entry.$2;
+
+      final dateStr = AppFormatters.dateFull.format(session.workoutDate);
+      final planNameStr =
+          (session.planName != null && session.planName!.isNotEmpty)
+              ? '(${session.planName}) '
+              : '';
+      final sessionNoteStr =
+          session.notes.isNotEmpty ? '(${session.notes})' : '';
+
+      buffer.writeln('$dateStr $planNameStr$sessionNoteStr'.trimRight());
+      buffer.writeln();
+
+      for (int setIdx = 0; setIdx < exercise.sets.length; setIdx++) {
+        final set = exercise.sets[setIdx];
+        if (set.segments.isEmpty) continue;
+
+        final displaySetNumber = set.setNumber > 0 ? set.setNumber : setIdx + 1;
+
+        String setLine = 'Set $displaySetNumber ';
+
+        for (int segIdx = 0; segIdx < set.segments.length; segIdx++) {
+          final seg = set.segments[segIdx];
+          final weight = seg.weight == seg.weight.toInt()
+              ? seg.weight.toInt()
+              : seg.weight;
+
+          String reps;
+          if (seg.repsFrom != seg.repsTo && seg.repsTo > 0) {
+            reps = '${seg.repsFrom}-${seg.repsTo}';
+          } else if (seg.repsFrom <= 1 && seg.repsTo > 1) {
+            reps = '${seg.repsTo}';
+          } else {
+            reps = '${seg.repsFrom}';
+          }
+
+          if (segIdx == 0) {
+            setLine += '${weight}kg x $reps';
+          } else {
+            setLine += ' -> drop $weight $reps';
+          }
+
+          if (seg.notes.isNotEmpty) {
+            setLine += ' (${seg.notes})';
+          }
+        }
+        buffer.writeln(setLine);
+      }
+
+      if (i < toCopy.length - 1) {
+        buffer.writeln();
+      }
+    }
+
+    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+
+    if (mounted) {
+      final overlay = Overlay.of(context);
+      late OverlayEntry entry;
+      entry = OverlayEntry(
+        builder: (context) => Positioned(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+          left: 24,
+          right: 24,
+          child: Material(
+            color: Colors.transparent,
+            child: TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 200),
+              tween: Tween(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Opacity(
+                  opacity: value,
+                  child: Transform.translate(
+                    offset: Offset(0, (1 - value) * 10),
+                    child: child,
+                  ),
+                );
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.borderDark),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Text(
+                  'Copied to clipboard',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      overlay.insert(entry);
+      Future.delayed(const Duration(milliseconds: 2000), () {
+        if (entry.mounted) {
+          entry.remove();
+        }
+      });
+    }
   }
 
   @override
@@ -145,6 +275,16 @@ class _SessionExerciseHistorySheetState extends State<SessionExerciseHistoryShee
                     ],
                   ),
                 ),
+                if (showHistory) ...[
+                  IconButton(
+                    onPressed: _copyLast2Sessions,
+                    icon: const Icon(Icons.copy,
+                        color: AppColors.textSecondary, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 16),
+                ],
                 IconButton(
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close, color: AppColors.textSecondary),
@@ -288,11 +428,14 @@ class _SessionExerciseHistorySheetState extends State<SessionExerciseHistoryShee
                         variation: widget.exerciseVariation,
                         exerciseOrder: (widget.pr!.maxWeightOrder != null &&
                                 widget.pr!.maxWeightTotalEx != null)
-                            ? (widget.pr!.maxWeightOrder!, widget.pr!.maxWeightTotalEx!)
+                            ? (
+                                widget.pr!.maxWeightOrder!,
+                                widget.pr!.maxWeightTotalEx!
+                              )
                             : _getExerciseOrder(
                                 _validHistories, widget.pr!.maxWeightDate),
-                        sessionNotes:
-                            _getSessionNotes(_validHistories, widget.pr!.maxWeightDate),
+                        sessionNotes: _getSessionNotes(
+                            _validHistories, widget.pr!.maxWeightDate),
                         exerciseNotes: _getExerciseNotes(
                             _validHistories, widget.pr!.maxWeightDate),
                         setNotes: widget.pr!.maxWeightNotes,
@@ -312,11 +455,14 @@ class _SessionExerciseHistorySheetState extends State<SessionExerciseHistoryShee
                         variation: widget.exerciseVariation,
                         exerciseOrder: (widget.pr!.maxVolumeOrder != null &&
                                 widget.pr!.maxVolumeTotalEx != null)
-                            ? (widget.pr!.maxVolumeOrder!, widget.pr!.maxVolumeTotalEx!)
+                            ? (
+                                widget.pr!.maxVolumeOrder!,
+                                widget.pr!.maxVolumeTotalEx!
+                              )
                             : _getExerciseOrder(
                                 _validHistories, widget.pr!.maxVolumeDate),
-                        sessionNotes:
-                            _getSessionNotes(_validHistories, widget.pr!.maxVolumeDate),
+                        sessionNotes: _getSessionNotes(
+                            _validHistories, widget.pr!.maxVolumeDate),
                         exerciseNotes: _getExerciseNotes(
                             _validHistories, widget.pr!.maxVolumeDate),
                         setNotes: widget.pr!.maxVolumeNotes,
