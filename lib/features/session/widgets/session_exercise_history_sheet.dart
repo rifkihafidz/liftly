@@ -10,6 +10,9 @@ class SessionExerciseHistorySheet extends StatefulWidget {
   final String exerciseVariation;
   final List<WorkoutSession>? histories;
   final PersonalRecord? pr;
+  final int? currentOrder;
+  final int? totalCurrentExercises;
+  final List<String>? currentSessionExercises;
 
   const SessionExerciseHistorySheet({
     super.key,
@@ -17,6 +20,9 @@ class SessionExerciseHistorySheet extends StatefulWidget {
     this.exerciseVariation = '',
     this.histories,
     this.pr,
+    this.currentOrder,
+    this.totalCurrentExercises,
+    this.currentSessionExercises,
   });
 
   @override
@@ -99,6 +105,20 @@ class _SessionExerciseHistorySheetState
     if (_validHistories.isEmpty) return;
 
     final buffer = StringBuffer();
+    
+    if (widget.currentOrder != null && widget.totalCurrentExercises != null) {
+      final nameStr = widget.exerciseVariation.isNotEmpty 
+          ? '${widget.exerciseName} - ${widget.exerciseVariation}' 
+          : widget.exerciseName;
+      buffer.writeln('Current Exercise: $nameStr (${widget.currentOrder}/${widget.totalCurrentExercises})');
+    }
+    if (widget.currentSessionExercises != null && widget.currentSessionExercises!.isNotEmpty) {
+      buffer.writeln('Session Exercise Order: ${widget.currentSessionExercises!.join(', ')}');
+    }
+    if (widget.currentOrder != null || widget.currentSessionExercises != null) {
+      buffer.writeln();
+    }
+
     buffer.writeln('Last 2 session:');
 
     final toCopy = _validHistories.take(2).toList();
@@ -116,6 +136,10 @@ class _SessionExerciseHistorySheetState
           session.notes.isNotEmpty ? '(${session.notes})' : '';
 
       buffer.writeln('$dateStr $planNameStr$sessionNoteStr'.trimRight());
+      
+      final allExercisesStr = session.exercises.map((e) => e.name).join(', ');
+      buffer.writeln('Order: ${entry.$3}/${entry.$4}');
+      buffer.writeln('Exercises: $allExercisesStr');
       buffer.writeln();
 
       for (int setIdx = 0; setIdx < exercise.sets.length; setIdx++) {

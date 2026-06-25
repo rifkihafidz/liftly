@@ -1,12 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:liftly/core/utils/app_formatters.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../shared/widgets/app_dialogs.dart';
-import '../../../core/utils/app_logger.dart';
 
 import '../../home/pages/main_navigation_wrapper.dart';
 import '../bloc/workout_bloc.dart';
@@ -251,23 +250,19 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                     actions: [
                       IconButton(
                         icon: const Icon(
+                          Icons.copy_rounded,
+                          color: AppColors.textPrimary,
+                        ),
+                        onPressed: _copyWorkoutSummary,
+                        tooltip: 'Copy Summary',
+                      ),
+                      IconButton(
+                        icon: const Icon(
                           Icons.share_rounded,
                           color: AppColors.textPrimary,
                         ),
                         onPressed: () => _showShareSheet(context),
                       ),
-                      if (kDebugMode)
-                        IconButton(
-                          icon: const Icon(
-                            Icons.bug_report_rounded,
-                            color: AppColors.accent,
-                          ),
-                          tooltip: 'Print detail session (Debug)',
-                          onPressed: () {
-                            AppLogger.info('WorkoutDetail', '=== WORKOUT DETAIL DEBUG ===');
-                            AppLogger.info('WorkoutDetail', workout.toMap().toString());
-                          },
-                        ),
                       IconButton(
                         icon: const Icon(
                           Icons.edit_rounded,
@@ -485,6 +480,152 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
     );
 
     bloc.add(WorkoutDeleted(userId: userId, workoutId: workoutId));
+  }
+
+  Future<void> _copyWorkoutSummary() async {
+    final workout = _currentWorkout;
+    final buffer = StringBuffer();
+
+    final timeStr = (workout.startedAt != null && workout.endedAt != null)
+        ? ' (${AppFormatters.timeShort.format(workout.startedAt!)} - ${AppFormatters.timeShort.format(workout.endedAt!)})'
+        : '';
+    final dateStr =
+        '${AppFormatters.dateFull.format(workout.effectiveDate)}$timeStr';
+    final planNameStr =
+        (workout.planName != null && workout.planName!.isNotEmpty)
+            ? '(${workout.planName}) '
+            : '';
+    final sessionNoteStr = workout.notes.isNotEmpty ? '(${workout.notes})' : '';
+
+    buffer.writeln('$dateStr $planNameStr$sessionNoteStr'.trimRight());
+
+    Duration? duration;
+    if (workout.startedAt != null && workout.endedAt != null) {
+      duration = workout.endedAt!.difference(workout.startedAt!);
+    }
+    final totalSets = workout.exercises.fold<int>(
+      0,
+      (sum, ex) => sum + (ex.skipped ? 0 : ex.sets.length),
+    );
+    final totalVolume = workout.totalVolume;
+
+    final statsParts = <String>[];
+    if (duration != null)
+      statsParts.add('Duration: ${_formatDuration(duration)}');
+    statsParts.add('Total Sets: $totalSets');
+    statsParts.add(
+        'Total Volume: ${AppFormatters.weightFormatter.format(totalVolume)} kg');
+
+    buffer.writeln(statsParts.join(' | '));
+
+    final allExercisesStr = workout.exercises.map((e) => e.name).join(', ');
+    buffer.writeln('Exercises: $allExercisesStr');
+    buffer.writeln();
+
+    for (int i = 0; i < workout.exercises.length; i++) {
+      final ex = workout.exercises[i];
+      if (ex.skipped) continue;
+
+      buffer.writeln(
+          '${i + 1}. ${ex.name}${ex.variation.isNotEmpty ? " - ${ex.variation}" : ""}');
+
+      for (int setIdx = 0; setIdx < ex.sets.length; setIdx++) {
+        final set = ex.sets[setIdx];
+        if (set.segments.isEmpty) continue;
+
+        final displaySetNumber = set.setNumber > 0 ? set.setNumber : setIdx + 1;
+        String setLine = '  Set $displaySetNumber ';
+
+        for (int segIdx = 0; segIdx < set.segments.length; segIdx++) {
+          final seg = set.segments[segIdx];
+          final weight = seg.weight == seg.weight.toInt()
+              ? seg.weight.toInt()
+              : seg.weight;
+
+          String reps;
+          if (seg.repsFrom != seg.repsTo && seg.repsTo > 0) {
+            reps = '${seg.repsFrom}-${seg.repsTo}';
+          } else if (seg.repsFrom <= 1 && seg.repsTo > 1) {
+            reps = '${seg.repsTo}';
+          } else {
+            reps = '${seg.repsFrom}';
+          }
+
+          if (segIdx == 0) {
+            setLine += '${weight}kg x $reps';
+          } else {
+            setLine += ' -> drop $weight $reps';
+          }
+
+          if (seg.notes.isNotEmpty) {
+            setLine += ' (${seg.notes})';
+          }
+        }
+        buffer.writeln(setLine);
+      }
+      buffer.writeln();
+    }
+
+    await Clipboard.setData(ClipboardData(text: buffer.toString().trim()));
+
+    if (mounted) {
+      final overlay = Overlay.of(context);
+      late OverlayEntry entry;
+      entry = OverlayEntry(
+        builder: (context) => Positioned(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+          left: 24,
+          right: 24,
+          child: Material(
+            color: Colors.transparent,
+            child: TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 200),
+              tween: Tween(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Opacity(
+                  opacity: value,
+                  child: Transform.translate(
+                    offset: Offset(0, (1 - value) * 10),
+                    child: child,
+                  ),
+                );
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Text(
+                  'Copied to clipboard',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      overlay.insert(entry);
+      Future.delayed(const Duration(milliseconds: 2000), () {
+        if (entry.mounted) {
+          entry.remove();
+        }
+      });
+    }
   }
 
   void _showShareSheet(BuildContext context) {

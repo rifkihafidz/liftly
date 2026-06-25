@@ -546,6 +546,9 @@ class _SessionPageState extends State<SessionPage> {
                                               state.exercisePRs[
                                                   '${exercise.name}:${exercise.variation}'
                                                       .toLowerCase()],
+                                              exIndex + 1,
+                                              exercises.length,
+                                              exercises.map((e) => e.name).toList(),
                                             );
                                           },
                                           onEditVariation: () =>
@@ -714,6 +717,9 @@ class _SessionPageState extends State<SessionPage> {
     String exerciseVariation,
     List<WorkoutSession>? histories,
     PersonalRecord? pr,
+    int currentOrder,
+    int totalCurrentExercises,
+    List<String> currentSessionExercises,
   ) {
     showModalBottomSheet(
       context: context,
@@ -727,6 +733,9 @@ class _SessionPageState extends State<SessionPage> {
         exerciseVariation: exerciseVariation,
         histories: histories,
         pr: pr,
+        currentOrder: currentOrder,
+        totalCurrentExercises: totalCurrentExercises,
+        currentSessionExercises: currentSessionExercises,
       ),
     );
   }
