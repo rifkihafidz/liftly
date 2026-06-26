@@ -25,8 +25,8 @@ class WorkoutShareSheet extends StatefulWidget {
 
 class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   final ScreenshotController _screenshotController = ScreenshotController();
-  bool _isTransparent = false;
-  bool _isTransparentDarkText = true;
+  double _bgOpacity = 1.0;
+  bool _isDarkText = false;
   bool _isGenerating = false;
   int _currentTab = 0; // 0 for Log, 1 for Heatmap, 2 for Card
 
@@ -224,7 +224,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                         child: Stack(
                           children: [
                             // 1. Visual Background (Checkerboard for transparency preview)
-                            if (_isTransparent)
+                            if (_bgOpacity < 1.0)
                               Container(
                                 width: 320,
                                 height: _calculateContainerHeight(),
@@ -245,15 +245,16 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                 width: 320,
                                 height: _calculateContainerHeight(),
                                 decoration: BoxDecoration(
-                                  color: _isTransparent
-                                      ? Colors.transparent
-                                      : AppColors.cardBg,
+                                  color: _bgOpacity == 0.0 
+                                      ? Colors.transparent 
+                                      : AppColors.cardBg.withValues(alpha: _bgOpacity),
                                   borderRadius: BorderRadius.circular(16),
-                                  // Ensure shadow/border only when NOT transparent to avoid artifacts
-                                  border: _isTransparent
-                                      ? null
+                                  // Ensure shadow/border respects opacity
+                                  border: _bgOpacity == 0.0 
+                                      ? null 
                                       : Border.all(
-                                          color: AppColors.borderLight),
+                                          color: AppColors.borderLight.withValues(alpha: _bgOpacity),
+                                        ),
                                 ),
                                 alignment: Alignment.center,
                                 child: Padding(
@@ -264,7 +265,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                       : Column(
                                           children: [
                                             // Badge - Only show if NOT generating (saving)
-                                            if (_isTransparent &&
+                                            if (_bgOpacity < 1.0 &&
                                                 !_isGenerating)
                                               Align(
                                                 alignment: Alignment.topLeft,
@@ -276,17 +277,17 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                                   ),
                                                   decoration: BoxDecoration(
                                                     border: Border.all(
-                                                      color: Colors.white,
+                                                      color: _isDarkText ? Colors.black87 : Colors.white,
                                                       width: 1.5,
                                                     ),
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             4),
                                                   ),
-                                                  child: const Text(
-                                                    'TRANSPARENT',
+                                                  child: Text(
+                                                    'OPACITY: ${(_bgOpacity * 100).round()}%',
                                                     style: TextStyle(
-                                                      color: Colors.white,
+                                                      color: _isDarkText ? Colors.black87 : Colors.white,
                                                       fontSize: 10,
                                                       fontWeight:
                                                           FontWeight.bold,
@@ -357,8 +358,8 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                               Text(
                                                 'Muscle Heatmap',
                                                 style: TextStyle(
-                                                  color: _isTransparent
-                                                      ? (_isTransparentDarkText
+                                                  color: _bgOpacity < 1.0
+                                                      ? (_isDarkText
                                                           ? Colors.black87
                                                           : Colors.white)
                                                       : AppColors.textPrimary,
@@ -370,8 +371,8 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                               MuscleHeatmap(
                                                 workedMuscles:
                                                     widget.workedMuscles,
-                                                textColor: _isTransparent
-                                                    ? (_isTransparentDarkText
+                                                textColor: _bgOpacity < 1.0
+                                                    ? (_isDarkText
                                                         ? Colors.black54
                                                         : Colors.white70)
                                                     : null,
@@ -392,8 +393,8 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                                                   'LIFTLY',
                                                   textAlign: TextAlign.center,
                                                   style: TextStyle(
-                                                    color: _isTransparent
-                                                        ? (_isTransparentDarkText
+                                                    color: _bgOpacity < 1.0
+                                                        ? (_isDarkText
                                                             ? Colors.black87
                                                             : Colors.white)
                                                         : AppColors.textPrimary,
@@ -511,31 +512,78 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
                   // Options Row
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildOptionButton(
-                          label: 'Normal',
-                          isActive: !_isTransparent,
-                          onTap: () => setState(() => _isTransparent = false),
+                        const Text(
+                          'Background Opacity',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        _buildOptionButton(
-                          label: 'Tr. Light',
-                          isActive: _isTransparent && !_isTransparentDarkText,
-                          onTap: () => setState(() {
-                            _isTransparent = true;
-                            _isTransparentDarkText = false;
-                          }),
+                        Row(
+                          children: [
+                            Text(
+                              '0%',
+                              style: TextStyle(
+                                  color: AppColors.textSecondary.withValues(alpha: 0.5),
+                                  fontSize: 10),
+                            ),
+                            Expanded(
+                              child: SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  activeTrackColor: AppColors.accent,
+                                  inactiveTrackColor: AppColors.inputBg,
+                                  thumbColor: AppColors.accent,
+                                  overlayColor: AppColors.accent.withValues(alpha: 0.1),
+                                  trackHeight: 4,
+                                ),
+                                child: Slider(
+                                  value: _bgOpacity,
+                                  divisions: 20,
+                                  label: '${(_bgOpacity * 100).round()}%',
+                                  onChanged: (value) =>
+                                      setState(() => _bgOpacity = value),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '100%',
+                              style: TextStyle(
+                                  color: AppColors.textSecondary.withValues(alpha: 0.5),
+                                  fontSize: 10),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        _buildOptionButton(
-                          label: 'Tr. Dark',
-                          isActive: _isTransparent && _isTransparentDarkText,
-                          onTap: () => setState(() {
-                            _isTransparent = true;
-                            _isTransparentDarkText = true;
-                          }),
-                        ),
+                        if (_bgOpacity < 1.0) ...[
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Text Color',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              _buildOptionButton(
+                                label: 'Light Text',
+                                isActive: !_isDarkText,
+                                onTap: () => setState(() => _isDarkText = false),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildOptionButton(
+                                label: 'Dark Text',
+                                isActive: _isDarkText,
+                                onTap: () => setState(() => _isDarkText = true),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -590,7 +638,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   double _calculateContainerHeight() {
     if (_currentTab == 1) {
       double h = 510; // Increased to prevent overflow and fit title
-      if (_isTransparent && !_isGenerating) {
+      if (_bgOpacity < 1.0 && !_isGenerating) {
         h += 32; // Accommodate transparent badge
       }
       return h;
@@ -600,7 +648,7 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
       if (widget.workout.planName?.isNotEmpty ?? false) {
         h += 32;
       }
-      if (_isTransparent && !_isGenerating) {
+      if (_bgOpacity < 1.0 && !_isGenerating) {
         h += 32;
       }
       return h;
@@ -647,11 +695,11 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
   }
 
   Widget _buildStatGroup(String label, String value, {bool isSmall = false}) {
-    final textColor = _isTransparent
-        ? (_isTransparentDarkText ? Colors.black87 : Colors.white)
+    final textColor = _bgOpacity < 1.0
+        ? (_isDarkText ? Colors.black87 : Colors.white)
         : AppColors.textPrimary;
-    final labelColor = _isTransparent
-        ? (_isTransparentDarkText ? Colors.black54 : Colors.white70)
+    final labelColor = _bgOpacity < 1.0
+        ? (_isDarkText ? Colors.black54 : Colors.white70)
         : AppColors.textSecondary;
 
     return Column(
@@ -739,29 +787,31 @@ class _WorkoutShareSheetState extends State<WorkoutShareSheet> {
 
   Widget _buildCardTabContent(WorkoutSession workout, double totalVolume,
       int exerciseCount, int totalSets) {
-    final textColor = _isTransparent
-        ? (_isTransparentDarkText ? Colors.black87 : Colors.white)
+    final textColor = _bgOpacity < 1.0
+        ? (_isDarkText ? Colors.black87 : Colors.white)
         : AppColors.textPrimary;
-    final labelColor = _isTransparent
-        ? (_isTransparentDarkText ? Colors.black54 : Colors.white70)
+    final labelColor = _bgOpacity < 1.0
+        ? (_isDarkText ? Colors.black54 : Colors.white70)
         : AppColors.textSecondary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Badge
-        if (_isTransparent && !_isGenerating)
+        if (_bgOpacity < 1.0 && !_isGenerating)
           Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.white, width: 1.5),
+              border: Border.all(
+                  color: _isDarkText ? Colors.black87 : Colors.white,
+                  width: 1.5),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: const Text(
-              'TRANSPARENT',
+            child: Text(
+              'OPACITY: ${(_bgOpacity * 100).round()}%',
               style: TextStyle(
-                  color: Colors.white,
+                  color: _isDarkText ? Colors.black87 : Colors.white,
                   fontSize: 10,
                   fontWeight: FontWeight.bold),
             ),

@@ -157,7 +157,9 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     FadeInSlide(
                       child: Text(
-                        AppFormatters.dateFull.format(DateTime.now()).toUpperCase(),
+                        AppFormatters.dateFull
+                            .format(DateTime.now())
+                            .toUpperCase(),
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               color: AppColors.accent,
                               fontWeight: FontWeight.bold,
@@ -385,8 +387,8 @@ class _MuscleRecoverySectionState extends State<_MuscleRecoverySection> {
               onTap: () => setState(() => _isExpanded = !_isExpanded),
               borderRadius: BorderRadius.circular(12),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    vertical: 8.0, horizontal: 4.0),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
                 child: Row(
                   children: [
                     const Icon(
@@ -397,10 +399,7 @@ class _MuscleRecoverySectionState extends State<_MuscleRecoverySection> {
                     const SizedBox(width: 8),
                     Text(
                       'Muscle Recovery',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.bold,
                           ),
@@ -419,6 +418,7 @@ class _MuscleRecoverySectionState extends State<_MuscleRecoverySection> {
                 ),
               ),
             ),
+            const SizedBox(height: 8),
             AnimatedSize(
               duration: const Duration(milliseconds: 380),
               curve: Curves.easeInOutCubic,

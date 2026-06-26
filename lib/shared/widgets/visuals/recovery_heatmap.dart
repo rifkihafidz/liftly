@@ -268,6 +268,20 @@ class RecoveryAnatomyPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round
       ..strokeCap = StrokeCap.round;
 
+    final baseShader = const LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        Color(0xFF6E6E73), // lighter metallic grey
+        Color(0xFF48484A), // mid metallic grey
+        Color(0xFF2C2C2E), // dark metallic grey
+      ],
+    ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    final baseFill = Paint()
+      ..shader = baseShader
+      ..style = PaintingStyle.fill;
+
     final data =
         isFront ? AnatomyPoints.anteriorData : AnatomyPoints.posteriorData;
 
@@ -297,28 +311,34 @@ class RecoveryAnatomyPainter extends CustomPainter {
     // ── Per-muscle-group rendering ──────────────────────────────────────────
     data.forEach((group, pathsStr) {
       final isUnknown = group == MuscleGroup.unknown;
-      final recovery = recoveryLevels[group] ?? 1.0;
-      final color =
-          isUnknown ? const Color(0xFF48484A) : _getRecoveryColor(recovery);
+      
+      if (isUnknown) {
+        for (final p in pathsStr) {
+          final path = _getPath(p, scaleX, scaleY, shiftY);
+          canvas.drawPath(path, baseFill);
+          canvas.drawPath(path, separatorStroke);
+        }
+      } else {
+        final recovery = recoveryLevels[group] ?? 1.0;
+        final color = _getRecoveryColor(recovery);
 
-      final fillPaint = Paint()
-        ..color = color
-        ..style = PaintingStyle.fill;
+        final fillPaint = Paint()
+          ..color = color
+          ..style = PaintingStyle.fill;
 
-      // Replaced MaskFilter.blur glow (GPU-heavy, called per path) with a
-      // cheap opaque stroke — visually similar, nearly zero GPU cost.
-      final edgePaint = isUnknown
-          ? null
-          : (Paint()
-            ..color = color.withValues(alpha: 0.55)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.8 * scaleX);
+        // Restored glowing lines to match MuscleHeatmap
+        final glowPaint = Paint()
+          ..color = color.withValues(alpha: 0.35)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0 * scaleX
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
 
-      for (final p in pathsStr) {
-        final path = _getPath(p, scaleX, scaleY, shiftY);
-        if (edgePaint != null) canvas.drawPath(path, edgePaint);
-        canvas.drawPath(path, fillPaint);
-        canvas.drawPath(path, separatorStroke);
+        for (final p in pathsStr) {
+          final path = _getPath(p, scaleX, scaleY, shiftY);
+          canvas.drawPath(path, glowPaint);
+          canvas.drawPath(path, fillPaint);
+          canvas.drawPath(path, separatorStroke);
+        }
       }
     });
   }

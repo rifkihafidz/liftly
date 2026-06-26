@@ -140,6 +140,9 @@ class _SessionExerciseHistorySheetState
       final allExercisesStr = session.exercises.map((e) => e.name).join(', ');
       buffer.writeln('Order: ${entry.$3}/${entry.$4}');
       buffer.writeln('Exercises: $allExercisesStr');
+      if (exercise.notes.isNotEmpty) {
+        buffer.writeln('Exercise Note: ${exercise.notes}');
+      }
       buffer.writeln();
 
       for (int setIdx = 0; setIdx < exercise.sets.length; setIdx++) {

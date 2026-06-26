@@ -402,6 +402,9 @@ class BackupService {
       final result = await driveApi.files.create(
         driveFile,
         uploadMedia: drive.Media(Stream.value(fileBytes), fileBytes.length),
+      ).timeout(
+        const Duration(minutes: 2),
+        onTimeout: () => throw TimeoutException('Upload timed out. Please check your connection.'),
       );
 
       onProgress?.call(1.0, 'Done!');
@@ -501,6 +504,9 @@ class BackupService {
       final fileMetadata = await driveApi.files.get(
         fileId,
         $fields: 'id, name, size',
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException('Connection timed out while fetching backup info.'),
       ) as drive.File;
       final totalSize = int.tryParse(fileMetadata.size ?? '0') ?? 0;
 
@@ -509,12 +515,18 @@ class BackupService {
       final mediaResponse = await driveApi.files.get(
         fileId,
         downloadOptions: drive.DownloadOptions.fullMedia,
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => throw TimeoutException('Connection timed out while initiating download.'),
       ) as drive.Media;
 
       // 3. Read bytes with progress
       final chunks = <List<int>>[];
       int downloaded = 0;
-      await for (final chunk in mediaResponse.stream) {
+      await for (final chunk in mediaResponse.stream.timeout(
+        const Duration(seconds: 15),
+        onTimeout: (sink) => sink.addError(TimeoutException('Download stalled for too long. Check your connection.')),
+      )) {
         chunks.add(chunk);
         downloaded += chunk.length;
         if (totalSize > 0) {

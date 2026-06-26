@@ -232,11 +232,6 @@ class DataManagementService {
       Map<String, dynamic> result;
 
       if (kIsWeb) {
-        if (clearData) {
-          onProgress?.call(0.05, 'Clearing existing data...');
-          await clearAllData();
-        }
-
         onProgress?.call(0.1, 'Reading file bytes (Web)...');
         final bytes = file.bytes;
         if (bytes == null) throw Exception('No file bytes provided');
@@ -282,13 +277,6 @@ class DataManagementService {
 
         result = await resultCompleter.future;
         isolate.kill();
-
-        // Clear data on main thread (Hive boxes are not shared across isolates in this implementation easily without re-opening)
-        // Since we are about to import, we should clear UI-facing data first.
-        if (clearData) {
-          onProgress?.call(0.4, 'Clearing existing data...');
-          await DataManagementService.clearAllData();
-        }
       }
 
       onProgress?.call(0.5, 'Importing workouts...');
@@ -329,6 +317,11 @@ class DataManagementService {
 
       onProgress?.call(0.95, 'Saving to database...');
 
+      if (clearData) {
+        onProgress?.call(0.96, 'Clearing existing data...');
+        await DataManagementService.clearAllData();
+      }
+
       await HiveService.importWorkouts(parsedWorkouts);
       await HiveService.importPlans(parsedPlans);
 
@@ -356,11 +349,6 @@ class DataManagementService {
       Map<String, dynamic> result;
 
       if (kIsWeb) {
-        if (clearData) {
-          onProgress?.call(0.05, 'Clearing existing data...');
-          await clearAllData();
-        }
-
         onProgress?.call(0.1, 'Reading data (Web)...');
         result = await _processImportShared(
           userId: targetUserId,
@@ -374,12 +362,6 @@ class DataManagementService {
           'bytes': bytes,
           'userId': targetUserId,
         });
-
-        if (clearData) {
-          onProgress?.call(0.4, 'Clearing existing data...');
-          await Future.delayed(const Duration(milliseconds: 50));
-          await clearAllData();
-        }
       }
 
       onProgress?.call(0.5, 'Importing workouts...');
@@ -417,6 +399,11 @@ class DataManagementService {
       }
 
       onProgress?.call(0.95, 'Saving to database...');
+      
+      if (clearData) {
+        onProgress?.call(0.96, 'Clearing existing data...');
+        await clearAllData();
+      }
       await HiveService.importWorkouts(parsedWorkouts);
       await HiveService.importPlans(parsedPlans);
 

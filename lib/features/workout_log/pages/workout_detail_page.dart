@@ -510,8 +510,9 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
     final totalVolume = workout.totalVolume;
 
     final statsParts = <String>[];
-    if (duration != null)
+    if (duration != null) {
       statsParts.add('Duration: ${_formatDuration(duration)}');
+    }
     statsParts.add('Total Sets: $totalSets');
     statsParts.add(
         'Total Volume: ${AppFormatters.weightFormatter.format(totalVolume)} kg');
@@ -528,6 +529,9 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
 
       buffer.writeln(
           '${i + 1}. ${ex.name}${ex.variation.isNotEmpty ? " - ${ex.variation}" : ""}');
+      if (ex.notes.isNotEmpty) {
+        buffer.writeln('  Exercise Note: ${ex.notes}');
+      }
 
       for (int setIdx = 0; setIdx < ex.sets.length; setIdx++) {
         final set = ex.sets[setIdx];
