@@ -132,10 +132,11 @@ class _SessionExerciseHistorySheetState
           (session.planName != null && session.planName!.isNotEmpty)
               ? '(${session.planName}) '
               : '';
-      final sessionNoteStr =
-          session.notes.isNotEmpty ? '(${session.notes})' : '';
 
-      buffer.writeln('$dateStr $planNameStr$sessionNoteStr'.trimRight());
+      buffer.writeln('$dateStr $planNameStr'.trimRight());
+      if (session.notes.isNotEmpty) {
+        buffer.writeln('Session Note: ${session.notes}');
+      }
       
       final allExercisesStr = session.exercises.map((e) => e.name).join(', ');
       buffer.writeln('Order: ${entry.$3}/${entry.$4}');

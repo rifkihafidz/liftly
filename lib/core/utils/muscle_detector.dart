@@ -36,7 +36,10 @@ class MuscleDetector {
         fullText.contains('rear delt') ||
         fullText.contains('face pull') ||
         fullText.contains('reverse fly') ||
-        fullText.contains('rear fly')) {
+        fullText.contains('rear fly') ||
+        fullText.contains('lawnmower') ||
+        fullText.contains('lawn mower') ||
+        fullText.contains('archer pull')) {
       return MuscleGroup.shoulders; // Rear delts
     }
 
@@ -67,7 +70,9 @@ class MuscleDetector {
       return MuscleGroup.quads; // Inner thigh
     }
 
-    if (fullText.contains('twist') || fullText.contains('side bend')) {
+    if (fullText.contains('twist') || 
+        fullText.contains('side bend') || 
+        fullText.contains('heel touch')) {
       return MuscleGroup.obliques;
     }
 

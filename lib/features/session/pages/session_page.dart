@@ -335,11 +335,6 @@ class _SessionPageState extends State<SessionPage> {
                 final session = state.session;
                 final exercises = session.exercises;
 
-                // Ensure keys exist for all exercises to prevent context misses
-                for (int i = 0; i < exercises.length; i++) {
-                  _getKeyForExercise(i);
-                }
-
                 return Align(
                   alignment: Alignment.topCenter,
                   child: ConstrainedBox(

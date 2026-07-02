@@ -118,32 +118,44 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
         // Show unknown muscles as tags below if there are any
         if (sortedMuscles.contains(MuscleGroup.unknown)) ...[
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children:
-                sortedMuscles.where((m) => m == MuscleGroup.unknown).map((m) {
-              return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.textSecondary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.textSecondary.withValues(alpha: 0.2),
+          // Compute both values once here — avoids re-scanning exercises
+          // on every iteration of a .map() (there is always exactly 1 unknown entry).
+          Builder(builder: (context) {
+            final setsCount = workedMuscles[MuscleGroup.unknown] ?? 0;
+            final unknownExerciseCount = exercises.where((ex) {
+              if (ex.skipped) return false;
+              return MuscleDetector.detectPrimaryMuscle(
+                      ex.name, ex.variation) ==
+                  MuscleGroup.unknown;
+            }).length;
+
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.textSecondary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.textSecondary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Text(
+                    'Other / Uncategorized ($unknownExerciseCount Exercises - $setsCount Sets)',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
-                child: const Text(
-                  'Other / Uncategorized',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
+              ],
+            );
+          }),
         ],
       ],
     );
@@ -495,9 +507,10 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
         (workout.planName != null && workout.planName!.isNotEmpty)
             ? '(${workout.planName}) '
             : '';
-    final sessionNoteStr = workout.notes.isNotEmpty ? '(${workout.notes})' : '';
-
-    buffer.writeln('$dateStr $planNameStr$sessionNoteStr'.trimRight());
+    buffer.writeln('$dateStr $planNameStr'.trimRight());
+    if (workout.notes.isNotEmpty) {
+      buffer.writeln('Session Note: ${workout.notes}');
+    }
 
     Duration? duration;
     if (workout.startedAt != null && workout.endedAt != null) {

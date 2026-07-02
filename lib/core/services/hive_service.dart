@@ -42,9 +42,9 @@ class HiveService {
   static final Map<String, List<({String id, DateTime date, bool isDraft})>>
       _workoutIndexCache = {};
 
-  // Cache for getLastExerciseLog to avoid a full scan per exercise on every call.
-  // Key: "userId:exerciseName:variation", Value: last WorkoutSession (nullable).
-  static final Map<String, WorkoutSession?> _lastExerciseLogCache = {};
+  // Cache for getLatestExerciseLogs to avoid a full scan per exercise on every call.
+  // Key: "userId:exerciseName:variation:limit", Value: List of matching WorkoutSessions.
+  static final Map<String, List<WorkoutSession>> _lastExerciseLogCache = {};
 
   // Initialize Hive
   static Future<void> init() async {
@@ -359,7 +359,19 @@ class HiveService {
   static Future<WorkoutSession?> getDraftWorkout(String userId) async {
     await init();
     try {
-      // Find latest draft
+      // Fast path: use the lightweight index cache to find draft IDs
+      // without loading full WorkoutSession objects.
+      if (_workoutIndexCache.containsKey(userId)) {
+        final draftEntries = _workoutIndexCache[userId]!
+            .where((item) => item.isDraft)
+            .toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
+
+        if (draftEntries.isEmpty) return null;
+        return _workoutBox.get(draftEntries.first.id);
+      }
+
+      // Fallback: full scan (index not yet populated)
       final drafts = _workoutBox.values
           .where((w) => w.userId == userId && w.isDraft)
           .toList()
@@ -490,6 +502,14 @@ class HiveService {
       {String exerciseVariation = '', int limit = 2}) async {
     await init();
 
+    // Cache key encodes userId, name, variation AND limit so different callers
+    // (e.g. limit=2 vs limit=5) don't collide.
+    final cacheKey =
+        '$userId:${exerciseName.toLowerCase()}:${exerciseVariation.toLowerCase()}:$limit';
+    if (_lastExerciseLogCache.containsKey(cacheKey)) {
+      return _lastExerciseLogCache[cacheKey]!;
+    }
+
     final workouts = _workoutBox.values
         .where((w) => w.userId == userId && !w.isDraft)
         .toList()
@@ -502,11 +522,17 @@ class HiveService {
             ex.variation.toLowerCase() == exerciseVariation.toLowerCase() &&
             !ex.skipped) {
           results.add(w);
-          if (results.length >= limit) return results;
+          if (results.length >= limit) {
+            _lastExerciseLogCache[cacheKey] = results;
+            return results;
+          }
           break; // Move to next workout session once we find the exercise
         }
       }
     }
+
+    // Cache even when fewer than `limit` results are found
+    _lastExerciseLogCache[cacheKey] = results;
     return results;
   }
 
@@ -701,8 +727,10 @@ class HiveService {
     await init();
     
     bool hasChanges = false;
-    
-    // Update Workouts
+
+    // Update Workouts — collect into a map and write in one putAll() call
+    // instead of one await per workout (O(n) round-trips → O(1)).
+    final workoutUpdates = <String, WorkoutSession>{};
     for (final workout in _workoutBox.values) {
       if (workout.userId == userId) {
         bool needsUpdate = false;
@@ -715,14 +743,17 @@ class HiveService {
         }).toList();
 
         if (needsUpdate) {
-          await _workoutBox.put(
-              workout.id, workout.copyWith(exercises: updatedExercises));
+          workoutUpdates[workout.id] = workout.copyWith(exercises: updatedExercises);
           hasChanges = true;
         }
       }
     }
+    if (workoutUpdates.isNotEmpty) {
+      await _workoutBox.putAll(workoutUpdates);
+    }
 
-    // Update Plans
+    // Update Plans — same batch strategy
+    final planUpdates = <String, WorkoutPlan>{};
     for (final plan in _planBox.values) {
       if (plan.userId == userId) {
         bool needsUpdate = false;
@@ -735,11 +766,13 @@ class HiveService {
         }).toList();
 
         if (needsUpdate) {
-          await _planBox.put(
-              plan.id, plan.copyWith(exercises: updatedExercises));
+          planUpdates[plan.id] = plan.copyWith(exercises: updatedExercises);
           hasChanges = true;
         }
       }
+    }
+    if (planUpdates.isNotEmpty) {
+      await _planBox.putAll(planUpdates);
     }
 
     if (hasChanges) {

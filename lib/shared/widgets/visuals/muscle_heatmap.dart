@@ -57,13 +57,15 @@ class MuscleHeatmap extends StatelessWidget {
                   child: Column(
                     children: [
                       Expanded(
-                        child: AspectRatio(
-                          aspectRatio: 100 / 220,
-                          child: CustomPaint(
-                            painter: AnatomyPainter(
-                              workedMuscles: workedMuscles,
-                              isFront: true,
-                              textColor: textColor,
+                        child: RepaintBoundary(
+                          child: AspectRatio(
+                            aspectRatio: 100 / 220,
+                            child: CustomPaint(
+                              painter: AnatomyPainter(
+                                workedMuscles: workedMuscles,
+                                isFront: true,
+                                textColor: textColor,
+                              ),
                             ),
                           ),
                         ),
@@ -101,13 +103,15 @@ class MuscleHeatmap extends StatelessWidget {
                   child: Column(
                     children: [
                       Expanded(
-                        child: AspectRatio(
-                          aspectRatio: 100 / 220,
-                          child: CustomPaint(
-                            painter: AnatomyPainter(
-                              workedMuscles: workedMuscles,
-                              isFront: false,
-                              textColor: textColor,
+                        child: RepaintBoundary(
+                          child: AspectRatio(
+                            aspectRatio: 100 / 220,
+                            child: CustomPaint(
+                              painter: AnatomyPainter(
+                                workedMuscles: workedMuscles,
+                                isFront: false,
+                                textColor: textColor,
+                              ),
                             ),
                           ),
                         ),
@@ -193,6 +197,11 @@ class AnatomyPainter extends CustomPainter {
   static const Color _colorMid = Color(0xFFFF7A00);
   static const Color _colorHigh = Color(0xFFE53935);
 
+  // Path cache keyed by "f|b:scaleX:scaleY:pathStr".
+  // SVG-like path strings are parsed once per canvas size and reused on
+  // every repaint (e.g. when muscle highlight colors change).
+  static final Map<String, Path> _pathCache = {};
+
   Color _getIntensityColor(int count) {
     if (count <= 4) return _colorLow;
     if (count <= 8) return _colorMid;
@@ -223,6 +232,10 @@ class AnatomyPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     Path buildPath(String pathStr) {
+      final cacheKey = '${isFront ? 'f' : 'b'}:${scaleX.toStringAsFixed(3)}:${scaleY.toStringAsFixed(3)}:$pathStr';
+      final cached = _pathCache[cacheKey];
+      if (cached != null) return cached;
+
       final path = Path();
       final points = pathStr.split(' ').where((s) => s.isNotEmpty).toList();
       for (var i = 0; i < points.length; i += 2) {
@@ -237,6 +250,7 @@ class AnatomyPainter extends CustomPainter {
         }
       }
       path.close();
+      _pathCache[cacheKey] = path;
       return path;
     }
 

@@ -279,11 +279,8 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                             ],
                           ),
                           const SizedBox(height: 24),
-                          const SizedBox(height: 24),
                           const Divider(color: AppColors.borderDark),
                           const SizedBox(height: 24),
-                          const SizedBox(height: 24),
-
                           // PLANS SECTION
                           Text(
                             'Filter by Plan',

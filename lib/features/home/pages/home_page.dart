@@ -362,6 +362,9 @@ class _MuscleRecoverySectionState extends State<_MuscleRecoverySection> {
   // (e.g. expand/collapse toggle). Invalidated when the workout list changes.
   Map<MuscleGroup, double>? _cachedRecoveryLevels;
   List<dynamic>? _lastWorkoutsRef;
+  // Cached chip data: sorted list of (MuscleGroup, double value, Color).
+  // Recomputed only when recoveryLevels changes — Color.lerp is not free.
+  List<({MuscleGroup group, int percentage, Color color})> _cachedChips = [];
 
   @override
   Widget build(BuildContext context) {
@@ -377,6 +380,26 @@ class _MuscleRecoverySectionState extends State<_MuscleRecoverySection> {
           _lastWorkoutsRef = state.workouts;
           _cachedRecoveryLevels =
               RecoveryAnalyzer.calculateRecovery(state.workouts);
+
+          // Pre-compute chip colors — Color.lerp is not free and does not need
+          // to run on every expand/collapse setState.
+          final sorted = _cachedRecoveryLevels!.entries.toList()
+            ..sort((a, b) => a.value.compareTo(b.value));
+          _cachedChips = sorted.map((e) {
+            final Color chipColor;
+            if (e.value < 0.5) {
+              chipColor = Color.lerp(
+                  const Color(0xFFE53935), const Color(0xFFFFB300), e.value * 2)!;
+            } else {
+              chipColor = Color.lerp(const Color(0xFFFFB300),
+                  const Color(0xFF43A047), (e.value - 0.5) * 2)!;
+            }
+            return (
+              group: e.key,
+              percentage: (e.value * 100).toInt(),
+              color: chipColor,
+            );
+          }).toList();
         }
         final recoveryLevels = _cachedRecoveryLevels!;
 
@@ -455,49 +478,29 @@ class _MuscleRecoverySectionState extends State<_MuscleRecoverySection> {
                                     spacing: 8,
                                     runSpacing: 8,
                                     alignment: WrapAlignment.center,
-                                    children: () {
-                                      final list =
-                                          recoveryLevels.entries.toList();
-                                      list.sort(
-                                          (a, b) => a.value.compareTo(b.value));
-                                      return list.map((e) {
-                                        final percentage =
-                                            (e.value * 100).toInt();
-                                        Color chipColor;
-                                        if (e.value < 0.5) {
-                                          chipColor = Color.lerp(
-                                              const Color(0xFFE53935),
-                                              const Color(0xFFFFB300),
-                                              e.value * 2)!;
-                                        } else {
-                                          chipColor = Color.lerp(
-                                              const Color(0xFFFFB300),
-                                              const Color(0xFF43A047),
-                                              (e.value - 0.5) * 2)!;
-                                        }
-                                        return Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: chipColor.withValues(
-                                                alpha: 0.15),
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                            border: Border.all(
-                                                color: chipColor.withValues(
-                                                    alpha: 0.4)),
+                                    children: _cachedChips.map((chip) {
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: chip.color
+                                              .withValues(alpha: 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          border: Border.all(
+                                              color: chip.color
+                                                  .withValues(alpha: 0.4)),
+                                        ),
+                                        child: Text(
+                                          '${MuscleDetector.getMuscleName(chip.group)} ${chip.percentage}%',
+                                          style: TextStyle(
+                                            color: chip.color,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
                                           ),
-                                          child: Text(
-                                            '${MuscleDetector.getMuscleName(e.key)} $percentage%',
-                                            style: TextStyle(
-                                              color: chipColor,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        );
-                                      }).toList();
-                                    }(),
+                                        ),
+                                      );
+                                    }).toList(),
                                   ),
                                 ],
                               ),
