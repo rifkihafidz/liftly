@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:liftly/core/utils/app_formatters.dart';
 import '../../session/widgets/session_exercise_history_sheet.dart';
@@ -130,7 +131,7 @@ class _StatsPageState extends State<StatsPage> {
       // Capture the share preview widget
       final image = await _sharePreviewController.capture(
         delay: const Duration(milliseconds: 300),
-        pixelRatio: 2.0,
+        pixelRatio: 4.0,
       );
 
       if (image == null) {
@@ -177,6 +178,9 @@ class _StatsPageState extends State<StatsPage> {
     BuildContext context,
     Map<String, PersonalRecord> allRecords,
     Set<String> filter,
+    TimePeriod timePeriod,
+    DateTime referenceDate,
+    List<WorkoutSession> sessions,
   ) async {
     try {
       // 1. Filter records
@@ -268,10 +272,53 @@ class _StatsPageState extends State<StatsPage> {
       if (metric == null || !context.mounted) return;
 
       // 3. Capture using ScreenshotController
+      // Calculate target size to prevent rendering overflow for long lists
+      final sortedLen = filteredRecords.length;
+      final nCols = sortedLen > 8 ? 3 : 2;
+      final width = 720.0;
+      final perCol = (sortedLen / nCols).ceil();
+      final height = (perCol * 42.0) + 180.0; // Estimate height based on rows
+
+      // Calculate date label
+      final filterHelper = StatsFilter(timePeriod: timePeriod, referenceDate: referenceDate);
+      String dateLabel;
+      final fmt = DateFormat('dd MMMM yyyy');
+
+      if (timePeriod == TimePeriod.allTime) {
+        if (sessions.isNotEmpty) {
+          DateTime? first;
+          DateTime? last;
+          for (final s in sessions) {
+            if (first == null || s.effectiveDate.isBefore(first)) first = s.effectiveDate;
+            if (last == null || s.effectiveDate.isAfter(last)) last = s.effectiveDate;
+          }
+          if (first != null && last != null) {
+            dateLabel = '${fmt.format(first)} - ${fmt.format(last)}'.toUpperCase();
+          } else {
+            dateLabel = 'ALL TIME';
+          }
+        } else {
+          dateLabel = 'ALL TIME';
+        }
+      } else {
+        final start = filterHelper.getStartDate();
+        final end = filterHelper.getEndDate();
+        if (start != null && end != null) {
+          dateLabel = '${fmt.format(start)} - ${fmt.format(end)}'.toUpperCase();
+        } else {
+          dateLabel = AppFormatters.dateShortSingleDay.format(DateTime.now()).toUpperCase();
+        }
+      }
+
       final image = await _sharePreviewController.captureFromWidget(
-        _PRSharePreview(records: filteredRecords, metric: metric),
+        _PRSharePreview(
+          records: filteredRecords,
+          metric: metric,
+          dateLabel: dateLabel,
+        ),
         delay: const Duration(milliseconds: 100),
-        pixelRatio: 2.0,
+        pixelRatio: 4.0,
+        targetSize: Size(width, height),
         context: context,
       );
 
@@ -454,7 +501,7 @@ class _StatsPageState extends State<StatsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 44),
+        const SizedBox(height: 20),
 
         // ===== SUMMARY SECTION =====
         Text(
@@ -617,6 +664,9 @@ class _StatsPageState extends State<StatsPage> {
                       context,
                       state.personalRecords,
                       state.prFilter ?? {},
+                      state.timePeriod,
+                      state.referenceDate,
+                      state.allSessions,
                     ),
                     icon: const Icon(Icons.share_outlined),
                     iconSize: 20,
@@ -759,9 +809,10 @@ class _PersonalRecordsGridWidget extends StatefulWidget {
       _PersonalRecordsGridWidgetState();
 }
 
-class _PersonalRecordsGridWidgetState extends State<_PersonalRecordsGridWidget> {
+class _PersonalRecordsGridWidgetState
+    extends State<_PersonalRecordsGridWidget> {
   int _prCurrentPage = 0;
-  
+
   // Cache for PR List
   Map<String, PersonalRecord>? _lastRecords;
   Set<String>? _lastFilter;
@@ -773,7 +824,6 @@ class _PersonalRecordsGridWidgetState extends State<_PersonalRecordsGridWidget> 
     if (_lastRecords != widget.records ||
         _lastFilter != widget.filter ||
         _lastSortOrder != widget.sortOrder) {
-      
       // Reset pagination if filter changes
       if (_lastFilter != widget.filter) {
         _prCurrentPage = 0;
@@ -786,7 +836,9 @@ class _PersonalRecordsGridWidgetState extends State<_PersonalRecordsGridWidget> 
       // Apply filter
       final list = (widget.filter == null || widget.filter!.isEmpty)
           ? widget.records.entries.toList()
-          : widget.records.entries.where((e) => widget.filter!.contains(e.key)).toList();
+          : widget.records.entries
+              .where((e) => widget.filter!.contains(e.key))
+              .toList();
 
       // Sort
       list.sort((a, b) {
@@ -798,7 +850,7 @@ class _PersonalRecordsGridWidgetState extends State<_PersonalRecordsGridWidget> 
       });
       _cachedPrsList = list;
     }
-    
+
     final prsList = _cachedPrsList;
     final itemsPerPage = 4;
     final totalPages = (prsList.length / itemsPerPage).ceil();
@@ -1759,7 +1811,8 @@ class _VolumeChartCard extends StatelessWidget {
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       String titleTooltip = labels[group.x.toInt()];
                       if (timePeriod == TimePeriod.month) {
-                        final monthStr = AppFormatters.dateMonthShort.format(now);
+                        final monthStr =
+                            AppFormatters.dateMonthShort.format(now);
                         titleTooltip = '$monthStr $titleTooltip';
                       }
 
@@ -1990,7 +2043,8 @@ class _WorkoutFrequencyCard extends StatelessWidget {
         // Group by weeks in current month
         final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
 
-        title = 'Workout Frequency (${AppFormatters.dateMonthYear.format(now)})';
+        title =
+            'Workout Frequency (${AppFormatters.dateMonthYear.format(now)})';
 
         // Calculate weeks
         final int totalDays = lastDayOfMonth.day;
@@ -3685,8 +3739,13 @@ class _PRMetricOption extends StatelessWidget {
 class _PRSharePreview extends StatelessWidget {
   final Map<String, PersonalRecord> records;
   final _PRMetric metric;
+  final String dateLabel;
 
-  const _PRSharePreview({required this.records, required this.metric});
+  const _PRSharePreview({
+    required this.records, 
+    required this.metric,
+    required this.dateLabel,
+  });
 
   String _fmtNum(double v) {
     if (v == v.roundToDouble() && v < 10000) {
@@ -3697,8 +3756,6 @@ class _PRSharePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateLabel =
-        AppFormatters.dateShortSingleDay.format(DateTime.now()).toUpperCase();
     final isHeaviest = metric == _PRMetric.heaviest;
     final accent = isHeaviest ? AppColors.accent : AppColors.success;
     final label = isHeaviest ? 'HEAVIEST' : 'BEST VOLUME';
@@ -3896,7 +3953,7 @@ class _PRSharePreview extends StatelessWidget {
                   Text(
                     variation,
                     style: TextStyle(
-                      color: AppColors.textSecondary.withValues(alpha: 0.5),
+                      color: AppColors.textSecondary.withValues(alpha: 0.85),
                       fontSize: 7.5,
                       fontWeight: FontWeight.w400,
                       fontStyle: FontStyle.italic,
@@ -3924,8 +3981,9 @@ class _PRSharePreview extends StatelessWidget {
               Text(
                 repsStr,
                 style: TextStyle(
-                  color: AppColors.textSecondary.withValues(alpha: 0.5),
+                  color: AppColors.textSecondary.withValues(alpha: 0.85),
                   fontSize: 8,
+                  fontWeight: FontWeight.w500,
                   height: 1.2,
                 ),
               ),
