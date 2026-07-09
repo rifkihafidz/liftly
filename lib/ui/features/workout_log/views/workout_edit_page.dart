@@ -275,38 +275,40 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
                         return Padding(
                           key: ValueKey('edit_ex_${exercise.id}'),
                           padding: const EdgeInsets.only(bottom: 16),
-                          child: Stack(
-                            children: [
-                              ExerciseListSummaryCard(
-                                exercise: exercise,
-                                index: exIndex,
-                                onTap: () =>
-                                    _showExerciseEditSheet(context, exIndex),
-                              ),
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: IconButton(
-                                  icon: const Icon(Icons.delete_rounded),
-                                  color: AppColors.error,
-                                  iconSize: 20,
-                                  padding: const EdgeInsets.all(8),
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () {
-                                    AppDialogs.showConfirmationDialog(
-                                      context: context,
-                                      title: 'Delete Exercise',
-                                      message:
-                                          'Are you sure you want to delete "${exercise.name}"?',
-                                    ).then((confirmed) {
-                                      if (confirmed == true) {
-                                        _removeExercise(exIndex);
-                                      }
-                                    });
-                                  },
+                          child: RepaintBoundary(
+                            child: Stack(
+                              children: [
+                                ExerciseListSummaryCard(
+                                  exercise: exercise,
+                                  index: exIndex,
+                                  onTap: () =>
+                                      _showExerciseEditSheet(context, exIndex),
                                 ),
-                              ),
-                            ],
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.delete_rounded),
+                                    color: AppColors.error,
+                                    iconSize: 20,
+                                    padding: const EdgeInsets.all(8),
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () {
+                                      AppDialogs.showConfirmationDialog(
+                                        context: context,
+                                        title: 'Delete Exercise',
+                                        message:
+                                            'Are you sure you want to delete "${exercise.name}"?',
+                                      ).then((confirmed) {
+                                        if (confirmed == true) {
+                                          _removeExercise(exIndex);
+                                        }
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       }, childCount: exercises.length),
