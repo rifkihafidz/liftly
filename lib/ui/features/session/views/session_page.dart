@@ -1,0 +1,1195 @@
+import 'package:liftly/core/utils/app_logger.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:liftly/core/constants/colors.dart';
+import 'package:liftly/domain/models/workout_session.dart';
+import 'package:liftly/domain/models/personal_record.dart';
+import 'package:liftly/ui/core/shared/widgets/app_dialogs.dart';
+import 'package:liftly/ui/core/shared/widgets/workout_form_widgets.dart';
+import 'package:liftly/ui/core/shared/widgets/session_exercise_card.dart';
+import 'package:liftly/ui/features/workout_log/views/workout_detail_page.dart';
+import 'package:liftly/ui/features/session/bloc/session_bloc.dart';
+import 'package:liftly/ui/features/session/bloc/session_event.dart';
+import 'package:liftly/ui/features/session/bloc/session_state.dart';
+
+import 'package:liftly/ui/features/session/views/session_exercise_history_sheet.dart';
+import 'package:liftly/ui/core/shared/widgets/shimmer_widgets.dart';
+import 'package:liftly/core/utils/page_transitions.dart';
+
+import 'package:liftly/data/repositories/workout_repository.dart';
+import 'package:liftly/ui/features/plans/bloc/plan_bloc.dart';
+import 'package:liftly/ui/features/plans/bloc/plan_event.dart';
+import 'package:liftly/ui/features/plans/bloc/plan_state.dart';
+import 'package:liftly/core/constants/app_constants.dart';
+import 'package:liftly/ui/features/workout_log/bloc/workout_bloc.dart';
+import 'package:liftly/ui/features/workout_log/bloc/workout_event.dart';
+
+class SessionPage extends StatefulWidget {
+  final List<SessionExercise> exercises; // Updated from exerciseNames
+  final String? planId;
+  final String? planName;
+  final WorkoutSession? draftSession;
+
+  const SessionPage({
+    super.key,
+    this.exercises = const [],
+    this.planId,
+    this.planName,
+    this.draftSession,
+  });
+
+  @override
+  State<SessionPage> createState() => _SessionPageState();
+}
+
+class _SessionPageState extends State<SessionPage> {
+  late SessionBloc _sessionBloc;
+  final Map<int, GlobalKey> _exerciseKeys = {};
+  final ScrollController _scrollController = ScrollController();
+  bool _shouldPopOnDraftSave = false;
+
+  GlobalKey _getKeyForExercise(int index) {
+    return _exerciseKeys.putIfAbsent(index, () => GlobalKey());
+  }
+
+  void _jumpToExercise(int index) {
+    AppLogger.info('SessionPage', 'Attempting jump to exercise index: $index');
+    if (!mounted) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    // Wait for the bottom sheet dismiss animation to finish before scrolling.
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+
+      final key = _exerciseKeys[index];
+      final context = key?.currentContext;
+
+      if (context != null && context.mounted) {
+        AppLogger.info(
+            'SessionPage', 'Context found, using Scrollable.ensureVisible');
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+        );
+      } else {
+        // Fallback: Use a layout crawler to find items that aren't rendered yet
+        final state = _sessionBloc.state;
+        if (state is SessionInProgress) {
+          // Find any visible exercise to establish direction and start point
+          int startIdx = 0;
+          for (int i = 0; i < _exerciseKeys.length; i++) {
+            if (_exerciseKeys[i]?.currentContext != null) {
+              startIdx = i;
+              break;
+            }
+          }
+
+          final bool isGoingDown = index > startIdx;
+          int safetyCounter = 0;
+
+          // This crawler jumps step-by-step. If a step isn't visible, it blind-scrolls
+          // to trigger Flutter's Sliver layout until it finds it.
+          void stepJump(int currentIdx) {
+            if (!mounted) return;
+            safetyCounter++;
+            if (safetyCounter > 50) return;
+
+            final stepKey = _exerciseKeys[currentIdx];
+            final stepContext = stepKey?.currentContext;
+
+            if (stepContext != null && stepContext.mounted) {
+              // Context found! Bring it into view
+              Scrollable.ensureVisible(
+                stepContext,
+                duration: const Duration(milliseconds: 50),
+              );
+
+              if (currentIdx == index) {
+                // Reached target! Final precision lock.
+                Future.delayed(const Duration(milliseconds: 150), () {
+                  if (mounted && stepContext.mounted) {
+                    Scrollable.ensureVisible(
+                      stepContext,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                    );
+                  }
+                });
+                return;
+              }
+
+              // Move to the next target index
+              final nextIdx =
+                  currentIdx < index ? currentIdx + 1 : currentIdx - 1;
+              Future.delayed(
+                  const Duration(milliseconds: 80), () => stepJump(nextIdx));
+            } else {
+              // Context missing! We must blind-jump to force sliver layout
+              final currentOffset = _scrollController.offset;
+              final targetOffset =
+                  currentOffset + (isGoingDown ? 400.0 : -400.0);
+              final clampedOffset = targetOffset.clamp(
+                  0.0, _scrollController.position.maxScrollExtent);
+
+              if ((clampedOffset - currentOffset).abs() < 1.0) return;
+
+              _scrollController.jumpTo(clampedOffset);
+
+              // Retry the SAME index after layout updates
+              Future.delayed(
+                  const Duration(milliseconds: 50), () => stepJump(currentIdx));
+            }
+          }
+
+          stepJump(startIdx);
+        }
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    initializeDateFormatting();
+
+    // Start session with actual exercises or resume draft
+    _sessionBloc = context.read<SessionBloc>();
+    const userId = AppConstants.defaultUserId;
+
+    if (widget.draftSession != null) {
+      _sessionBloc.add(SessionDraftResumed(draftSession: widget.draftSession!));
+    } else {
+      _sessionBloc.add(
+        SessionStarted(
+          planId: widget.planId,
+          planName: widget.planName,
+          exerciseNames: widget.exercises.map((e) => e.name).toList(),
+          exerciseVariations: widget.exercises.map((e) => e.variation).toList(),
+          userId: userId,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    // Safety net: If page is closed but session is still in progress (not saved/drafted), discard it.
+    if (_sessionBloc.state is SessionInProgress) {
+      _sessionBloc.add(const SessionDiscarded());
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _showUnsavedChangesDialog(context);
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
+        backgroundColor: AppColors.darkBg,
+        floatingActionButton: BlocBuilder<SessionBloc, SessionState>(
+          builder: (context, state) {
+            if (state is SessionInProgress &&
+                state.session.exercises.length > 1) {
+              final exercises = state.session.exercises;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FloatingActionButton.small(
+                      heroTag: 'fab_top',
+                      onPressed: () {
+                        _scrollController.animateTo(
+                          0.0,
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeOutCubic,
+                        );
+                      },
+                      backgroundColor: AppColors.cardBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: AppColors.accent.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      elevation: 4,
+                      child: const Icon(
+                        Icons.keyboard_arrow_up_rounded,
+                        color: AppColors.accent,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FloatingActionButton.small(
+                      heroTag: 'fab_jump',
+                      onPressed: () =>
+                          _showExerciseJumpSheet(context, exercises),
+                      backgroundColor: AppColors.cardBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: AppColors.accent.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      elevation: 4,
+                      child: const Icon(
+                        Icons.format_list_bulleted_rounded,
+                        color: AppColors.accent,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FloatingActionButton.small(
+                      heroTag: 'fab_bottom',
+                      onPressed: () {
+                        _scrollController.animateTo(
+                          _scrollController.position.maxScrollExtent,
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeOutCubic,
+                        );
+                      },
+                      backgroundColor: AppColors.cardBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: AppColors.accent.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      elevation: 4,
+                      child: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.accent,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
+        body: BlocListener<SessionBloc, SessionState>(
+          listenWhen: (previous, current) =>
+              current is SessionSaved || current is SessionDraftSaved,
+          listener: (context, state) {
+            if (state is SessionDraftSaved) {
+              AppDialogs.showSuccessDialog(
+                context: context,
+                title: 'Draft Saved',
+                message: 'Your workout draft has been saved.',
+                onConfirm: () {
+                  if (_shouldPopOnDraftSave && mounted) {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  }
+                  _shouldPopOnDraftSave = false;
+                },
+              );
+            } else if (state is SessionSaved) {
+              // Ensure WorkoutBloc is refreshed with the newly completed workout
+              context.read<WorkoutBloc>().add(
+                    const WorkoutsFetched(limit: 20),
+                  );
+
+              AppDialogs.showSuccessDialog(
+                context: context,
+                title: 'Success',
+                message: 'Workout saved successfully.',
+                onConfirm: () {
+                  if (mounted) {
+                    // Replace session with detail (smooth transition, no Home flash)
+                    Navigator.pushReplacement(
+                      context,
+                      SmoothPageRoute(
+                        page: WorkoutDetailPage(
+                          workout: state.session,
+                          fromSession: true,
+                        ),
+                      ),
+                    );
+                  }
+                },
+              );
+            }
+          },
+          child: BlocBuilder<SessionBloc, SessionState>(
+            builder: (context, state) {
+              if (state is SessionLoading) {
+                return const SessionPageShimmer();
+              }
+
+              if (state is SessionSaved) {
+                return const SizedBox.shrink();
+              }
+
+              if (state is SessionInProgress) {
+                final session = state.session;
+                final exercises = session.exercises;
+
+                return Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 800),
+                    child: CustomScrollView(
+                      controller: _scrollController,
+                      physics: const BouncingScrollPhysics(),
+                      slivers: [
+                        SliverAppBar(
+                          expandedHeight: 0,
+                          pinned: true,
+                          floating: true,
+                          title: Text(
+                            widget.draftSession != null
+                                ? 'Resume Workout'
+                                : 'Log Workout',
+                          ),
+                          actions: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.save_as_outlined,
+                                color: AppColors.textPrimary,
+                              ),
+                              tooltip: 'Save as Draft',
+                              onPressed: () async {
+                                final confirm =
+                                    await AppDialogs.showConfirmationDialog(
+                                  context: context,
+                                  title: 'Save Draft',
+                                  message:
+                                      'Save current progress as draft? You can resume it later.',
+                                  confirmText: 'Save',
+                                );
+
+                                if (confirm == true && context.mounted) {
+                                  context.read<SessionBloc>().add(
+                                        const SessionSaveDraftRequested(),
+                                      );
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.reorder_rounded,
+                                color: AppColors.textPrimary,
+                              ),
+                              tooltip: 'Reorder Exercises',
+                              onPressed: _showReorderExercisesSheet,
+                            ),
+                          ],
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 24,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: AppColors.cardBg,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  WorkoutDateTimeCard(
+                                    workoutDate: session.workoutDate,
+                                    startedAt: session.startedAt,
+                                    endedAt: session.endedAt,
+                                    onTap: () async {
+                                      final result = await showDialog<
+                                          Map<String, DateTime?>>(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (context) =>
+                                            WorkoutDateTimeDialog(
+                                          initialWorkoutDate:
+                                              session.workoutDate,
+                                          initialStartedAt: session.startedAt,
+                                          initialEndedAt: session.endedAt,
+                                        ),
+                                      );
+                                      if (result != null && context.mounted) {
+                                        context.read<SessionBloc>().add(
+                                              SessionDateTimesUpdated(
+                                                workoutDate:
+                                                    result['workoutDate'],
+                                                startedAt: result['startedAt'],
+                                                endedAt: result['endedAt'],
+                                              ),
+                                            );
+                                      }
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  NotesField(
+                                    initialValue: session.notes,
+                                    label: 'Session Notes (Optional)',
+                                    collapsible: true,
+                                    onChanged: (val) {
+                                      context.read<SessionBloc>().add(
+                                            SessionNotesUpdated(notes: val),
+                                          );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (exercises.isEmpty)
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            sliver: SliverToBoxAdapter(
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(32),
+                                  child: Text(
+                                    'No exercises added yet.',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            sliver: SliverList.list(
+                              children: exercises.asMap().entries.map((entry) {
+                                final exIndex = entry.key;
+                                final exercise = entry.value;
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: Column(
+                                    children: [
+                                      if (exIndex == 0)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 16,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Text(
+                                                'EXERCISES (${exercises.length})',
+                                                style: const TextStyle(
+                                                  color: AppColors.accent,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12,
+                                                  letterSpacing: 1.5,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      RepaintBoundary(
+                                        key: _getKeyForExercise(exIndex),
+                                        child: SessionExerciseCard(
+                                          key: ValueKey('${exercise.id}_${exercise.name}_${exercise.variation}'),
+                                          exercise: exercise,
+                                          exerciseIndex: exIndex,
+                                          // History is keyed by variation
+                                          histories: state.previousSessions[
+                                              '${exercise.name}:${exercise.variation}'
+                                                  .toLowerCase()],
+                                          // PR cards: variation-specific only
+                                          pr: state.exercisePRs[
+                                              '${exercise.name}:${exercise.variation}'
+                                                  .toLowerCase()],
+                                          focusedSetIndex:
+                                              state.focusedExerciseIndex ==
+                                                      exIndex
+                                                  ? state.focusedSetIndex
+                                                  : null,
+                                          focusedSegmentIndex:
+                                              state.focusedExerciseIndex ==
+                                                      exIndex
+                                                  ? state.focusedSegmentIndex
+                                                  : null,
+                                          onSkipToggle: () {
+                                            context.read<SessionBloc>().add(
+                                                  SessionExerciseSkipToggled(
+                                                    exerciseIndex: exIndex,
+                                                  ),
+                                                );
+                                          },
+                                          onHistoryTap: () {
+                                            _showExerciseHistory(
+                                              context,
+                                              exercise.name,
+                                              exercise.variation,
+                                              state.previousSessions[
+                                                  '${exercise.name}:${exercise.variation}'
+                                                      .toLowerCase()],
+                                              state.exercisePRs[
+                                                  '${exercise.name}:${exercise.variation}'
+                                                      .toLowerCase()],
+                                              exIndex + 1,
+                                              exercises.length,
+                                              exercises.map((e) => e.name).toList(),
+                                            );
+                                          },
+                                          onEditVariation: () =>
+                                              _showEditNameDialog(
+                                            context,
+                                            exIndex,
+                                            exercise.name,
+                                            exercise.variation,
+                                          ),
+                                          onAddSet: () {
+                                            context.read<SessionBloc>().add(
+                                                  SessionSetAdded(
+                                                    exerciseIndex: exIndex,
+                                                  ),
+                                                );
+                                          },
+                                          onRemoveSet: (setIndex) {
+                                            context.read<SessionBloc>().add(
+                                                  SessionSetRemoved(
+                                                    exerciseIndex: exIndex,
+                                                    setIndex: setIndex,
+                                                  ),
+                                                );
+                                          },
+                                          onAddDropSet: (setIndex) {
+                                            context.read<SessionBloc>().add(
+                                                  SessionSegmentAdded(
+                                                    exerciseIndex: exIndex,
+                                                    setIndex: setIndex,
+                                                  ),
+                                                );
+                                          },
+                                          onRemoveDropSet:
+                                              (setIndex, segmentIndex) {
+                                            context.read<SessionBloc>().add(
+                                                  SessionSegmentRemoved(
+                                                    exerciseIndex: exIndex,
+                                                    setIndex: setIndex,
+                                                    segmentIndex: segmentIndex,
+                                                  ),
+                                                );
+                                          },
+                                          onUpdateSegment: (
+                                            setIndex,
+                                            segmentIndex,
+                                            field,
+                                            value,
+                                          ) {
+                                            context.read<SessionBloc>().add(
+                                                  SessionSegmentUpdated(
+                                                    exerciseIndex: exIndex,
+                                                    setIndex: setIndex,
+                                                    segmentIndex: segmentIndex,
+                                                    field: field,
+                                                    value: value,
+                                                  ),
+                                                );
+                                          },
+                                          onEditName: () => _showEditNameDialog(
+                                            context,
+                                            exIndex,
+                                            exercise.name,
+                                            exercise.variation,
+                                          ),
+                                          onDelete: exercise.isTemplate
+                                              ? null
+                                              : () => _confirmDeleteExercise(
+                                                    context,
+                                                    exIndex,
+                                                    exercise.name,
+                                                  ),
+                                          onUpdateNotes: (notes) {
+                                            context.read<SessionBloc>().add(
+                                                  SessionExerciseNotesUpdated(
+                                                    exerciseIndex: exIndex,
+                                                    newNotes: notes,
+                                                  ),
+                                                );
+                                          },
+                                          isLastExercise:
+                                              exIndex == exercises.length - 1,
+                                        ),
+                                      ),
+                                      // Clear focus flags after rendering
+                                      if (state.focusedExerciseIndex != null &&
+                                          state.focusedExerciseIndex == exIndex)
+                                        Builder(
+                                          builder: (context) {
+                                            return const SizedBox.shrink();
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        // Footer Actions
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            8,
+                            16,
+                            MediaQuery.of(context).viewInsets.bottom > 0
+                                ? 120
+                                : 80,
+                          ),
+                          sliver: SliverToBoxAdapter(
+                            child: Column(
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _showAddExerciseDialog(context),
+                                    icon: const Icon(Icons.add_rounded),
+                                    label: const Text('Add Exercise'),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton(
+                                    onPressed: () => _onFinishWorkout(context),
+                                    child: const Text(
+                                      'Finish Workout',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              if (state is SessionError) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  AppDialogs.showErrorDialog(
+                    context: context,
+                    title: 'Error Occurred',
+                    message: state.message,
+                  );
+                });
+                return const SessionPageShimmer();
+              }
+
+              return const Center(child: Text('No session'));
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showExerciseHistory(
+    BuildContext context,
+    String exerciseName,
+    String exerciseVariation,
+    List<WorkoutSession>? histories,
+    PersonalRecord? pr,
+    int currentOrder,
+    int totalCurrentExercises,
+    List<String> currentSessionExercises,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SessionExerciseHistorySheet(
+        exerciseName: exerciseName,
+        exerciseVariation: exerciseVariation,
+        histories: histories,
+        pr: pr,
+        currentOrder: currentOrder,
+        totalCurrentExercises: totalCurrentExercises,
+        currentSessionExercises: currentSessionExercises,
+      ),
+    );
+  }
+
+  void _showUnsavedChangesDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          backgroundColor: AppColors.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Unsaved Changes',
+            style: TextStyle(color: AppColors.textPrimary),
+          ),
+          content: const Text(
+            'You have unsaved progress. What would you like to do?',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Close dialog
+                context.read<SessionBloc>().add(const SessionDiscarded());
+                // Close page and go to Home
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+              child: const Text('Discard'),
+            ),
+            TextButton(
+              onPressed: () {
+                _shouldPopOnDraftSave = true;
+                Navigator.pop(dialogContext); // Close dialog
+                context.read<SessionBloc>().add(
+                      const SessionSaveDraftRequested(),
+                    );
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.accent,
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              child: const Text('Save Draft'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showEditNameDialog(
+    BuildContext context,
+    int index,
+    String currentName,
+    String currentVariation,
+  ) async {
+    final WorkoutRepository workoutRepository = WorkoutRepository();
+    List<String> availableExercises = [];
+
+    // Load suggestions
+    try {
+      // 1. Load from history
+      const userId = '1';
+      final historyNames = await workoutRepository.getExerciseNames(
+        userId: userId,
+      );
+      final uniqueNames = historyNames.toSet();
+
+      if (!context.mounted) return;
+
+      // 2. Load from plans
+      final currentPlanState = context.read<PlanBloc>().state;
+      if (currentPlanState is PlansLoaded) {
+        final planNames = currentPlanState.plans
+            .expand((p) => p.exercises)
+            .map((e) => e.name);
+        uniqueNames.addAll(planNames);
+      }
+
+      availableExercises = uniqueNames.toList()..sort();
+    } catch (e, stackTrace) {
+      AppLogger.error(
+          'SessionPage', 'Error loading suggestions', e, stackTrace);
+    }
+
+    if (!context.mounted) return;
+
+    AppDialogs.showExerciseEntryDialog(
+      context: context,
+      title: 'Edit Exercise',
+      initialValue: currentName,
+      initialVariation: currentVariation,
+      suggestions: availableExercises,
+      onConfirm: (newName, variation) {
+        context.read<SessionBloc>().add(
+              SessionExerciseNameUpdated(
+                exerciseIndex: index,
+                newName: newName,
+                newVariation: variation,
+              ),
+            );
+      },
+    );
+  }
+
+  void _confirmDeleteExercise(BuildContext context, int index, String name) {
+    AppDialogs.showConfirmationDialog(
+      context: context,
+      title: 'Remove Exercise',
+      message: 'Are you sure you want to remove "$name"?',
+      confirmText: 'Remove',
+      isDangerous: true,
+    ).then((confirm) {
+      if (confirm == true && context.mounted) {
+        context.read<SessionBloc>().add(
+              SessionExerciseRemoved(exerciseIndex: index),
+            );
+      }
+    });
+  }
+
+  Future<void> _showAddExerciseDialog(BuildContext context) async {
+    final WorkoutRepository workoutRepository = WorkoutRepository();
+    List<String> availableExercises = [];
+    // Load suggestions
+    try {
+      // 1. Load from history
+      const userId = AppConstants.defaultUserId;
+      final historyNames = await workoutRepository.getExerciseNames(
+        userId: userId,
+      );
+      final uniqueNames = historyNames.toSet();
+
+      if (!context.mounted) return;
+
+      // 2. Load from plans
+      final currentPlanState = context.read<PlanBloc>().state;
+      if (currentPlanState is PlansLoaded) {
+        final planNames = currentPlanState.plans
+            .expand((p) => p.exercises)
+            .map((e) => e.name);
+        uniqueNames.addAll(planNames);
+      } else {
+        context.read<PlanBloc>().add(const PlansFetchRequested());
+      }
+
+      availableExercises = uniqueNames.toList()..sort();
+    } catch (e, stackTrace) {
+      AppLogger.error(
+          'SessionPage', 'Error loading suggestions', e, stackTrace);
+    }
+
+    if (!context.mounted) return;
+
+    AppDialogs.showExerciseEntryDialog(
+      context: context,
+      title: 'Add Exercise',
+      hintText: 'Exercise Name (ex: Bench Press)',
+      suggestions: availableExercises,
+      onConfirm: (exerciseName, variation) {
+        context.read<SessionBloc>().add(
+              SessionExerciseAdded(
+                exerciseName: exerciseName,
+                exerciseVariation: variation,
+              ),
+            );
+      },
+    );
+  }
+
+  void _onFinishWorkout(BuildContext context) {
+    final state = context.read<SessionBloc>().state;
+    if (state is SessionInProgress) {
+      final allSkipped = state.session.exercises.every((e) => e.skipped);
+      if (allSkipped) {
+        AppDialogs.showErrorDialog(
+          context: context,
+          title: 'Cannot Finish Workout',
+          message:
+              'All exercises are skipped. You must perform at least one exercise to finish the workout.',
+        );
+        return;
+      }
+    }
+
+    AppDialogs.showConfirmationDialog(
+      context: context,
+      title: 'Finish Workout',
+      message: 'Are you sure you want to finish this workout?',
+      confirmText: 'Finish',
+    ).then((confirm) {
+      if (confirm == true && context.mounted) {
+        context.read<SessionBloc>().add(const SessionEnded());
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (context.mounted) {
+            context.read<SessionBloc>().add(const SessionSaveRequested());
+          }
+        });
+      }
+    });
+  }
+
+  void _showExerciseJumpSheet(
+      BuildContext context, List<SessionExercise> exercises) {
+    showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.8,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: AppColors.cardBg,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.textSecondary.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Jump to Exercise',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          icon: const Icon(Icons.close,
+                              color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: exercises.length,
+                      itemBuilder: (context, index) {
+                        final ex = exercises[index];
+                        return ListTile(
+                          onTap: () {
+                            Navigator.pop(sheetContext, index);
+                          },
+                          leading: Container(
+                            width: 32,
+                            height: 32,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: ex.skipped
+                                  ? AppColors.textSecondary
+                                      .withValues(alpha: 0.1)
+                                  : AppColors.accent.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${index + 1}',
+                              style: TextStyle(
+                                color: ex.skipped
+                                    ? AppColors.textSecondary
+                                    : AppColors.accent,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            ex.name,
+                            style: TextStyle(
+                              color: ex.skipped
+                                  ? AppColors.textSecondary
+                                  : AppColors.textPrimary,
+                              decoration: ex.skipped
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                          subtitle: ex.variation.isNotEmpty
+                              ? Text(
+                                  ex.variation,
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12),
+                                )
+                              : null,
+                          trailing: const Icon(Icons.chevron_right,
+                              size: 20, color: AppColors.textSecondary),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).then((selectedIndex) {
+      if (selectedIndex != null) {
+        _jumpToExercise(selectedIndex);
+      }
+    });
+  }
+
+  void _showReorderExercisesSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.cardBg,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return BlocBuilder<SessionBloc, SessionState>(
+          builder: (context, state) {
+            if (state is! SessionInProgress) return const SizedBox.shrink();
+            final exercises = state.session.exercises;
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.6,
+              minChildSize: 0.4,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Reorder Exercises',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Done'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: ReorderableListView.builder(
+                        scrollController: scrollController,
+                        buildDefaultDragHandles: false,
+                        itemCount: exercises.length,
+                        onReorder: (oldIndex, newIndex) {
+                          _sessionBloc.add(
+                            SessionExercisesReordered(
+                              oldIndex: oldIndex,
+                              newIndex: newIndex,
+                            ),
+                          );
+                        },
+                        itemBuilder: (context, index) {
+                          final ex = exercises[index];
+                          return ListTile(
+                            key: ValueKey(ex.id),
+                            leading: Container(
+                              width: 32,
+                              height: 32,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: ex.skipped
+                                    ? AppColors.textSecondary
+                                        .withValues(alpha: 0.1)
+                                    : AppColors.accent.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '${index + 1}',
+                                style: TextStyle(
+                                  color: ex.skipped
+                                      ? AppColors.textSecondary
+                                      : AppColors.accent,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            title: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  ex.name,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    color: ex.skipped
+                                        ? AppColors.textSecondary
+                                        : AppColors.textPrimary,
+                                    decoration: ex.skipped
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                  ),
+                                ),
+                                if (ex.variation.isNotEmpty)
+                                  Text(
+                                    ex.variation,
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            trailing: ReorderableDelayedDragStartListener(
+                              index: index,
+                              child: const Icon(
+                                Icons.drag_handle_rounded,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+}

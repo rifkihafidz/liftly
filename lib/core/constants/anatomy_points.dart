@@ -1,4 +1,4 @@
-import '../utils/muscle_detector.dart';
+import 'package:liftly/core/utils/muscle_detector.dart';
 
 class AnatomyPoints {
   static const anteriorData = {

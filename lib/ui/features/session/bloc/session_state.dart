@@ -1,0 +1,128 @@
+import 'package:equatable/equatable.dart';
+import 'package:liftly/domain/models/workout_session.dart';
+import 'package:liftly/domain/models/personal_record.dart';
+
+abstract class SessionState extends Equatable {
+  const SessionState();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class SessionInitial extends SessionState {
+  const SessionInitial();
+}
+
+class SessionLoading extends SessionState {
+  const SessionLoading();
+}
+
+class SessionDraftCheckSuccess extends SessionState {
+  final WorkoutSession? draft;
+  final int timestamp; // Force unique state
+
+  SessionDraftCheckSuccess({this.draft})
+      : timestamp = DateTime.now().millisecondsSinceEpoch;
+
+  @override
+  List<Object?> get props => [draft, timestamp];
+}
+
+class SessionInProgress extends SessionState {
+  final WorkoutSession session;
+  final Map<String, List<WorkoutSession>> previousSessions;
+  final Map<String, PersonalRecord> exercisePRs;
+  final int? focusedExerciseIndex;
+  final int? focusedSetIndex;
+  final int? focusedSegmentIndex;
+  final int? timestamp; // Force unique state for focus resets
+
+  const SessionInProgress({
+    required this.session,
+    this.previousSessions = const {},
+    this.exercisePRs = const {},
+    this.focusedExerciseIndex,
+    this.focusedSetIndex,
+    this.focusedSegmentIndex,
+  }) : timestamp = null;
+
+  const SessionInProgress.withFocus({
+    required this.session,
+    this.previousSessions = const {},
+    this.exercisePRs = const {},
+    this.focusedExerciseIndex,
+    this.focusedSetIndex,
+    this.focusedSegmentIndex,
+    this.timestamp,
+  });
+
+  @override
+  List<Object?> get props => [
+        session,
+        previousSessions,
+        exercisePRs,
+        focusedExerciseIndex,
+        focusedSetIndex,
+        focusedSegmentIndex,
+        timestamp,
+      ];
+
+  SessionInProgress copyWith({
+    WorkoutSession? session,
+    Map<String, List<WorkoutSession>>? previousSessions,
+    Map<String, PersonalRecord>? exercisePRs,
+    int? focusedExerciseIndex,
+    int? focusedSetIndex,
+    int? focusedSegmentIndex,
+    int? timestamp,
+  }) {
+    return SessionInProgress.withFocus(
+      session: session ?? this.session,
+      previousSessions: previousSessions ?? this.previousSessions,
+      exercisePRs: exercisePRs ?? this.exercisePRs,
+      focusedExerciseIndex: focusedExerciseIndex ?? this.focusedExerciseIndex,
+      focusedSetIndex: focusedSetIndex ?? this.focusedSetIndex,
+      focusedSegmentIndex: focusedSegmentIndex ?? this.focusedSegmentIndex,
+      timestamp: timestamp ?? this.timestamp,
+    );
+  }
+}
+
+class SessionSaved extends SessionState {
+  final WorkoutSession session;
+
+  const SessionSaved({required this.session});
+
+  @override
+  List<Object?> get props => [session];
+}
+
+class SessionDraftSaved extends SessionInProgress {
+  const SessionDraftSaved({
+    required super.session,
+    super.previousSessions,
+    super.exercisePRs,
+    super.focusedExerciseIndex,
+    super.focusedSetIndex,
+    super.focusedSegmentIndex,
+  });
+
+  @override
+  List<Object?> get props => [
+        session,
+        previousSessions,
+        exercisePRs,
+        focusedExerciseIndex,
+        focusedSetIndex,
+        focusedSegmentIndex,
+      ];
+}
+
+class SessionError extends SessionState {
+  final String message;
+
+  const SessionError({required this.message});
+
+  @override
+  List<Object?> get props => [message];
+}

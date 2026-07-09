@@ -1,5 +1,5 @@
-import '../models/workout_session.dart';
-import 'muscle_detector.dart';
+import 'package:liftly/domain/models/workout_session.dart';
+import 'package:liftly/core/utils/muscle_detector.dart';
 
 class RecoveryAnalyzer {
   static const int fullRecoveryHours = 48;

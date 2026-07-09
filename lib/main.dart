@@ -2,24 +2,24 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'config/theme/app_theme.dart';
+import 'package:liftly/ui/core/config/theme/app_theme.dart';
 
-import 'features/home/pages/splash_page.dart';
-import 'features/session/bloc/session_bloc.dart';
-import 'features/plans/bloc/plan_bloc.dart';
-import 'features/plans/repositories/plan_repository.dart';
-import 'features/workout_log/bloc/workout_bloc.dart';
-import 'features/workout_log/repositories/workout_repository.dart';
-import 'features/stats/bloc/stats_bloc.dart';
-import 'features/stats/bloc/stats_event.dart';
+import 'package:liftly/ui/features/home/views/splash_page.dart';
+import 'package:liftly/ui/features/session/bloc/session_bloc.dart';
+import 'package:liftly/ui/features/plans/bloc/plan_bloc.dart';
+import 'package:liftly/data/repositories/plan_repository.dart';
+import 'package:liftly/ui/features/workout_log/bloc/workout_bloc.dart';
+import 'package:liftly/data/repositories/workout_repository.dart';
+import 'package:liftly/ui/features/stats/bloc/stats_bloc.dart';
+import 'package:liftly/ui/features/stats/bloc/stats_event.dart';
 
 import 'package:flutter/foundation.dart';
-import 'shared/widgets/error_view.dart';
-import 'core/services/update_service.dart';
-import 'core/services/hive_service.dart';
-import 'core/services/backup_service.dart';
-import 'features/home/pages/main_navigation_wrapper.dart';
-import 'core/utils/app_logger.dart';
+import 'package:liftly/ui/core/shared/widgets/error_view.dart';
+import 'package:liftly/data/services/core/update_service.dart';
+import 'package:liftly/data/services/core/hive_service.dart';
+import 'package:liftly/data/services/core/backup_service.dart';
+import 'package:liftly/ui/features/home/views/main_navigation_wrapper.dart';
+import 'package:liftly/core/utils/app_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
