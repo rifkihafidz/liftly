@@ -1,9 +1,11 @@
 import 'package:liftly/core/utils/app_logger.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:liftly/core/constants/colors.dart';
+import 'package:liftly/core/utils/app_formatters.dart';
 import 'package:liftly/domain/models/workout_session.dart';
 import 'package:liftly/domain/models/personal_record.dart';
 import 'package:liftly/ui/core/shared/widgets/app_dialogs.dart';
@@ -546,6 +548,12 @@ class _SessionPageState extends State<SessionPage> {
                                               exercises.map((e) => e.name).toList(),
                                             );
                                           },
+                                          onCopyTap: () {
+                                            _copyExerciseProgress(context, session, exIndex);
+                                          },
+                                          onCopySetTap: (setIndex) {
+                                            _copyExerciseProgress(context, session, exIndex);
+                                          },
                                           onEditVariation: () =>
                                               _showEditNameDialog(
                                             context,
@@ -733,6 +741,113 @@ class _SessionPageState extends State<SessionPage> {
         currentSessionExercises: currentSessionExercises,
       ),
     );
+  }
+
+  Future<void> _copyExerciseProgress(BuildContext context, WorkoutSession session, int exerciseIndex) async {
+    final exercise = session.exercises[exerciseIndex];
+    final date = session.startedAt ?? session.workoutDate;
+    final fullDateStr = DateFormat('EEEE, d MMMM yyyy HH.mm').format(date);
+    
+    final planStr = session.planName != null && session.planName!.isNotEmpty ? ' (${session.planName})' : '';
+    
+    final StringBuffer sb = StringBuffer();
+    sb.writeln('$fullDateStr$planStr');
+    if (session.notes.isNotEmpty) {
+      sb.writeln('Session Note: ${session.notes}');
+    }
+    sb.writeln('Order: ${exerciseIndex + 1}/${session.exercises.length}');
+    
+    final exerciseNames = session.exercises.map((e) => e.name).join(', ');
+    sb.writeln('Exercises: $exerciseNames');
+    
+    sb.writeln(); // Empty line before current exercise
+    
+    final variationStr = exercise.variation.isNotEmpty ? ' (${exercise.variation})' : '';
+    sb.writeln('Current Exercise: ${exercise.name}$variationStr');
+    
+    if (exercise.notes.isNotEmpty) {
+      sb.writeln('Exercise Note: ${exercise.notes}');
+    }
+    
+    sb.writeln(); // Empty line
+    
+    for (int i = 0; i < exercise.sets.length; i++) {
+      final set = exercise.sets[i];
+      for (int j = 0; j < set.segments.length; j++) {
+        final seg = set.segments[j];
+        final repsStr = seg.repsFrom == seg.repsTo ? '${seg.repsTo}' : '${seg.repsFrom}-${seg.repsTo}';
+        final weightStr = AppFormatters.weightFormatter.format(seg.weight);
+        
+        String noteStr = seg.notes.trim();
+        if (noteStr.isNotEmpty) {
+           noteStr = ' ($noteStr)';
+        }
+        
+        final prefix = j == 0 ? 'Set ${set.setNumber}' : 'Drop Set';
+        sb.writeln('$prefix ${weightStr}kg x $repsStr$noteStr');
+      }
+    }
+
+    await Clipboard.setData(ClipboardData(text: sb.toString().trimRight()));
+    
+    if (context.mounted) {
+      final overlay = Overlay.of(context);
+      late OverlayEntry entry;
+      entry = OverlayEntry(
+        builder: (context) => Positioned(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+          left: 24,
+          right: 24,
+          child: Material(
+            color: Colors.transparent,
+            child: TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 200),
+              tween: Tween(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Opacity(
+                  opacity: value,
+                  child: Transform.translate(
+                    offset: Offset(0, (1 - value) * 10),
+                    child: child,
+                  ),
+                );
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  'Copied ${exercise.name} progress to clipboard',
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      overlay.insert(entry);
+      Future.delayed(const Duration(milliseconds: 2000), () {
+        if (entry.mounted) {
+          entry.remove();
+        }
+      });
+    }
   }
 
   void _showUnsavedChangesDialog(BuildContext context) {

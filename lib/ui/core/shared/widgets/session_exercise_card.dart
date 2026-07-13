@@ -19,6 +19,8 @@ class SessionExerciseCard extends StatefulWidget {
   final Function(int, int) onRemoveDropSet;
   final Function(int, int, String, dynamic) onUpdateSegment;
   final VoidCallback onHistoryTap;
+  final VoidCallback? onCopyTap;
+  final Function(int)? onCopySetTap;
   final VoidCallback? onEditVariation;
   final VoidCallback? onEditName;
   final VoidCallback? onDelete;
@@ -41,6 +43,8 @@ class SessionExerciseCard extends StatefulWidget {
     required this.onRemoveDropSet,
     required this.onUpdateSegment,
     required this.onHistoryTap,
+    this.onCopyTap,
+    this.onCopySetTap,
     this.onEditVariation,
     this.onEditName,
     this.onDelete,
@@ -353,6 +357,18 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> with Automati
         ),
 
         // Actions
+        if (widget.onCopyTap != null)
+          IconButton(
+            icon: const Icon(
+              Icons.copy,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
+            tooltip: 'Copy Session Progress',
+            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(8),
+            onPressed: widget.onCopyTap,
+          ),
         IconButton(
           icon: const Icon(
             Icons.history,
@@ -559,6 +575,7 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> with Automati
               onRemoveDropSet: widget.onRemoveDropSet,
               isLastExercise: widget.isLastExercise,
               onHistoryTap: widget.onHistoryTap,
+              onCopySetTap: widget.onCopySetTap != null ? () => widget.onCopySetTap!(setIndex) : null,
             ),
         ],
       ),
@@ -583,6 +600,7 @@ class _SetRow extends StatelessWidget {
   final Function(int setIndex, int segmentIndex) onRemoveDropSet;
   final bool isLastExercise;
   final VoidCallback onHistoryTap;
+  final VoidCallback? onCopySetTap;
 
   const _SetRow({
     super.key,
@@ -599,6 +617,7 @@ class _SetRow extends StatelessWidget {
     required this.onRemoveDropSet,
     required this.isLastExercise,
     required this.onHistoryTap,
+    this.onCopySetTap,
   });
 
   @override
@@ -620,6 +639,7 @@ class _SetRow extends StatelessWidget {
             isDropSet: isDropSet,
             onRemoveSet: onRemoveSet,
             onHistoryTap: onHistoryTap,
+            onCopySetTap: onCopySetTap,
           ),
           const SizedBox(height: 12),
           // Use indexed iteration instead of List.generate
@@ -670,6 +690,7 @@ class _SetHeader extends StatelessWidget {
   final bool isDropSet;
   final Function(int setIndex) onRemoveSet;
   final VoidCallback onHistoryTap;
+  final VoidCallback? onCopySetTap;
 
   const _SetHeader({
     required this.set,
@@ -679,6 +700,7 @@ class _SetHeader extends StatelessWidget {
     required this.isDropSet,
     required this.onRemoveSet,
     required this.onHistoryTap,
+    this.onCopySetTap,
   });
 
   @override
@@ -761,6 +783,18 @@ class _SetHeader extends StatelessWidget {
               ),
             const Spacer(),
             const Spacer(),
+            if (onCopySetTap != null)
+              InkWell(
+                onTap: onCopySetTap,
+                borderRadius: BorderRadius.circular(16),
+                child: const Padding(
+                  padding: EdgeInsets.all(4.0),
+                  child: Icon(Icons.copy,
+                      size: 16, color: AppColors.textSecondary),
+                ),
+              ),
+            if (onCopySetTap != null)
+              const SizedBox(width: 4),
             InkWell(
               onTap: onHistoryTap,
               borderRadius: BorderRadius.circular(16),
