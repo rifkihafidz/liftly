@@ -199,8 +199,10 @@ class _SessionPageState extends State<SessionPage> {
         backgroundColor: AppColors.darkBg,
         floatingActionButton: BlocBuilder<SessionBloc, SessionState>(
           builder: (context, state) {
+            final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
             if (state is SessionInProgress &&
-                state.session.exercises.length > 1) {
+                state.session.exercises.length > 1 &&
+                !isKeyboardOpen) {
               final exercises = state.session.exercises;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),

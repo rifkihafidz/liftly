@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liftly/core/constants/app_constants.dart';
 import 'package:liftly/core/constants/colors.dart';
@@ -273,15 +274,23 @@ class _ExerciseManagementPageState extends State<ExerciseManagementPage> {
         actions: [
           if (kDebugMode)
             IconButton(
-              icon: const Icon(Icons.print),
-              onPressed: () {
-                debugPrint('--- All Exercises & Variations ---');
+              icon: const Icon(Icons.copy),
+              onPressed: () async {
+                final buffer = StringBuffer();
+                buffer.writeln('--- All Exercises & Variations ---');
                 for (final ex in _exercises) {
-                  debugPrint('${ex['name']} - ${ex['variation']}');
+                  buffer.writeln('${ex['name']} - ${ex['variation']}');
                 }
-                debugPrint('----------------------------------');
+                buffer.writeln('----------------------------------');
+                
+                await Clipboard.setData(ClipboardData(text: buffer.toString()));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Copied to clipboard')),
+                  );
+                }
               },
-              tooltip: 'Print all exercises to console',
+              tooltip: 'Copy exercises to clipboard',
             ),
         ],
       ),
