@@ -393,6 +393,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
         return _ExerciseEditDialog(
           initialExercise: initialExercise,
           exerciseIndex: exerciseIndex,
+          totalExercises: _editedWorkout.exercises.length,
           histories: history,
           pr: pr,
           onSave: (updatedExercise) {
@@ -815,6 +816,7 @@ class _WorkoutEditPageState extends State<WorkoutEditPage> {
 class _ExerciseEditDialog extends StatefulWidget {
   final SessionExercise initialExercise;
   final int exerciseIndex;
+  final int? totalExercises;
   final List<WorkoutSession>? histories;
   final PersonalRecord? pr;
   final Function(SessionExercise) onSave;
@@ -825,6 +827,7 @@ class _ExerciseEditDialog extends StatefulWidget {
   const _ExerciseEditDialog({
     required this.initialExercise,
     required this.exerciseIndex,
+    this.totalExercises,
     this.histories,
     this.pr,
     required this.onSave,
@@ -1020,6 +1023,7 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
           SessionExerciseCard(
             exercise: _currentExercise,
             exerciseIndex: widget.exerciseIndex,
+            totalExercises: widget.totalExercises,
             histories: _histories,
             pr: _pr,
             isAlwaysExpanded: true,

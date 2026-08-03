@@ -509,6 +509,7 @@ class _SessionPageState extends State<SessionPage> {
                                           key: ValueKey('${exercise.id}_${exercise.name}_${exercise.variation}'),
                                           exercise: exercise,
                                           exerciseIndex: exIndex,
+                                          totalExercises: exercises.length,
                                           // History is keyed by variation
                                           histories: state.previousSessions[
                                               '${exercise.name}:${exercise.variation}'

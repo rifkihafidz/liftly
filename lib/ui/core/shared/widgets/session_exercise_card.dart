@@ -9,6 +9,7 @@ import 'package:liftly/ui/core/shared/widgets/workout_form_widgets.dart';
 class SessionExerciseCard extends StatefulWidget {
   final SessionExercise exercise;
   final int exerciseIndex;
+  final int? totalExercises;
   final List<WorkoutSession>? histories;
   final PersonalRecord? pr;
   final int? focusedSetIndex;
@@ -33,6 +34,7 @@ class SessionExerciseCard extends StatefulWidget {
     super.key,
     required this.exercise,
     required this.exerciseIndex,
+    this.totalExercises,
     this.histories,
     this.pr,
     this.focusedSetIndex,
@@ -271,6 +273,24 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> with Automati
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        widget.totalExercises != null 
+                            ? '${widget.exerciseIndex + 1}/${widget.totalExercises}'
+                            : '${widget.exerciseIndex + 1}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.accent,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                      ),
+                    ),
                     Flexible(
                       child: Text(
                         widget.exercise.name,
