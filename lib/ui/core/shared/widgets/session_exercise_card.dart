@@ -268,29 +268,30 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> with Automati
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  widget.totalExercises != null 
+                      ? '${widget.exerciseIndex + 1}/${widget.totalExercises}'
+                      : '${widget.exerciseIndex + 1}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                ),
+              ),
               GestureDetector(
                 onTap: widget.onEditName,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        widget.totalExercises != null 
-                            ? '${widget.exerciseIndex + 1}/${widget.totalExercises}'
-                            : '${widget.exerciseIndex + 1}',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.accent,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
-                      ),
-                    ),
                     Flexible(
                       child: Text(
                         widget.exercise.name,
@@ -306,10 +307,13 @@ class _SessionExerciseCardState extends State<SessionExerciseCard> with Automati
                     ),
                     if (widget.onEditName != null) ...[
                       const SizedBox(width: 4),
-                      Icon(
-                        Icons.edit_rounded,
-                        size: 12,
-                        color: AppColors.textSecondary.withValues(alpha: 0.45),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Icon(
+                          Icons.edit_rounded,
+                          size: 12,
+                          color: AppColors.textSecondary.withValues(alpha: 0.45),
+                        ),
                       ),
                     ],
                   ],
