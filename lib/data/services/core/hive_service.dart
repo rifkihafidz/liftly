@@ -161,9 +161,9 @@ class HiveService {
       {String? userId, String? exerciseName, String? exerciseVariation}) {
     if (userId != null && exerciseName != null) {
       final variation = exerciseVariation ?? '';
-      final key =
+      final prefix =
           '$userId:${exerciseName.toLowerCase()}:${variation.toLowerCase()}';
-      _lastExerciseLogCache.remove(key);
+      _lastExerciseLogCache.removeWhere((key, _) => key.startsWith(prefix));
     } else if (userId != null) {
       _lastExerciseLogCache.removeWhere((key, _) => key.startsWith('$userId:'));
     } else {

@@ -32,7 +32,7 @@ class SessionExerciseHistorySheet extends StatefulWidget {
 
 class _SessionExerciseHistorySheetState
     extends State<SessionExerciseHistorySheet> {
-  late final List<(WorkoutSession, SessionExercise, int, int)> _validHistories;
+  late List<(WorkoutSession, SessionExercise, int, int)> _validHistories;
   List<ExerciseSet>? _bestSets;
   String? _bestSessionDate;
   double _bestSessionVol = 0;
@@ -42,6 +42,17 @@ class _SessionExerciseHistorySheetState
   void initState() {
     super.initState();
     _calculateHistories();
+  }
+
+  @override
+  void didUpdateWidget(SessionExerciseHistorySheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.histories != oldWidget.histories ||
+        widget.pr != oldWidget.pr) {
+      setState(() {
+        _calculateHistories();
+      });
+    }
   }
 
   void _calculateHistories() {

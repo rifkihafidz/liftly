@@ -37,6 +37,7 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     on<SessionNotesUpdated>(_onSessionNotesUpdated);
     on<SessionDiscarded>(_onSessionDiscarded);
     on<SessionExercisesReordered>(_onExercisesReordered);
+    on<SessionHistoryRefreshRequested>(_onHistoryRefreshRequested);
   }
 
   Future<void> _onSessionStarted(
@@ -884,5 +885,53 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
 
       return updatedExercises;
     });
+  }
+
+  Future<void> _onHistoryRefreshRequested(
+    SessionHistoryRefreshRequested event,
+    Emitter<SessionState> emit,
+  ) async {
+    if (state is! SessionInProgress) return;
+    final currentState = state as SessionInProgress;
+
+    try {
+      final name = event.exerciseName;
+      final variation = event.exerciseVariation;
+      final statsKey = '$name:$variation'.toLowerCase();
+
+      final logs = await _workoutRepository.getLatestExerciseLogs(
+        userId: event.userId,
+        exerciseName: name,
+        exerciseVariation: variation,
+      );
+
+      final pr = await _workoutRepository.getExercisePR(
+        userId: event.userId,
+        exerciseName: name,
+        exerciseVariation: variation,
+      );
+
+      final updatedPreviousSessions = Map<String, List<WorkoutSession>>.from(currentState.previousSessions);
+      if (logs.isNotEmpty) {
+        updatedPreviousSessions[statsKey] = logs;
+      } else {
+        updatedPreviousSessions.remove(statsKey);
+      }
+
+      final updatedExercisePRs = Map<String, PersonalRecord>.from(currentState.exercisePRs);
+      if (pr != null) {
+        updatedExercisePRs[statsKey] = pr;
+      } else {
+        updatedExercisePRs.remove(statsKey);
+      }
+
+      emit(currentState.copyWith(
+        previousSessions: updatedPreviousSessions,
+        exercisePRs: updatedExercisePRs,
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+      ));
+    } catch (e) {
+      // Ignore errors for refresh
+    }
   }
 }

@@ -7,7 +7,6 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:liftly/core/constants/colors.dart';
 import 'package:liftly/core/utils/app_formatters.dart';
 import 'package:liftly/domain/models/workout_session.dart';
-import 'package:liftly/domain/models/personal_record.dart';
 import 'package:liftly/ui/core/shared/widgets/app_dialogs.dart';
 import 'package:liftly/ui/core/shared/widgets/workout_form_widgets.dart';
 import 'package:liftly/ui/core/shared/widgets/session_exercise_card.dart';
@@ -506,7 +505,8 @@ class _SessionPageState extends State<SessionPage> {
                                       RepaintBoundary(
                                         key: _getKeyForExercise(exIndex),
                                         child: SessionExerciseCard(
-                                          key: ValueKey('${exercise.id}_${exercise.name}_${exercise.variation}'),
+                                          key: ValueKey(
+                                              '${exercise.id}_${exercise.name}_${exercise.variation}'),
                                           exercise: exercise,
                                           exerciseIndex: exIndex,
                                           totalExercises: exercises.length,
@@ -540,22 +540,20 @@ class _SessionPageState extends State<SessionPage> {
                                               context,
                                               exercise.name,
                                               exercise.variation,
-                                              state.previousSessions[
-                                                  '${exercise.name}:${exercise.variation}'
-                                                      .toLowerCase()],
-                                              state.exercisePRs[
-                                                  '${exercise.name}:${exercise.variation}'
-                                                      .toLowerCase()],
                                               exIndex + 1,
                                               exercises.length,
-                                              exercises.map((e) => e.name).toList(),
+                                              exercises
+                                                  .map((e) => e.name)
+                                                  .toList(),
                                             );
                                           },
                                           onCopyTap: () {
-                                            _copyExerciseProgress(context, session, exIndex);
+                                            _copyExerciseProgress(
+                                                context, session, exIndex);
                                           },
                                           onCopySetTap: (setIndex) {
-                                            _copyExerciseProgress(context, session, exIndex);
+                                            _copyExerciseProgress(
+                                                context, session, exIndex);
                                           },
                                           onEditVariation: () =>
                                               _showEditNameDialog(
@@ -721,12 +719,22 @@ class _SessionPageState extends State<SessionPage> {
     BuildContext context,
     String exerciseName,
     String exerciseVariation,
-    List<WorkoutSession>? histories,
-    PersonalRecord? pr,
     int currentOrder,
     int totalCurrentExercises,
     List<String> currentSessionExercises,
   ) {
+    final sessionBloc = context.read<SessionBloc>();
+    final currentState = sessionBloc.state;
+    if (currentState is SessionInProgress) {
+      sessionBloc.add(
+        SessionHistoryRefreshRequested(
+          exerciseName: exerciseName,
+          exerciseVariation: exerciseVariation,
+          userId: currentState.session.userId,
+        ),
+      );
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -734,65 +742,80 @@ class _SessionPageState extends State<SessionPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => SessionExerciseHistorySheet(
-        exerciseName: exerciseName,
-        exerciseVariation: exerciseVariation,
-        histories: histories,
-        pr: pr,
-        currentOrder: currentOrder,
-        totalCurrentExercises: totalCurrentExercises,
-        currentSessionExercises: currentSessionExercises,
+      builder: (context) => BlocBuilder<SessionBloc, SessionState>(
+        bloc: sessionBloc,
+        builder: (context, state) {
+          if (state is SessionInProgress) {
+            final statsKey = '$exerciseName:$exerciseVariation'.toLowerCase();
+            return SessionExerciseHistorySheet(
+              exerciseName: exerciseName,
+              exerciseVariation: exerciseVariation,
+              histories: state.previousSessions[statsKey],
+              pr: state.exercisePRs[statsKey],
+              currentOrder: currentOrder,
+              totalCurrentExercises: totalCurrentExercises,
+              currentSessionExercises: currentSessionExercises,
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
 
-  Future<void> _copyExerciseProgress(BuildContext context, WorkoutSession session, int exerciseIndex) async {
+  Future<void> _copyExerciseProgress(
+      BuildContext context, WorkoutSession session, int exerciseIndex) async {
     final exercise = session.exercises[exerciseIndex];
     final date = session.startedAt ?? session.workoutDate;
     final fullDateStr = DateFormat('EEEE, d MMMM yyyy HH.mm').format(date);
-    
-    final planStr = session.planName != null && session.planName!.isNotEmpty ? ' (${session.planName})' : '';
-    
+
+    final planStr = session.planName != null && session.planName!.isNotEmpty
+        ? ' (${session.planName})'
+        : '';
+
     final StringBuffer sb = StringBuffer();
     sb.writeln('$fullDateStr$planStr');
     if (session.notes.isNotEmpty) {
       sb.writeln('Session Note: ${session.notes}');
     }
     sb.writeln('Order: ${exerciseIndex + 1}/${session.exercises.length}');
-    
+
     final exerciseNames = session.exercises.map((e) => e.name).join(', ');
     sb.writeln('Exercises: $exerciseNames');
-    
+
     sb.writeln(); // Empty line before current exercise
-    
-    final variationStr = exercise.variation.isNotEmpty ? ' (${exercise.variation})' : '';
+
+    final variationStr =
+        exercise.variation.isNotEmpty ? ' (${exercise.variation})' : '';
     sb.writeln('Current Exercise: ${exercise.name}$variationStr');
-    
+
     if (exercise.notes.isNotEmpty) {
       sb.writeln('Exercise Note: ${exercise.notes}');
     }
-    
+
     sb.writeln(); // Empty line
-    
+
     for (int i = 0; i < exercise.sets.length; i++) {
       final set = exercise.sets[i];
       for (int j = 0; j < set.segments.length; j++) {
         final seg = set.segments[j];
-        final repsStr = seg.repsFrom == seg.repsTo ? '${seg.repsTo}' : '${seg.repsFrom}-${seg.repsTo}';
+        final repsStr = seg.repsFrom == seg.repsTo
+            ? '${seg.repsTo}'
+            : '${seg.repsFrom}-${seg.repsTo}';
         final weightStr = AppFormatters.weightFormatter.format(seg.weight);
-        
+
         String noteStr = seg.notes.trim();
         if (noteStr.isNotEmpty) {
-           noteStr = ' ($noteStr)';
+          noteStr = ' ($noteStr)';
         }
-        
+
         final prefix = j == 0 ? 'Set ${set.setNumber}' : 'Drop Set';
         sb.writeln('$prefix ${weightStr}kg x $repsStr$noteStr');
       }
     }
 
     await Clipboard.setData(ClipboardData(text: sb.toString().trimRight()));
-    
+
     if (context.mounted) {
       final overlay = Overlay.of(context);
       late OverlayEntry entry;

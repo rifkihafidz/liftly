@@ -266,3 +266,18 @@ class SessionExercisesReordered extends SessionEvent {
   List<Object?> get props => [oldIndex, newIndex];
 }
 
+class SessionHistoryRefreshRequested extends SessionEvent {
+  final String exerciseName;
+  final String exerciseVariation;
+  final String userId;
+
+  const SessionHistoryRefreshRequested({
+    required this.exerciseName,
+    required this.exerciseVariation,
+    required this.userId,
+  });
+
+  @override
+  List<Object?> get props => [exerciseName, exerciseVariation, userId];
+}
+
